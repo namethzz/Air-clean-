@@ -35,7 +35,7 @@ else:
 suffix = uuid.uuid4().hex
 
 def account(role):
-    return call('/auth/register', 'POST', {'fullName': 'ทดสอบ ' + role, 'email': role + suffix + '@example.test', 'password': 'CiTestPass123!', 'role': role}, expected=201)['token']
+    return call('/auth/register', 'POST', {'fullName': 'ทดสอบ ' + role, 'email': role + uuid.uuid4().hex + '@example.test', 'password': 'CiTestPass123!', 'role': role}, expected=201)['token']
 
 customer = account('Customer')
 other_customer = account('customer')
