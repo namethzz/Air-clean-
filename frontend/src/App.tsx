@@ -143,7 +143,8 @@ export default function App() {
       await updateTechnicianLocation(id,{latitude,longitude,accuracy});
       setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?{...item,technicianLatitude:latitude,technicianLongitude:longitude,locationAccuracy:accuracy,locationUpdatedAt:new Date().toISOString()}:item)}));
       setApiConnected(true);
-    }catch(error){showNotice(errorMessage(error,'อัปเดตตำแหน่งไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ตำแหน่ง'));}
+      return true;
+    }catch{ return false; }
   },[showNotice]);
   const paymentConfirm=useCallback(async(id:number,method:PaymentMethod)=>{
     try{
