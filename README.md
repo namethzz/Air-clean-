@@ -49,7 +49,7 @@ If the API address is missing or the server is unreachable, the interface report
 
 ## Adding live data
 
-The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. Add technician profiles, service details and air-conditioner records through a controlled backend/database workflow. Never expose database credentials in the frontend.
+The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. If a technician account has no profile, the API creates a basic unverified profile when the technician first opens nearby jobs. It starts with a default base price of ฿550 and an unspecified service area; update these values through the controlled backend/database workflow before public use. Never expose database credentials in the frontend.
 
 Disabling the seeder prevents new demo records from being created in production, but does not automatically delete records already stored in MongoDB. Back up the database first, then remove old demo records manually or use a fresh production database before opening the site to customers.
 
