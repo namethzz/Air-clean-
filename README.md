@@ -45,6 +45,8 @@ For the Render Static Site:
 - Publish directory: dist
 - Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
 
+The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
+
 If the API address is missing or the server is unreachable, the interface reports the problem rather than showing sample data.
 
 ## Adding live data
@@ -68,3 +70,7 @@ Disabling the seeder prevents new demo records from being created in production,
 Backend: configure MongoDB and JWT settings, then run dotnet restore and dotnet run from backend/AirCare.Api.
 
 Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, then run npm run dev.
+
+## Automated validation
+
+GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.

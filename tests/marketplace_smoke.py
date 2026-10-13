@@ -87,4 +87,16 @@ for interested in [False, True]:
         call(f"/bookings/{row['id']}/applications", 'POST', {}, tech)
     call(f"/bookings/{row['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, customer, 204)
     assert call(f"/bookings/{row['id']}", token=customer)['status'] == 'ยกเลิก'
+# Two overlapping proposals must not silently discard an applicant.
+row = call('/bookings', 'POST', payload, customer, 201)
+other_profile = call('/technicians/me', token=other_tech)
+def concurrent_apply(token):
+    try:
+        call(f"/bookings/{row['id']}/applications", 'POST', {}, token)
+    except AssertionError as error:
+        assert 'got 409:' in str(error), str(error)
+        call(f"/bookings/{row['id']}/applications", 'POST', {}, token)
+with ThreadPoolExecutor(max_workers=2) as pool:
+    list(pool.map(concurrent_apply, [tech, other_tech]))
+assert len(call(f"/bookings/{row['id']}", token=customer)['applicants']) == 2
 print('Marketplace API checks passed: privacy, ownership, quotes, status, payment and cancellation.')
