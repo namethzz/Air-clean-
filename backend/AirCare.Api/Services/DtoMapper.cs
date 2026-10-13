@@ -10,9 +10,18 @@ public static class DtoMapper {
   var reason=inArea?"อยู่ในพื้นที่ที่เลือก · โปรไฟล์ผ่านการตรวจสอบ":p.BasePrice<=500?"ราคาเริ่มต้นเหมาะสม · มีทักษะตรงกับงาน":"คะแนนรีวิวดี · มีประวัติงานบริการ";
   return new(p.Id,p.Name,Initials(p.Name),p.Title,p.Rating,p.ReviewCount,p.JobsCompleted,p.BasePrice,p.Area,p.IsVerified,p.AvailableText,p.SkillsCsv.Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries),p.Accent,score,reason);
  }
- public static string DisplayStatus(string s)=>s switch {BookingStates.Pending=>"รอยืนยัน",BookingStates.Confirmed=>"ยืนยันแล้ว",BookingStates.InProgress=>"กำลังดำเนินการ",BookingStates.Completed=>"เสร็จสิ้น",BookingStates.Cancelled=>"ยกเลิก",_=>s};
- public static string NormalizeStatus(string s)=>s.Trim().ToLowerInvariant() switch {"รอยืนยัน" or "pending"=>BookingStates.Pending,"ยืนยันแล้ว" or "confirmed"=>BookingStates.Confirmed,"กำลังดำเนินการ" or "inprogress" or "in progress"=>BookingStates.InProgress,"เสร็จสิ้น" or "completed"=>BookingStates.Completed,"ยกเลิก" or "cancelled" or "canceled"=>BookingStates.Cancelled,_=>""};
- public static BookingDto ToDto(Booking b) {var d=b.ScheduledAt;return new(b.Id,b.Code,b.CustomerName,b.TechnicianId,b.TechnicianName,b.TechnicianInitials,b.Service,b.UnitLabel,b.Address,d.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),d.ToString("HH:mm",CultureInfo.InvariantCulture),b.Price,DisplayStatus(b.Status),b.CreatedAt.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture));}
+ public static string DisplayStatus(string s)=>s switch {
+ BookingStates.Pending=>"รอยืนยัน",BookingStates.Confirmed=>"ยืนยันแล้ว",BookingStates.Traveling=>"กำลังเดินทาง",
+ BookingStates.Arrived=>"ถึงหน้างาน",BookingStates.InProgress=>"กำลังดำเนินการ",BookingStates.AwaitingPayment=>"รอชำระเงิน",
+ BookingStates.PaymentIssue=>"มีปัญหาการชำระเงิน",BookingStates.Completed=>"เสร็จสิ้น",BookingStates.Cancelled=>"ยกเลิก",_=>s};
+ public static string NormalizeStatus(string s)=>s.Trim().ToLowerInvariant() switch {
+ "รอยืนยัน" or "pending"=>BookingStates.Pending,"ยืนยันแล้ว" or "confirmed"=>BookingStates.Confirmed,
+ "กำลังเดินทาง" or "traveling"=>BookingStates.Traveling,"ถึงหน้างาน" or "arrived"=>BookingStates.Arrived,
+ "กำลังดำเนินการ" or "inprogress" or "in progress"=>BookingStates.InProgress,
+ "รอชำระเงิน" or "awaitingpayment" or "awaiting payment"=>BookingStates.AwaitingPayment,
+ "มีปัญหาการชำระเงิน" or "paymentissue" or "payment issue"=>BookingStates.PaymentIssue,
+ "เสร็จสิ้น" or "completed"=>BookingStates.Completed,"ยกเลิก" or "cancelled" or "canceled"=>BookingStates.Cancelled,_=>""};
+ public static BookingDto ToDto(Booking b) {var d=b.ScheduledAt;return new(b.Id,b.Code,b.CustomerName,b.TechnicianId,b.TechnicianName,b.TechnicianInitials,b.Service,b.UnitLabel,b.Address,d.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),d.ToString("HH:mm",CultureInfo.InvariantCulture),b.Price,DisplayStatus(b.Status),b.CreatedAt.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),b.Latitude,b.Longitude,b.TechnicianLatitude,b.TechnicianLongitude,b.LocationAccuracy,b.LocationUpdatedAt?.ToString("O",CultureInfo.InvariantCulture),b.TravelStatus,b.PaymentMethod,b.PaymentStatus,b.CustomerConfirmedPayment,b.TechnicianConfirmedPayment);}
  public static AirConditionerDto ToDto(AirConditioner u)=>new(u.Id,u.Label,u.Room,u.Brand,u.Model,u.Type,u.LastServiceDate?.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture)??"",u.NextServiceDate?.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture)??"",u.Health,u.SerialNumber,u.Services.OrderByDescending(s=>s.Date).Select(s=>new ServiceRecordDto(s.Id,s.Date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),s.TechnicianName,s.Service,s.Price,s.Summary,DtoMapper.DisplayStatus(s.Status))).ToList());
  public static BatchBookingDto ToDto(BatchBooking b)=>new(b.Id,b.Code,b.BuildingName,b.Address,b.UnitCount,b.CompletedUnits,b.ScheduledDate.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),b.Status switch {"Confirmed"=>"ยืนยันแล้ว","InProgress"=>"กำลังดำเนินการ","Completed"=>"เสร็จสิ้น","Cancelled"=>"ยกเลิก",_=>"รอช่างเสนอราคา"},b.Quote);
 }
