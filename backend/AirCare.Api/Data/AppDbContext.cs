@@ -1,0 +1,7 @@
+using AirCare.Api.Models;
+using Microsoft.EntityFrameworkCore;
+namespace AirCare.Api.Data;
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options) {
+ public DbSet<AppUser> Users=>Set<AppUser>(); public DbSet<TechnicianProfile> Technicians=>Set<TechnicianProfile>(); public DbSet<AirConditioner> AirConditioners=>Set<AirConditioner>(); public DbSet<ServiceRecord> ServiceRecords=>Set<ServiceRecord>(); public DbSet<Booking> Bookings=>Set<Booking>(); public DbSet<BookingEvent> BookingEvents=>Set<BookingEvent>(); public DbSet<BatchBooking> BatchBookings=>Set<BatchBooking>(); public DbSet<ServiceReport> ServiceReports=>Set<ServiceReport>(); public DbSet<Review> Reviews=>Set<Review>();
+ protected override void OnModelCreating(ModelBuilder b) { base.OnModelCreating(b); b.Entity<AppUser>().HasIndex(x=>x.Email).IsUnique(); b.Entity<TechnicianProfile>().HasIndex(x=>x.UserId).IsUnique(); b.Entity<Review>().HasIndex(x=>new{x.BookingId,x.CustomerId}).IsUnique(); b.Entity<Booking>().HasMany(x=>x.Events).WithOne(x=>x.Booking).HasForeignKey(x=>x.BookingId).OnDelete(DeleteBehavior.Cascade); b.Entity<AirConditioner>().HasMany(x=>x.Services).WithOne(x=>x.AirConditioner).HasForeignKey(x=>x.AirConditionerId).OnDelete(DeleteBehavior.Cascade); }
+}
