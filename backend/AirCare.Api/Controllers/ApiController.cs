@@ -347,7 +347,6 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
-        var version = booking.UpdatedAt;
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
@@ -355,15 +354,16 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (booking.Status != BookingStates.Traveling)
             return Conflict(new { message = "แชร์ตำแหน่งได้เมื่อกดกำลังเดินทางเท่านั้น" });
 
-        booking.TechnicianLatitude = request.Latitude;
-        booking.TechnicianLongitude = request.Longitude;
-        booking.LocationAccuracy = request.Accuracy;
-        booking.LocationUpdatedAt = DateTime.UtcNow;
-        booking.TravelStatus = "EnRoute";
-        booking.UpdatedAt = DateTime.UtcNow;
-        var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
+        var updatedAt = DateTime.UtcNow;
+        var update = Builders<Booking>.Update
+            .Set(x => x.TechnicianLatitude, request.Latitude)
+            .Set(x => x.TechnicianLongitude, request.Longitude)
+            .Set(x => x.LocationAccuracy, request.Accuracy)
+            .Set(x => x.LocationUpdatedAt, updatedAt);
+        // Match the active journey atomically: a late GPS packet must never reopen an arrived job.
+        var write = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.Status == BookingStates.Traveling && x.TechnicianId == booking.TechnicianId, update);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
-        return Ok(new { updated = true, locationUpdatedAt = booking.LocationUpdatedAt });
+        return Ok(new { updated = true, locationUpdatedAt = updatedAt });
     }
 
     [Authorize(Roles = "Technician,Admin"), HttpPost("bookings/{id:int}/service-complete")]

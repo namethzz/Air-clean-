@@ -72,10 +72,22 @@ assert confirmed['price'] == 1200 and confirmed['status'] == 'ยืนยัน
 assert call(f'/bookings/{id}', token=tech)['address'] == 'PRIVATE-HOUSE-123'
 call(f'/bookings/{id}/applications', 'POST', {}, other_tech, 409)
 call(f'/bookings/{id}/status', 'PATCH', {'status': 'เสร็จสิ้น'}, tech, 409)
+call(f'/bookings/{id}/location', 'POST', {'latitude': 13.75, 'longitude': 100.50}, tech, 409)
 for status in ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน']:
     call(f'/bookings/{id}/status', 'PATCH', {'status': status}, tech, 204)
     if status == 'กำลังเดินทาง':
-        call(f'/bookings/{id}/location', 'POST', {'latitude': 13.75, 'longitude': 100.50, 'accuracy': 10}, tech)
+        coords = {'latitude': 13.75, 'longitude': 100.50, 'accuracy': 10}
+        call(f'/bookings/{id}/location', 'POST', coords, customer, 403)
+        call(f'/bookings/{id}/location', 'POST', coords, other_tech, 403)
+        call(f'/bookings/{id}/tracking', token=other_customer, expected=403)
+        call(f'/bookings/{id}/tracking', token=other_tech, expected=403)
+        call(f'/bookings/{id}/location', 'POST', {**coords, 'latitude': 91}, tech, 400)
+        call(f'/bookings/{id}/location', 'POST', coords, tech)
+        tracked = call(f'/bookings/{id}/tracking', token=customer)
+        assert tracked['technicianLatitude'] == coords['latitude'] and tracked['locationUpdatedAt']
+    if status == 'ถึงหน้างาน':
+        call(f'/bookings/{id}/location', 'POST', {'latitude': 13.76, 'longitude': 100.51}, tech, 409)
+        assert call(f'/bookings/{id}/tracking', token=customer)['status'] == 'ถึงหน้างาน'
 call(f'/bookings/{id}/payment-confirmation', 'PATCH', {'method': 'Cash', 'confirmed': True}, customer)
 call(f'/bookings/{id}/payment-confirmation', 'PATCH', {'method': 'PromptPay', 'confirmed': True}, tech, 409)
 finished = call(f'/bookings/{id}/payment-confirmation', 'PATCH', {'method': 'Cash', 'confirmed': True}, tech)
