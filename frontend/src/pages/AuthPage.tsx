@@ -27,8 +27,8 @@ export default function AuthPage({onAuthenticated,initialError=''}:Props) {
     finally { setLoading(false); }
   }
   return <main className="auth-screen">
-    <section className="auth-visual" aria-label="AirCare Connect">
-      <div className="auth-brand"><span className="auth-brand-icon"><Wind size={24}/></span><span>AirCare <b>Connect</b></span></div>
+    <section className="auth-visual" aria-label="AirClean">
+      <div className="auth-brand"><span className="auth-brand-icon"><Wind size={24}/></span><span>AirClean</span></div>
       <div className="auth-visual-copy">
         <span className="auth-overline">ดูแลแอร์ เป็นเรื่องง่าย</span>
         <h1>ทุกการนัดหมาย<br/>เป็นระเบียบในที่เดียว</h1>
@@ -36,13 +36,13 @@ export default function AuthPage({onAuthenticated,initialError=''}:Props) {
         <div className="auth-benefit"><CheckCircle2 size={17}/><span>เห็นสถานะงานและรายละเอียดนัดหมายชัดเจน</span></div>
         <div className="auth-benefit"><CheckCircle2 size={17}/><span>ใช้ได้บนมือถือ แท็บเล็ต และคอมพิวเตอร์</span></div>
       </div>
-      <div className="auth-visual-footer">AIRCARE CONNECT · HOME SERVICE WORKSPACE</div>
+      <div className="auth-visual-footer">AIRCLEAN · HOME SERVICE WORKSPACE</div>
     </section>
     <section className="auth-panel-wrap">
       <div className="auth-panel">
         <div className="auth-mobile-brand"><span className="auth-brand-icon"><Wind size={22}/></span><span>AirCare <b>Connect</b></span></div>
         <div className="auth-heading">
-          <span className="auth-eyebrow">{mode==='login'?'ยินดีต้อนรับกลับ':'เริ่มใช้งาน AirCare'}</span>
+          <span className="auth-eyebrow">{mode==='login'?'ยินดีต้อนรับกลับ':'เริ่มใช้งาน AirClean'}</span>
           <h2>{mode==='login'?'เข้าสู่ระบบ':'สร้างบัญชี'}</h2>
           <p>{mode==='login'?'เข้าสู่ระบบเพื่อดูการจองและติดตามบริการของคุณ':'สมัครบัญชีเพื่อเริ่มจองบริการและเก็บประวัติงาน'}</p>
         </div>
@@ -65,7 +65,7 @@ export default function AuthPage({onAuthenticated,initialError=''}:Props) {
         </form>
         {mode==='register' && <p className="auth-registration-note">สามารถสมัครเป็นลูกค้า ช่างแอร์ หรือผู้ดูแลอาคารได้ แต่บัญชีผู้ดูแลระบบ (Admin) สร้างหรือกำหนดสิทธิ์ผ่านหลังบ้านเท่านั้น</p>}
         <div className="auth-security-note"><LockKeyhole size={15}/><span>ข้อมูลบัญชีจะถูกตรวจสอบกับระบบจริง ไม่มีบัญชีตัวอย่างให้เลือก</span></div>
-        <p className="auth-copyright">© 2026 AirCare Connect</p>
+        <p className="auth-copyright">© 2026 AirClean</p>
       </div>
     </section>
   </main>;
