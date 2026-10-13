@@ -32,21 +32,21 @@ export default function ProfilePage({ user, onUpdated }: Props) {
 
   return <div className="page-stack">
     <div className="page-heading-row">
-      <div><div className="eyebrow">ACCOUNT SETTINGS</div><h1>โปรไฟล์ของฉัน</h1><p className="page-subtitle">จัดการชื่อและอีเมลที่ใช้ติดต่อ พร้อมตรวจสอบบทบาทของบัญชี</p></div>
+      <div><div className="eyebrow">ACCOUNT SETTINGS</div><h1>โปรไฟล์ของฉัน</h1><p className="page-subtitle">จัดการชื่อและอีเมลที่ใช้ติดต่อ โดยบทบาทบัญชีไม่สามารถเปลี่ยนจากหน้านี้ได้</p></div>
     </div>
     <div className="profile-layout">
       <section className="panel profile-summary-panel">
         <div className="profile-avatar-large"><UserRound size={32}/></div>
         <h2>{user.fullName}</h2><p>{user.email}</p>
         <span className="profile-role-pill"><ShieldCheck size={15}/>{roleLabels[user.role]}</span>
-        <div className="profile-summary-note">บทบาทของบัญชีแสดงตามข้อมูลในระบบ ไม่สามารถยกระดับเป็น Admin จากหน้าโปรไฟล์ได้</div>
+        <div className="profile-summary-note">บทบาทจะถูกกำหนดเมื่อสร้างบัญชี และไม่สามารถเปลี่ยนเองได้จากหน้าโปรไฟล์ หากจำเป็นต้องแก้ไข ให้ติดต่อผู้ดูแลระบบ</div>
       </section>
       <section className="panel profile-form-panel">
         <div className="panel-heading"><div><h2>ข้อมูลส่วนตัว</h2><p>การเปลี่ยนแปลงจะบันทึกลงฐานข้อมูลของระบบ</p></div></div>
         <form className="profile-form" onSubmit={submit}>
           <label className="form-field"><span>ชื่อที่ใช้ติดต่อ</span><div className="profile-input-wrap"><UserRound size={17}/><input value={fullName} onChange={e=>setFullName(e.target.value)} minLength={2} maxLength={120} required/></div></label>
           <label className="form-field"><span>อีเมล</span><div className="profile-input-wrap"><Mail size={17}/><input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} maxLength={254} required/></div></label>
-          <label className="form-field"><span>บทบาท</span><input value={roleLabels[user.role]} readOnly aria-readonly="true"/></label>
+          <label className="form-field"><span>บทบาทบัญชี (กำหนดตอนสมัคร)</span><input value={roleLabels[user.role]} readOnly aria-readonly="true"/></label>
           {error && <div className="auth-error" role="alert">{error}</div>}
           {saved && <div className="profile-saved" role="status"><CheckCircle2 size={17}/>บันทึกโปรไฟล์เรียบร้อยแล้ว</div>}
           <button className="primary-button" type="submit" disabled={saving || !fullName.trim() || !email.trim()}><Save size={16}/>{saving?'กำลังบันทึก...':'บันทึกการเปลี่ยนแปลง'}</button>
