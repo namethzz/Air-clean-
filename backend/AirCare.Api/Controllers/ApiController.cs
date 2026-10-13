@@ -69,6 +69,31 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
     }
 
+    [Authorize(Roles = "Technician"), HttpGet("technicians/me")]
+    public async Task<IActionResult> MyTechnicianProfile()
+    {
+        var profile = await EnsureCurrentTechnicianProfileAsync();
+        return profile is null ? NotFound() : Ok(DtoMapper.ToDto(profile));
+    }
+
+    [Authorize(Roles = "Technician"), HttpPatch("technicians/me")]
+    public async Task<IActionResult> UpdateTechnicianProfile(UpdateTechnicianProfileRequest request)
+    {
+        var profile = await EnsureCurrentTechnicianProfileAsync();
+        if (profile is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Area)
+            || string.IsNullOrWhiteSpace(request.AvailableText) || string.IsNullOrWhiteSpace(request.Skills))
+            return BadRequest(new { message = "กรุณากรอกข้อมูลบริการให้ครบ" });
+        // Update only editable fields; verification, reviews and job totals remain system-managed.
+        var update = Builders<TechnicianProfile>.Update
+            .Set(x => x.Title, request.Title.Trim()).Set(x => x.Area, request.Area.Trim())
+            .Set(x => x.BasePrice, request.BasePrice).Set(x => x.AvailableText, request.AvailableText.Trim())
+            .Set(x => x.SkillsCsv, string.Join(",", request.Skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Distinct()));
+        var saved = await store.Technicians.FindOneAndUpdateAsync(x => x.Id == profile.Id && x.UserId == CurrentUserId,
+            update, new FindOneAndUpdateOptions<TechnicianProfile> { ReturnDocument = ReturnDocument.After });
+        return saved is null ? NotFound() : Ok(DtoMapper.ToDto(saved));
+    }
+
     [AllowAnonymous, HttpGet("technicians")]
     public async Task<IActionResult> Technicians([FromQuery] string? area, [FromQuery] string? service, [FromQuery] string? q)
     {

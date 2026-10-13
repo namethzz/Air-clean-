@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
+import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
 import { updateMyProfile } from '../lib/api';
 
 interface Props {
@@ -53,5 +54,6 @@ export default function ProfilePage({ user, onUpdated }: Props) {
         </form>
       </section>
     </div>
+    {user.role === 'technician' && <TechnicianProfileSettings/>}
   </div>;
 }
