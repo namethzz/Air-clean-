@@ -1,59 +1,94 @@
-# AirCare Connect — V.1
+# AirCare Connect — V.2
 
-Minimal-premium air-conditioner cleaning marketplace for customers, independent technicians, and building managers.
+A minimal-premium air-conditioner cleaning marketplace built for a Software Development portfolio. It focuses on fast booking, technician matching, live GPS sharing during a trip, and an explicit onsite-payment handoff.
 
 ## Stack
-- Frontend: React + TypeScript + Vite
+- Frontend: React 18 + TypeScript + Vite
+- Interactive map: Leaflet + OpenStreetMap
 - Backend: ASP.NET Core 8 Web API
 - Database: MongoDB Atlas via MongoDB.Driver
 - Authentication: JWT bearer tokens and hashed passwords
-- Deployment: Render Docker Web Service
+- Deployment: Render Docker Web Service + Render Static Site
 
-## Core features
-- Technician discovery with transparent, rule-based match scoring
-- Booking workflow and status history
-- Aircon Passport (per-unit service history)
-- Batch cleaning requests for apartments and buildings
-- Service reports and customer reviews
-- Customer, Technician, Building Manager, and Admin roles
+## V.2 user flows
 
-## Deploy backend to Render + MongoDB Atlas
-1. Create a MongoDB Atlas cluster and a **database user**.
-2. Add Atlas Network Access for the Render service. For a small portfolio demo, Atlas may require an access-list entry that allows connections from Render; using `0.0.0.0/0` is broad access, so use a strong database password and restrict access again when possible.
-3. Copy the Atlas application connection string. Replace the placeholders and URL-encode special characters in the username/password if needed.
-4. In Render, create a Blueprint from this repository so it reads `render.yaml`, or create a Docker Web Service pointing to `backend/AirCare.Api/Dockerfile` with Docker context `backend/AirCare.Api`.
-5. Set `MONGODB_URI` to the Atlas connection string, `MONGODB_DATABASE=aircareconnect`, and a strong `JWT_KEY` (Render can generate it). Keep `SEED_DEMO_DATA=true` only while using the portfolio demo data.
-6. After the first successful deploy, visit `https://YOUR-SERVICE.onrender.com/health`; it should return `{"status":"healthy",...}`.
+### Customer
+- Pick the service address on a map, use current location (permission required), edit house number/building/floor/room and access notes.
+- Save frequently used addresses in browser local storage.
+- Compare technicians, create a booking with coordinates, and follow the booking status.
+- View the technician's most recently reported location while the technician is actively travelling.
+- Select cash or PromptPay at the service location and confirm payment; the technician must confirm receipt before the booking becomes Completed.
+- Report an onsite payment issue for admin follow-up.
 
-## Environment variables
+### Technician
+- Accept a booking and update the task lifecycle: Confirmed → Traveling → Arrived → InProgress → AwaitingPayment → Completed.
+- Open Google Maps directions to the customer's saved coordinates.
+- While the service page is open and location permission is granted, send GPS updates about every 8 seconds. The customer view refreshes approximately every 10 seconds.
+- Confirm receipt of onsite payment after the customer records payment.
 
-| Name | Required | Meaning |
+### Building Manager and Admin
+- Building managers use batch booking for multiple units.
+- Admin can access booking and payment-issue data; status and role access is enforced by API authorization.
+
+## Onsite payment scope and limitations
+
+The V.2 workflow records a confirmation from both customer and technician. It does not process a bank transfer, verify PromptPay transaction status, hold funds, refund automatically, or operate a withdrawable wallet. For the portfolio, only use test data and demonstrate both sides' confirmations. A real payment rollout requires a payment provider / bank integration, webhook verification, merchant onboarding, refund design, and legal/compliance review.
+
+## GPS privacy and limitations
+- Location sharing starts only while a technician's booking is in Traveling and the page is open with browser location permission enabled.
+- Sharing stops when the booking leaves the travelling state. If browser background restrictions, permissions or connectivity interrupt GPS, the UI shows the last update time instead of claiming continuous tracking.
+- The app shows the latest technician location on OpenStreetMap. It does not calculate traffic-aware ETA or draw a turn-by-turn route in-app. Technicians can open Google Maps for navigation.
+- Saved favourite addresses are stored in the browser's local storage, not synced between devices.
+
+## Core API routes
+
+| Method | Route | Purpose |
 |---|---|---|
-| `MONGODB_URI` | yes | Atlas connection URI; set only in Render Environment |
-| `MONGODB_DATABASE` | no | Database name, default `aircareconnect` |
-| `JWT_KEY` | production yes | Token signing secret, at least 32 bytes |
-| `FRONTEND_ORIGIN` | no | Comma-separated frontend origins allowed by CORS |
-| `SEED_DEMO_DATA` | no | Seed sample accounts; defaults off in production |
+| POST | /api/auth/login | Get JWT |
+| POST | /api/auth/register | Create customer account |
+| GET | /api/dashboard | Summary metrics |
+| GET | /api/technicians | Find / rank technicians |
+| GET, POST | /api/bookings | List / create bookings |
+| PATCH | /api/bookings/{id}/status | Booking lifecycle updates |
+| GET | /api/bookings/{id}/tracking | Booking tracking data |
+| POST | /api/bookings/{id}/location | Save technician GPS (assigned technician only) |
+| POST | /api/bookings/{id}/service-complete | Mark work ready for onsite payment |
+| PATCH | /api/bookings/{id}/payment-confirmation | Customer / technician onsite confirmation |
+| POST | /api/bookings/{id}/payment-issue | Report onsite payment issue |
+| GET | /api/air-conditioners | Aircon Passport list |
+| GET, POST | /api/batch-bookings | Building batch jobs |
+| GET, POST | /api/service-reports | Service reports |
+| POST | /api/bookings/{bookingId}/reviews | Review a completed booking |
+
+## Deploy Backend to Render + MongoDB Atlas
+
+1. Use an Atlas cluster you already have if it has enough free capacity; a separate database can be created inside the same cluster.
+2. Create a dedicated database user and permit the Render service's current outbound IP ranges in Atlas Network Access.
+3. Set MONGODB_URI, MONGODB_DATABASE=aircareconnect, JWT_KEY, SEED_DEMO_DATA, and FRONTEND_ORIGIN in Render Environment Variables. Never commit credentials.
+4. Render uses render.yaml and backend/AirCare.Api/Dockerfile; health check is /health.
+5. Test https://YOUR-API.onrender.com/health.
+
+## Deploy Frontend
+
+In the Render Static Site for frontend, set the build command to npm install && npm run build and the publish directory to dist. Set the build-time variable VITE_API_BASE_URL to https://YOUR-API.onrender.com/api.
+
+After the frontend URL is known, set backend FRONTEND_ORIGIN to that exact HTTPS origin and redeploy the API.
 
 ## Demo accounts
-If `SEED_DEMO_DATA=true`, seeded accounts use password `Aircare123!`:
-- Customer: `customer@aircare.demo`
-- Technician: `technician@aircare.demo`
-- Building manager: `manager@aircare.demo`
-- Admin: `admin@aircare.demo`
+If SEED_DEMO_DATA=true, the sample accounts use password Aircare123!:
+- Customer: customer@aircare.demo
+- Technician: technician@aircare.demo
+- Building manager: manager@aircare.demo
+- Admin: admin@aircare.demo
 
-These accounts only contain sample data. Do not expose real personal data or enable demo admin credentials on a production business service.
-
-## Frontend
-In `frontend/.env.local`, set:
-```
-VITE_API_BASE_URL=https://YOUR-SERVICE.onrender.com/api
-```
-Rebuild/redeploy the frontend after changing this value.
+These are sample-only accounts. Do not use the seeded admin credentials or demo records for a real service.
 
 ## Local run
-API: configure `MONGODB_URI`, then run `dotnet restore` and `dotnet run` from `backend/AirCare.Api`.
-Frontend: in `frontend`, run `npm install`, copy `.env.example` to `.env.local`, then `npm run dev`.
+API: configure MONGODB_URI, then run dotnet restore and dotnet run from backend/AirCare.Api.
 
-## Notes
-The match score is deterministic/rule-based, not machine learning. This is a portfolio V.1: online payments, real-time GPS, real photo storage, and production notification providers are not connected yet.
+Frontend: from frontend, run npm install, copy .env.example to .env.local, set the API base URL if needed, then run npm run dev.
+
+## Portfolio notes
+- Smart Match is deterministic, explainable rule-based ranking, not ML.
+- Map tiles use OpenStreetMap attribution.
+- Production payment verification, refunds, wallet withdrawals, photo storage, real-time push notifications, background GPS service, and traffic-aware ETA are not included in V.2.
