@@ -1,6 +1,8 @@
-export type PageKey = 'overview' | 'technicians' | 'bookings' | 'passport' | 'batch' | 'reports';
+export type PageKey = 'overview' | 'technicians' | 'bookings' | 'tracking' | 'passport' | 'batch' | 'reports';
 export type UserRole = 'customer' | 'technician' | 'manager' | 'admin';
-export type BookingStatus = 'รอยืนยัน' | 'ยืนยันแล้ว' | 'กำลังดำเนินการ' | 'เสร็จสิ้น' | 'ยกเลิก';
+export type BookingStatus = 'รอยืนยัน' | 'ยืนยันแล้ว' | 'กำลังเดินทาง' | 'ถึงหน้างาน' | 'กำลังดำเนินการ' | 'รอชำระเงิน' | 'มีปัญหาการชำระเงิน' | 'เสร็จสิ้น' | 'ยกเลิก';
+export type PaymentMethod = 'Cash' | 'PromptPay';
+export interface SavedAddress { id: string; label: string; placeType: 'บ้าน' | 'คอนโด' | 'หอพัก'; address: string; building?: string; floor?: string; room?: string; note?: string; latitude: number; longitude: number; }
 
 export interface Technician {
   id: number; name: string; initials: string; title: string; rating: number; reviewCount: number;
@@ -19,7 +21,7 @@ export interface AirConditioner {
 export interface Booking {
   id: number; code: string; customer: string; technicianId: number; technician: string; technicianInitials: string;
   service: string; unitLabel: string; address: string; date: string; time: string; price: number;
-  status: BookingStatus; createdAt: string;
+  status: BookingStatus; createdAt: string; latitude?: number | null; longitude?: number | null; technicianLatitude?: number | null; technicianLongitude?: number | null; locationAccuracy?: number | null; locationUpdatedAt?: string | null; travelStatus?: string; paymentMethod?: PaymentMethod | null; paymentStatus?: string; customerConfirmedPayment?: boolean; technicianConfirmedPayment?: boolean;
 }
 export interface BatchBooking {
   id: number; code: string; building: string; address: string; unitCount: number; completedUnits: number;
