@@ -185,8 +185,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return BadRequest(new { message = "ตำแหน่ง GPS ไม่ถูกต้อง" });
         if (!double.IsFinite(radiusKm) || radiusKm is < 1 or > 100)
             return BadRequest(new { message = "ระยะค้นหาต้องอยู่ระหว่าง 1 ถึง 100 กิโลเมตร" });
-        var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-        if (technician is null) return Conflict(new { message = "บัญชีนี้ยังไม่มีโปรไฟล์ช่าง กรุณาติดต่อผู้ดูแลระบบ" });
+        var technician = await EnsureCurrentTechnicianProfileAsync();
+        if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
         var rows = await store.Bookings.Find(x => x.Status == BookingStates.OpenForTechnicians || x.Status == BookingStates.AwaitingCustomerSelection).ToListAsync();
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
@@ -210,8 +210,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (booking is null) return NotFound();
         if (booking.Status is not (BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection))
             return Conflict(new { message = "งานนี้ปิดรับความสนใจแล้ว" });
-        var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-        if (technician is null) return Conflict(new { message = "บัญชีนี้ยังไม่มีโปรไฟล์ช่าง กรุณาติดต่อผู้ดูแลระบบ" });
+        var technician = await EnsureCurrentTechnicianProfileAsync();
+        if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
         booking.Applicants ??= [];
         if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
             return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });
@@ -520,6 +520,48 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
         if (tech is not null && reviews.Count > 0) { tech.ReviewCount = reviews.Count; tech.Rating = Math.Round((decimal)reviews.Average(x => x.Rating), 2); await store.Technicians.ReplaceOneAsync(x => x.Id == tech.Id, tech); }
         return Created($"/api/bookings/{bookingId}/reviews", new { id = review.Id, review.Rating, review.Comment, review.CreatedAt });
+    }
+
+    private async Task<TechnicianProfile?> EnsureCurrentTechnicianProfileAsync()
+    {
+        var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+        if (technician is not null) return technician;
+
+        var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
+        if (user is null || user.Role != AppRoles.Technician) return null;
+
+        // Create a simple unverified profile for newly registered technicians so they can browse jobs.
+        // The initial price is a default; profile verification and editable service details should be handled separately.
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var last = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty)
+                .SortByDescending(x => x.Id).FirstOrDefaultAsync();
+            var profile = new TechnicianProfile
+            {
+                Id = (last?.Id ?? 0) + 1,
+                UserId = user.Id,
+                Name = user.FullName,
+                Title = "ช่างแอร์",
+                BasePrice = 550m,
+                Area = "ยังไม่ระบุพื้นที่ให้บริการ",
+                IsVerified = false,
+                AvailableText = "รับคำขอผ่าน AirClean",
+                SkillsCsv = "ล้างแอร์มาตรฐาน,ล้างแอร์ผนัง",
+                Accent = "sage"
+            };
+            try
+            {
+                await store.Technicians.InsertOneAsync(profile);
+                return profile;
+            }
+            catch (MongoWriteException)
+            {
+                technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+                if (technician is not null) return technician;
+            }
+        }
+
+        return null;
     }
 
     private static decimal CalculateQuote(TechnicianProfile technician, string service, int unitCount)
