@@ -79,3 +79,5 @@ button:disabled{opacity:.55;cursor:not-allowed}
 /* Keep sign-out easy to find on desktop and mobile, even when the sidebar is collapsed. */
 .topbar-logout-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 12px;border:1px solid #eadfdd;border-radius:9px;background:#fff;color:#95564d;font-size:12px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s}.topbar-logout-button:hover{background:#fff4f2;border-color:#e6c8c2;color:#7f3e36}.topbar-logout-button svg{flex-shrink:0}
 @media(max-width:560px){.topbar-logout-button{width:36px;min-width:36px;height:36px;min-height:36px;padding:0;border-radius:9px}.topbar-logout-button span{display:none}.global-search{width:calc(100% - 135px);max-width:310px}}
+
+.auth-role-lock-note{display:block;margin-top:7px;color:#7b9286;font-size:11px;line-height:1.55}
