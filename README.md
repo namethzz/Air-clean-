@@ -1,6 +1,6 @@
-# AirCare Connect
+# AirClean
 
-AirCare Connect is a responsive air-conditioner service booking workspace built with React, TypeScript, ASP.NET Core 8 and MongoDB Atlas.
+AirClean is a responsive air-conditioner service booking workspace built with React, TypeScript, ASP.NET Core 8 and MongoDB Atlas.
 
 ## User-facing features
 
@@ -46,7 +46,7 @@ If the API address is missing or the server is unreachable, the interface report
 
 ## Adding live data
 
-The site intentionally starts with empty lists when the database has no records. Public registration creates customer accounts only; technician and manager access must be assigned by an administrator. Add technician profiles, service details and air-conditioner records through a controlled backend/database workflow. Never expose database credentials in the frontend.
+The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. Add technician profiles, service details and air-conditioner records through a controlled backend/database workflow. Never expose database credentials in the frontend.
 
 Disabling the seeder prevents new demo records from being created in production, but does not automatically delete records already stored in MongoDB. Back up the database first, then remove old demo records manually or use a fresh production database before opening the site to customers.
 
