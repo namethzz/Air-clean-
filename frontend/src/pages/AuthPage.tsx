@@ -40,7 +40,7 @@ export default function AuthPage({onAuthenticated,initialError=''}:Props) {
     </section>
     <section className="auth-panel-wrap">
       <div className="auth-panel">
-        <div className="auth-mobile-brand"><span className="auth-brand-icon"><Wind size={22}/></span><span>AirCare <b>Connect</b></span></div>
+        <div className="auth-mobile-brand"><span className="auth-brand-icon"><Wind size={22}/></span><span>AirClean</span></div>
         <div className="auth-heading">
           <span className="auth-eyebrow">{mode==='login'?'ยินดีต้อนรับกลับ':'เริ่มใช้งาน AirClean'}</span>
           <h2>{mode==='login'?'เข้าสู่ระบบ':'สร้างบัญชี'}</h2>
