@@ -94,7 +94,6 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
   const canConfirmPayment = selected.status === 'รอชำระเงิน';
   const customerConfirmed = Boolean(selected.customerConfirmedPayment);
   const technicianConfirmed = Boolean(selected.technicianConfirmedPayment);
-  const hasCoordinates = selected.latitude != null && selected.longitude != null;
 
   function reportIssue() {
     const reason = window.prompt('อธิบายปัญหาการชำระเงิน เพื่อให้ผู้ดูแลตรวจสอบ');
