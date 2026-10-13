@@ -2,50 +2,82 @@ import { useState, type FormEvent } from 'react';
 import { ArrowRight, CalendarDays, Check, Wind, X } from 'lucide-react';
 import type { SavedAddress, Technician } from '../types';
 import LocationPicker from './LocationPicker';
-export interface BookingPayload { technicianId: number; service: string; unitLabel: string; address: string; date: string; time: string; price: number; latitude: number; longitude: number; }
-interface BookingModalProps { technicians: Technician[]; onClose: () => void; onSubmit: (payload: BookingPayload) => Promise<boolean>; initialTechnicianId?: number; }
-function localDate() { const now = new Date(); return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
-const today = localDate();
 
-export default function BookingModal({ technicians, onClose, onSubmit, initialTechnicianId }: BookingModalProps) {
-  const [technicianId, setTechnicianId] = useState(initialTechnicianId ?? technicians[0]?.id ?? 0);
-  const [service, setService] = useState('ล้างแอร์มาตรฐาน');
-  const [unitLabel, setUnitLabel] = useState('');
-  const [place, setPlace] = useState<SavedAddress>({
-    id:'new', label:'สถานที่ให้บริการ', placeType:'บ้าน', address:'', latitude:13.7563, longitude:100.5018, locationSelected:false,
+export interface BookingPayload {
+  service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
+  date:string; time:string; price:number; latitude:number; longitude:number;
+}
+interface BookingModalProps { technicians:Technician[]; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+function localDate() {
+  const now=new Date();
+  return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+const today=localDate();
+
+export default function BookingModal({technicians,onClose,onSubmit}:BookingModalProps) {
+  const [service,setService]=useState('ล้างแอร์มาตรฐาน');
+  const [unitCount,setUnitCount]=useState(1);
+  const [unitLabel,setUnitLabel]=useState('แอร์ห้องนอน 12,000 BTU');
+  const [place,setPlace]=useState<SavedAddress>({
+    id:'new',label:'สถานที่ให้บริการ',placeType:'บ้าน',address:'',
+    latitude:13.7563,longitude:100.5018,locationSelected:false,
   });
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState('10:00');
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-  const selected = technicians.find((tech) => tech.id === technicianId) ?? technicians[0];
-  const price = selected ? selected.basePrice + (service.includes('ตรวจเช็ก') ? 300 : service.includes('แขวน') ? 250 : 0) : 0;
-  const fullAddress = [place.address, place.building, place.floor ? `ชั้น ${place.floor}` : '', place.room ? `ห้อง ${place.room}` : '', place.note ? `จุดสังเกต: ${place.note}` : ''].filter(Boolean).join(' · ');
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setFormError('');
-    if (!selected) { setFormError('ขณะนี้ยังไม่มีช่างในระบบ กรุณาลองใหม่ภายหลัง'); return; }
-    if (!place.address.trim()) { setFormError('กรุณากรอกที่อยู่ให้ครบถ้วน'); return; }
-    if (!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
+  const [date,setDate]=useState(today);
+  const [time,setTime]=useState('10:00');
+  const [submitted,setSubmitted]=useState(false);
+  const [submitting,setSubmitting]=useState(false);
+  const [formError,setFormError]=useState('');
+  const basePrice=technicians.length?Math.min(...technicians.map(tech=>tech.basePrice)):0;
+  const propertyType=place.placeType==='บ้าน'?'บ้านเดี่ยว':place.placeType;
+  const price=(basePrice*unitCount)
+    +(service.includes('ตรวจเช็ก')?300*unitCount:0)
+    +(service.includes('แขวน')?250*unitCount:0);
+  const fullAddress=[place.address,place.building,place.floor?'ชั้น '+place.floor:'',place.room?'ห้อง '+place.room:'',place.note?'จุดสังเกต: '+place.note:''].filter(Boolean).join(' · ');
+
+  async function submit(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError('');
+    if(technicians.length===0) { setFormError('ขณะนี้ยังไม่มีโปรไฟล์ช่างในระบบ กรุณาลองใหม่ภายหลัง'); return; }
+    if(!place.address.trim()) { setFormError('กรุณากรอกที่อยู่ให้ครบถ้วน'); return; }
+    if(!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
     setSubmitting(true);
-    const success = await onSubmit({ technicianId, service, unitLabel, address: fullAddress, date, time, price, latitude:place.latitude, longitude:place.longitude });
-    setSubmitting(false); if (success) setSubmitted(true);
+    const success=await onSubmit({
+      service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
+      date,time,price,latitude:place.latitude,longitude:place.longitude,
+    });
+    setSubmitting(false);
+    if(success) setSubmitted(true);
   }
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+
+  return <div className="modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
     <section className="modal-card booking-modal-wide" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title">
-      <div className="modal-header"><div><span className="eyebrow">NEW SERVICE REQUEST</span><h2 id="booking-modal-title">จองบริการล้างแอร์</h2><p>เลือกสถานที่และนัดหมายกับช่างที่เหมาะสม</p></div><button className="icon-button" onClick={onClose} aria-label="ปิดหน้าต่าง"><X size={19}/></button></div>
-      {submitted ? <div className="success-state"><div className="success-icon"><Check size={26}/></div><h3>ส่งคำขอจองแล้ว</h3><p>ระบบบันทึกรายการแล้ว คุณสามารถดูความคืบหน้าได้ที่หน้า รายการจอง</p><button className="primary-button" onClick={onClose}>กลับไปหน้าหลัก <ArrowRight size={16}/></button></div> : <form onSubmit={submit} className="booking-form">
+      <div className="modal-header">
+        <div><span className="eyebrow">NEW SERVICE REQUEST</span><h2 id="booking-modal-title">ขอช่างล้างแอร์</h2><p>ส่งรายละเอียดงาน แล้วเลือกช่างจากคนที่สนใจรับงานของคุณ</p></div>
+        <button className="icon-button" onClick={onClose} aria-label="ปิดหน้าต่าง"><X size={19}/></button>
+      </div>
+      {submitted ? <div className="success-state">
+        <div className="success-icon"><Check size={26}/></div><h3>ส่งคำขอแล้ว</h3>
+        <p>เมื่อช่างใกล้เคียงสนใจรับงาน รายชื่อและราคาที่เสนอจะแสดงในหน้า “รายการจอง” ให้คุณตรวจสอบก่อนยืนยัน</p>
+        <button className="primary-button" onClick={onClose}>ดูรายการจอง <ArrowRight size={16}/></button>
+      </div> : <form onSubmit={submit} className="booking-form">
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
         <LocationPicker value={place} onChange={setPlace}/>
         <div className="form-section-label"><span>02</span> รายละเอียดงาน</div>
-        <label className="form-field"><span>ประเภทบริการ</span><select value={service} onChange={(event) => setService(event.target.value)}><option>ล้างแอร์มาตรฐาน</option><option>ล้างแอร์ + ตรวจเช็ก</option><option>ล้างแอร์แบบแขวน</option></select></label>
-        <label className="form-field"><span>จำนวน / รายละเอียดเครื่อง</span><input value={unitLabel} onChange={(event) => setUnitLabel(event.target.value)} required maxLength={180} placeholder="เช่น แอร์ห้องนอน 12,000 BTU หรือ 2 เครื่อง" /></label>
-        <div className="form-grid-two"><label className="form-field"><span>วันที่</span><div className="input-with-icon"><CalendarDays size={16}/><input type="date" min={today} value={date} onChange={(event) => setDate(event.target.value)} required/></div></label><label className="form-field"><span>เวลา</span><select value={time} onChange={(event) => setTime(event.target.value)}><option>09:00</option><option>10:00</option><option>11:00</option><option>13:00</option><option>14:00</option><option>15:00</option></select></label></div>
-        <div className="form-section-label"><span>03</span> เลือกช่าง</div>
-        {technicians.length===0 ? <div className="empty-state booking-no-technicians"><Wind size={22}/><strong>ยังไม่มีช่างในระบบ</strong><span>เมื่อเพิ่มโปรไฟล์ช่างผ่านหลังบ้านแล้ว คุณจะเลือกช่างได้จากรายการนี้</span></div> : <div className="technician-select-list">{technicians.map((tech) => <button type="button" key={tech.id} className={`technician-select ${technicianId === tech.id ? 'selected' : ''}`} onClick={() => setTechnicianId(tech.id)}><span className={`avatar avatar-${tech.accent}`}>{tech.initials}</span><span className="technician-select-copy"><strong>{tech.name}</strong><small>{tech.rating.toFixed(1)} ★ · {tech.area}</small></span><strong className="select-price">฿{tech.basePrice.toLocaleString()}</strong>{technicianId === tech.id && <Check size={16} className="selected-check"/>}</button>)}</div>}
-        <div className="price-confirm"><div><span>ราคาประเมินเบื้องต้น · จ่ายหน้างาน</span><strong>฿{price.toLocaleString()}</strong></div><small><Wind size={14}/> ช่างต้องยืนยันราคาและขอบเขตงานก่อนเริ่มให้บริการ</small></div>
-        {formError && <div className="auth-error" role="alert">{formError}</div>}
-        <button type="submit" className="primary-button full-width" disabled={submitting || technicians.length === 0}>{submitting ? 'กำลังส่งคำขอ...' : 'ยืนยันคำขอจอง'} <ArrowRight size={17}/></button>
+        <div className="form-grid-two">
+          <label className="form-field"><span>ประเภทบริการ</span><select value={service} onChange={event=>setService(event.target.value)}><option>ล้างแอร์มาตรฐาน</option><option>ล้างแอร์ + ตรวจเช็ก</option><option>ล้างแอร์แบบแขวน</option></select></label>
+          <label className="form-field"><span>จำนวนเครื่อง</span><input type="number" min={1} max={30} step={1} value={unitCount} onChange={event=>setUnitCount(Math.max(1,Math.min(30,Number(event.target.value)||1)))} required/></label>
+        </div>
+        <label className="form-field"><span>รายละเอียดเครื่อง</span><input value={unitLabel} onChange={event=>setUnitLabel(event.target.value)} required maxLength={180} placeholder="เช่น แอร์ห้องนอน 12,000 BTU หรือแอร์ห้องนั่งเล่น 18,000 BTU"/></label>
+        <div className="form-grid-two">
+          <label className="form-field"><span>วันที่สะดวก</span><div className="input-with-icon"><CalendarDays size={16}/><input type="date" min={today} value={date} onChange={event=>setDate(event.target.value)} required/></div></label>
+          <label className="form-field"><span>เวลา</span><select value={time} onChange={event=>setTime(event.target.value)}><option>09:00</option><option>10:00</option><option>11:00</option><option>13:00</option><option>14:00</option><option>15:00</option></select></label>
+        </div>
+        <div className="marketplace-estimate">
+          <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>
+          <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง</small>
+        </div>
+        {formError&&<div className="auth-error" role="alert">{formError}</div>}
+        <button type="submit" className="primary-button full-width" disabled={submitting||technicians.length===0}>{submitting?'กำลังส่งคำขอ...':'ส่งคำขอให้ช่างใกล้เคียง'} <ArrowRight size={17}/></button>
       </form>}
     </section>
   </div>;
