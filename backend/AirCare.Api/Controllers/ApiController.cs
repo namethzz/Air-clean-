@@ -82,7 +82,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     [Authorize(Roles = "Customer,Manager,Admin"), HttpGet("air-conditioners")]
     public async Task<IActionResult> AirConditioners()
     {
-        var filter = CurrentRole == AppRoles.Customer
+        var filter = CurrentRole is AppRoles.Customer or AppRoles.Manager
             ? Builders<AirConditioner>.Filter.Eq(x => x.OwnerId, CurrentUserId)
             : FilterDefinition<AirConditioner>.Empty;
         var units = await store.AirConditioners.Find(filter).SortBy(x => x.Id).ToListAsync();
@@ -94,7 +94,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var unit = await store.AirConditioners.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (unit is null) return NotFound();
-        if (CurrentRole == AppRoles.Customer && unit.OwnerId != CurrentUserId) return Forbid();
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && unit.OwnerId != CurrentUserId) return Forbid();
         return Ok(DtoMapper.ToDto(unit));
     }
 
@@ -366,7 +366,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     public async Task<IActionResult> ServiceReports()
     {
         var rows = await store.ServiceReports.Find(FilterDefinition<ServiceReport>.Empty).ToListAsync();
-        if (CurrentRole == AppRoles.Customer) rows = rows.Where(x => x.CustomerId == CurrentUserId).ToList();
+        if (CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) rows = rows.Where(x => x.CustomerId == CurrentUserId).ToList();
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             rows = tech is null ? [] : rows.Where(x => x.TechnicianId == tech.Id).ToList();

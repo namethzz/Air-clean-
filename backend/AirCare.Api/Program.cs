@@ -4,12 +4,11 @@ using AirCare.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT");
-// Render sets PORT. Locally, keep the URL from launchSettings.json (localhost:5080).
-if (!string.IsNullOrWhiteSpace(port))
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls("http://0.0.0.0:" + port);
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<MongoStore>();
@@ -53,8 +52,30 @@ using (var scope = app.Services.CreateScope()) {
     var store = scope.ServiceProvider.GetRequiredService<MongoStore>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
     await store.EnsureIndexesAsync();
+
+    // Optionally bootstrap one administrator using private deployment environment variables.
+    var adminEmail = builder.Configuration["INITIAL_ADMIN_EMAIL"]?.Trim().ToLowerInvariant();
+    var adminPassword = builder.Configuration["INITIAL_ADMIN_PASSWORD"];
+    if ((!string.IsNullOrWhiteSpace(adminEmail)) != (!string.IsNullOrWhiteSpace(adminPassword)))
+        throw new InvalidOperationException("Set both INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD, or leave both empty.");
+    if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword)) {
+        if (adminPassword.Length < 12) throw new InvalidOperationException("INITIAL_ADMIN_PASSWORD must be at least 12 characters.");
+        var existing = await store.Users.Find(x => x.Email == adminEmail).FirstOrDefaultAsync();
+        if (existing is null) {
+            var configuredName = builder.Configuration["INITIAL_ADMIN_NAME"]?.Trim();
+            var firstAdmin = new AppUser {
+                Id = await store.NextIdAsync("users"),
+                FullName = string.IsNullOrWhiteSpace(configuredName) ? "ผู้ดูแลระบบ" : configuredName,
+                Email = adminEmail, Role = AppRoles.Admin, CreatedAt = DateTime.UtcNow
+            };
+            firstAdmin.PasswordHash = hasher.HashPassword(firstAdmin, adminPassword);
+            await store.Users.InsertOneAsync(firstAdmin);
+        }
+    }
+
+    // Example data is opt-in in development only and will never be seeded in production.
     var seedSetting = builder.Configuration["SEED_DEMO_DATA"];
-    var seedDemoData = bool.TryParse(seedSetting, out var seedValue) ? seedValue : !app.Environment.IsProduction();
-    if (seedDemoData) await store.SeedAsync(hasher);
+    var seedDemoData = bool.TryParse(seedSetting, out var seedValue) && seedValue;
+    if (!app.Environment.IsProduction() && seedDemoData) await store.SeedAsync(hasher);
 }
 app.Run();

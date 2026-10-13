@@ -143,7 +143,7 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
         {selected.status === 'เสร็จสิ้น' && <div className="tracking-status-line" style={{marginTop:14}}><div className="tracking-status-icon"><CheckCircle2 size={18}/></div><div className="tracking-status-copy"><strong>ปิดภารกิจเรียบร้อย</strong><span>ลูกค้าและช่างยืนยันการชำระเงินแล้ว · ฿{selected.price.toLocaleString()}</span></div></div>}
         {selected.status === 'มีปัญหาการชำระเงิน' && <div className="tracking-status-line"><div className="tracking-status-icon"><AlertTriangle size={18}/></div><div className="tracking-status-copy"><strong>ส่งให้ผู้ดูแลตรวจสอบแล้ว</strong><span>ระบบยังไม่ถือว่ารายการนี้ชำระสำเร็จ</span></div></div>}
         {isTechnician && selected.status === 'กำลังเดินทาง' && <div className="tracking-runtime-note"><LocateFixed size={14} style={{verticalAlign:'middle',marginRight:5}}/> {gpsMessage || 'แชร์ GPS จากอุปกรณ์นี้ทุกประมาณ 8 วินาทีขณะหน้าเว็บเปิด'}</div>}
-        {role==='customer' && !hasCoordinates && <div className="tracking-runtime-note"><Building2 size={13} style={{verticalAlign:'middle',marginRight:5}}/> งานตัวอย่างเดิมอาจไม่มีพิกัดที่อยู่ ให้ใช้แผนที่เลือกตำแหน่งเมื่อสร้างการจองใหม่</div>}
+        {role==='customer' && !hasCoordinates && <div className="tracking-runtime-note"><Building2 size={13} style={{verticalAlign:'middle',marginRight:5}}/> รายการนี้ยังไม่มีพิกัดที่อยู่ กรุณาตรวจสอบตำแหน่งที่บันทึกไว้ในรายละเอียดการจอง</div>}
         {role==='admin' && <div className="tracking-runtime-note"><ShieldCheck size={14} style={{verticalAlign:'middle',marginRight:5}}/> โหมดผู้ดูแล: ใช้ตรวจสอบสถานะและข้อมูลตำแหน่งของงานที่เกี่ยวข้อง</div>}
       </aside>
     </div>

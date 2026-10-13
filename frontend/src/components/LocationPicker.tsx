@@ -22,7 +22,7 @@ export default function LocationPicker({ value, onChange }: Props) {
     setMessage('กำลังค้นหาตำแหน่งปัจจุบัน…');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        patch({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        patch({ latitude: position.coords.latitude, longitude: position.coords.longitude, locationSelected: true });
         setMessage('ปักหมุดจากตำแหน่งปัจจุบันแล้ว ตรวจสอบที่อยู่ก่อนยืนยัน');
       },
       () => setMessage('เข้าถึงตำแหน่งไม่ได้ กรุณาอนุญาตตำแหน่งหรือปักหมุดบนแผนที่'),
@@ -31,6 +31,7 @@ export default function LocationPicker({ value, onChange }: Props) {
   }
   function saveAddress() {
     if (!value.address.trim()) { setMessage('กรุณากรอกบ้านเลขที่หรือที่อยู่ก่อนบันทึก'); return; }
+    if (!value.locationSelected) { setMessage('กรุณาปักหมุดหรือใช้ตำแหน่งปัจจุบันก่อนบันทึกที่อยู่'); return; }
     const entry = { ...value, id: `addr-${Date.now()}`, label: label.trim() || 'ที่อยู่ของฉัน' };
     const next = [entry, ...saved.filter((item) => item.label !== entry.label)].slice(0, 8);
     setSaved(next);
@@ -44,8 +45,8 @@ export default function LocationPicker({ value, onChange }: Props) {
   }
   return <div className="location-picker">
     <div className="location-picker-heading"><div><strong>ตำแหน่งให้บริการ</strong><span>ปักหมุดให้ตรงจุด แล้วแก้ไขรายละเอียดที่อยู่</span></div><button type="button" className="outline-button location-current-button" onClick={useMyLocation}><Crosshair size={15}/> ใช้ตำแหน่งฉัน</button></div>
-    <LocationMap center={value} destination={{ ...value, label: value.label || 'ตำแหน่งให้บริการ', kind: 'destination' }} onPick={(coords) => { patch(coords); setMessage('เปลี่ยนตำแหน่งหมุดแล้ว'); }} height={210} zoom={15} />
-    <div className="location-coordinate-note"><MapPin size={13}/><span>พิกัด {value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}</span><span>·</span><span>แตะหมุดเพื่อปรับตำแหน่ง</span></div>
+    <LocationMap center={value} destination={{ ...value, label: value.label || 'ตำแหน่งให้บริการ', kind: 'destination' }} onPick={(coords) => { patch({ ...coords, locationSelected: true }); setMessage('เปลี่ยนตำแหน่งหมุดแล้ว'); }} height={210} zoom={15} />
+    <div className="location-coordinate-note"><MapPin size={13}/><span>{value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}</span><span>·</span><span>{value.locationSelected ? 'เลือกตำแหน่งแล้ว' : 'โปรดแตะหมุดหรือใช้ตำแหน่งฉัน'}</span></div>
     <div className="place-type-picker" role="group" aria-label="ประเภทสถานที่">
       {(['บ้าน','คอนโด','หอพัก'] as const).map((type) => {
         const Icon = type === 'บ้าน' ? Home : Building2;
@@ -61,7 +62,7 @@ export default function LocationPicker({ value, onChange }: Props) {
     <label className="form-field"><span>จุดสังเกต / วิธีเข้าพื้นที่</span><input value={value.note || ''} onChange={(event) => patch({ note: event.target.value })} placeholder="เช่น โทรก่อนถึง, แลกบัตรที่ รปภ." /></label>
     <div className="save-address-row"><label className="form-field"><span>บันทึกเป็นที่อยู่ประจำ</span><input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="บ้านของฉัน / ที่ทำงาน" /></label><button type="button" className="outline-button save-address-button" onClick={saveAddress}><Bookmark size={15}/> บันทึก</button></div>
     {message && <p className="location-feedback" role="status">{message}</p>}
-    {saved.length > 0 && <div className="saved-addresses"><div className="saved-address-title"><strong>ที่อยู่ที่ใช้บ่อย</strong><span>บันทึกไว้ในเบราว์เซอร์นี้</span></div>{saved.map((item) => <div className="saved-address-item" key={item.id}><button type="button" className="saved-address-select" onClick={() => { onChange(item); setLabel(item.label); setMessage(`เลือก ${item.label} แล้ว`); }}><span className="saved-address-icon"><MapPin size={16}/></span><span><strong>{item.label}</strong><small>{addressSummary(item)}</small></span></button><button type="button" className="icon-button" aria-label={`ลบ ${item.label}`} onClick={() => deleteAddress(item.id)}><Trash2 size={15}/></button></div>)}</div>}
+    {saved.length > 0 && <div className="saved-addresses"><div className="saved-address-title"><strong>ที่อยู่ที่ใช้บ่อย</strong><span>บันทึกไว้ในเบราว์เซอร์นี้</span></div>{saved.map((item) => <div className="saved-address-item" key={item.id}><button type="button" className="saved-address-select" onClick={() => { onChange({ ...item, locationSelected: true }); setLabel(item.label); setMessage(`เลือก ${item.label} แล้ว`); }}><span className="saved-address-icon"><MapPin size={16}/></span><span><strong>{item.label}</strong><small>{addressSummary(item)}</small></span></button><button type="button" className="icon-button" aria-label={`ลบ ${item.label}`} onClick={() => deleteAddress(item.id)}><Trash2 size={15}/></button></div>)}</div>}
     <div className="location-privacy-note"><MapPin size={14}/><span>ตำแหน่งจะใช้เพื่อให้ช่างไปยังหน้างาน และไม่แชร์ให้ผู้ใช้อื่นที่ไม่เกี่ยวข้องกับการจอง</span></div>
   </div>;
 }

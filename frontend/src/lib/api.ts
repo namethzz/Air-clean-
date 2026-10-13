@@ -1,62 +1,118 @@
-import type { AirConditioner, BatchBooking, Booking, DashboardSummary, PaymentMethod, Technician } from '../types';
+import type { AirConditioner, BatchBooking, Booking, PaymentMethod, ServiceReportRecord, Technician, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
-const TOKEN_KEY = 'aircare.demo.token';
-type DemoRole = 'customer' | 'technician' | 'manager' | 'admin';
+const TOKEN_KEY = 'aircare.auth.token';
 
+export interface CreateServiceReportPayload {
+  bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
+  checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
+}
+interface AuthResponse { token: string; expiresAt: string; user: { id: number; fullName: string; email: string; role: string } }
+export class ApiError extends Error {
+  constructor(message: string, public status?: number) { super(message); this.name = 'ApiError'; }
+}
+export function isApiConfigured(): boolean { return Boolean(API_BASE); }
+function requireApiBase(): string {
+  if (!API_BASE) throw new ApiError('ยังไม่ได้ตั้งค่าที่อยู่ API กรุณาตั้งค่า VITE_API_BASE_URL ใน Render ก่อนเปิดใช้งาน');
+  return API_BASE;
+}
+function roleFromApi(role: string): UserRole {
+  switch (role.toLowerCase()) {
+    case 'technician': return 'technician';
+    case 'manager': return 'manager';
+    case 'admin': return 'admin';
+    default: return 'customer';
+  }
+}
+function fromApiUser(user: AuthResponse['user']): UserProfile {
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role) };
+}
+function saveToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.removeItem('aircare.demo.token');
+  localStorage.removeItem('aircare.demo.role');
+}
+export function clearAuth(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('aircare.demo.token');
+  localStorage.removeItem('aircare.demo.role');
+}
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (!API_BASE) throw new Error('Demo mode');
+  const base = requireApiBase();
+  const headers = new Headers(options.headers);
+  if (options.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const token = localStorage.getItem(TOKEN_KEY);
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
-  if (!response.ok) throw new Error(`API ${response.status}`);
+  if (token) headers.set('Authorization', 'Bearer ' + token);
+  let response: Response;
+  try { response = await fetch(base + path, { ...options, headers }); }
+  catch { throw new ApiError('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือสถานะเซิร์ฟเวอร์'); }
+  if (!response.ok) {
+    let message = '';
+    try {
+      const body = await response.json() as { message?: string; title?: string; errors?: Record<string, string[]> };
+      message = body.message || body.title || Object.values(body.errors || {}).flat().join(' ');
+    } catch { /* Keep the status-based message. */ }
+    if (!message) message = response.status === 401 ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือเซสชันหมดอายุ'
+      : response.status === 403 ? 'บัญชีนี้ไม่มีสิทธิ์ทำรายการดังกล่าว'
+      : response.status === 404 ? 'ไม่พบข้อมูลที่ต้องการ'
+      : response.status >= 500 ? 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่ภายหลัง'
+      : 'ทำรายการไม่สำเร็จ (' + response.status + ')';
+    throw new ApiError(message, response.status);
+  }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
-
-export async function loginAsDemo(role: DemoRole): Promise<void> {
-  localStorage.setItem('aircare.demo.role', role);
-  if (!API_BASE) return;
-  const credentials = {
-    customer: { email: 'customer@aircare.demo', password: 'Aircare123!' },
-    technician: { email: 'technician@aircare.demo', password: 'Aircare123!' },
-    manager: { email: 'manager@aircare.demo', password: 'Aircare123!' },
-    admin: { email: 'admin@aircare.demo', password: 'Aircare123!' },
-  };
-  const response = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials[role]) });
-  if (!response.ok) throw new Error('Demo sign-in failed');
-  const result = await response.json() as { token: string };
-  localStorage.setItem(TOKEN_KEY, result.token);
+export async function login(email: string, password: string): Promise<UserProfile> {
+  const result = await request<AuthResponse>('/auth/login', { method:'POST', body:JSON.stringify({ email:email.trim(), password }) });
+  saveToken(result.token);
+  return fromApiUser(result.user);
 }
-
-export async function tryDemoLogin(): Promise<void> {
-  if (!API_BASE || localStorage.getItem(TOKEN_KEY)) return;
-  const role = (localStorage.getItem('aircare.demo.role') as DemoRole | null) ?? 'customer';
-  try { await loginAsDemo(role); } catch { /* Fall back to local demo data if the API is offline. */ }
+export async function register(fullName: string, email: string, password: string): Promise<UserProfile> {
+  const result = await request<AuthResponse>('/auth/register', { method:'POST', body:JSON.stringify({ fullName:fullName.trim(), email:email.trim(), password }) });
+  saveToken(result.token);
+  return fromApiUser(result.user);
 }
-export async function fetchDashboard(): Promise<DashboardSummary> { return request<DashboardSummary>('/dashboard'); }
+export async function fetchCurrentUser(): Promise<UserProfile | null> {
+  if (!localStorage.getItem(TOKEN_KEY)) { clearAuth(); return null; }
+  try {
+    const result = await request<{id:number;fullName:string;email:string;role:string}>('/auth/me');
+    return { id:result.id, fullName:result.fullName, email:result.email, role:roleFromApi(result.role) };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) { clearAuth(); return null; }
+    throw error;
+  }
+}
 export async function fetchTechnicians(): Promise<Technician[]> { return request<Technician[]>('/technicians'); }
 export async function fetchBookings(): Promise<Booking[]> { return request<Booking[]>('/bookings'); }
 export async function fetchAirConditioners(): Promise<AirConditioner[]> { return request<AirConditioner[]>('/air-conditioners'); }
 export async function fetchBatchBookings(): Promise<BatchBooking[]> { return request<BatchBooking[]>('/batch-bookings'); }
-export async function createBooking(payload: { technicianId: number; service: string; unitLabel: string; address: string; scheduledAt: string; price: number; notes?: string; latitude?: number; longitude?: number }): Promise<Booking> {
-  return request<Booking>('/bookings', { method: 'POST', body: JSON.stringify(payload) });
+export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
+export async function createBooking(payload: {
+  technicianId:number; service:string; unitLabel:string; address:string; scheduledAt:string;
+  price:number; notes?:string; latitude?:number; longitude?:number;
+}): Promise<Booking> {
+  return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
 }
-export async function createBatchBooking(payload: { buildingName: string; address: string; unitCount: number; scheduledDate: string; notes?: string }): Promise<BatchBooking> {
-  return request<BatchBooking>('/batch-bookings', { method: 'POST', body: JSON.stringify(payload) });
+export async function createBatchBooking(payload: {
+  buildingName:string; address:string; unitCount:number; scheduledDate:string; notes?:string;
+}): Promise<BatchBooking> {
+  return request<BatchBooking>('/batch-bookings', { method:'POST', body:JSON.stringify(payload) });
 }
-export async function updateBookingStatus(id: number, status: string): Promise<void> {
-  return request<void>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export async function updateBookingStatus(id:number,status:string): Promise<void> {
+  return request<void>('/bookings/' + id + '/status', { method:'PATCH', body:JSON.stringify({status}) });
 }
-
-export async function updateTechnicianLocation(id: number, payload: { latitude: number; longitude: number; accuracy?: number }): Promise<void> {
-  return request<void>(`/bookings/${id}/location`, { method: 'POST', body: JSON.stringify(payload) });
+export async function updateTechnicianLocation(id:number,payload:{latitude:number;longitude:number;accuracy?:number}): Promise<void> {
+  return request<void>('/bookings/' + id + '/location', { method:'POST', body:JSON.stringify(payload) });
 }
-export async function confirmOnsitePayment(id: number, method: PaymentMethod): Promise<Booking> {
-  return request<Booking>(`/bookings/${id}/payment-confirmation`, { method: 'PATCH', body: JSON.stringify({ method, confirmed: true }) });
+export async function confirmOnsitePayment(id:number,method:PaymentMethod): Promise<Booking> {
+  return request<Booking>('/bookings/' + id + '/payment-confirmation', { method:'PATCH', body:JSON.stringify({method,confirmed:true}) });
 }
-export async function reportPaymentIssue(id: number, reason: string): Promise<Booking> {
-  return request<Booking>(`/bookings/${id}/payment-issue`, { method: 'POST', body: JSON.stringify({ reason }) });
+export async function reportPaymentIssue(id:number,reason:string): Promise<Booking> {
+  return request<Booking>('/bookings/' + id + '/payment-issue', { method:'POST', body:JSON.stringify({reason}) });
+}
+export async function createServiceReport(payload:CreateServiceReportPayload): Promise<void> {
+  return request<void>('/service-reports', { method:'POST', body:JSON.stringify(payload) });
+}
+export async function approveServiceReport(id:number): Promise<void> {
+  return request<void>('/service-reports/' + id + '/approve', { method:'PATCH' });
 }
