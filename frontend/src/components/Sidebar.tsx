@@ -1,10 +1,11 @@
-import { AirVent, CalendarDays, CircleHelp, ClipboardCheck, LayoutDashboard, LogOut, MapPinned, Search, Settings2, Users, Wind } from 'lucide-react';
+import { AirVent, CalendarDays, CircleHelp, ClipboardCheck, LayoutDashboard, LogOut, MapPinned, MapPin, Search, Settings2, Users, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; }
 const names:Record<UserRole,string>={customer:'ลูกค้า',technician:'ช่างแอร์',manager:'ผู้ดูแลอาคาร',admin:'ผู้ดูแลระบบ'};
 const navItems:{key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[]}[]=[
   {key:'overview',label:'ภาพรวม',icon:LayoutDashboard},
   {key:'technicians',label:'ค้นหาช่าง',icon:Search,roles:['customer','manager','admin']},
+  {key:'nearbyJobs',label:'งานใกล้ฉัน',icon:MapPin,roles:['technician']},
   {key:'bookings',label:'รายการจอง',icon:CalendarDays},
   {key:'tracking',label:'ติดตามงาน',icon:MapPinned},
   {key:'passport',label:'ประวัติแอร์',icon:AirVent,roles:['customer','manager','admin']},
