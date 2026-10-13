@@ -155,25 +155,98 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     public async Task<IActionResult> CreateBooking(CreateBookingRequest request)
     {
         if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "กรุณาเลือกวันนัดหมายตั้งแต่วันนี้เป็นต้นไป" });
-        var tech = await store.Technicians.Find(x => x.Id == request.TechnicianId).FirstOrDefaultAsync();
-        if (tech is null) return BadRequest(new { message = "ไม่พบช่างที่เลือก" });
+        if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || request.Latitude is null || request.Longitude is null)
+            return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         if (user is null) return Unauthorized();
-        var price = tech.BasePrice;
-        if (request.Service.Contains("ตรวจเช็ก", StringComparison.OrdinalIgnoreCase)) price += 300;
-        if (request.Service.Contains("แขวน", StringComparison.OrdinalIgnoreCase)) price += 250;
+        var technicians = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync();
+        if (technicians.Count == 0) return Conflict(new { message = "ขณะนี้ยังไม่มีช่างในระบบ จึงยังเปิดรับงานไม่ได้" });
+        var cheapest = technicians.OrderBy(x => CalculateQuote(x, request.Service, request.UnitCount)).First();
+        var estimatedPrice = CalculateQuote(cheapest, request.Service, request.UnitCount);
         var id = await store.NextIdAsync("bookings");
         var booking = new Booking {
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
-            TechnicianId = tech.Id, TechnicianName = tech.Name, TechnicianInitials = DtoMapper.Initials(tech.Name),
+            TechnicianId = 0, TechnicianName = "รอช่างรับงาน", TechnicianInitials = "—",
+            PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
-            ScheduledAt = request.ScheduledAt, Price = price, Status = BookingStates.Pending, Notes = request.Notes?.Trim(),
+            ScheduledAt = request.ScheduledAt, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
-            Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.Pending, Notes = "สร้างคำขอจอง", CreatedAt = DateTime.UtcNow }]
+            Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };
         await store.Bookings.InsertOneAsync(booking);
         return Created($"/api/bookings/{booking.Id}", DtoMapper.ToDto(booking));
+    }
+
+    [Authorize(Roles = "Technician"), HttpGet("technician-jobs")]
+    public async Task<IActionResult> TechnicianJobs([FromQuery] double latitude, [FromQuery] double longitude, [FromQuery] double radiusKm = 25)
+    {
+        if (!double.IsFinite(latitude) || latitude is < -90 or > 90 || !double.IsFinite(longitude) || longitude is < -180 or > 180)
+            return BadRequest(new { message = "ตำแหน่ง GPS ไม่ถูกต้อง" });
+        if (!double.IsFinite(radiusKm) || radiusKm is < 1 or > 100)
+            return BadRequest(new { message = "ระยะค้นหาต้องอยู่ระหว่าง 1 ถึง 100 กิโลเมตร" });
+        var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+        if (technician is null) return Conflict(new { message = "บัญชีนี้ยังไม่มีโปรไฟล์ช่าง กรุณาติดต่อผู้ดูแลระบบ" });
+        var rows = await store.Bookings.Find(x => x.Status == BookingStates.OpenForTechnicians || x.Status == BookingStates.AwaitingCustomerSelection).ToListAsync();
+        var nearby = rows
+            .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
+            .Select(x => new { Booking = x, DistanceKm = DistanceKm(latitude, longitude, x.Latitude!.Value, x.Longitude!.Value) })
+            .Where(x => x.DistanceKm <= radiusKm)
+            .OrderBy(x => x.DistanceKm)
+            .Select(x => DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)))
+            .ToList();
+        return Ok(nearby);
+    }
+
+    [Authorize(Roles = "Technician"), HttpPost("bookings/{id:int}/applications")]
+    public async Task<IActionResult> ApplyForBooking(int id, ApplyForBookingRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (booking.Status is not (BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection))
+            return Conflict(new { message = "งานนี้ปิดรับความสนใจแล้ว" });
+        var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+        if (technician is null) return Conflict(new { message = "บัญชีนี้ยังไม่มีโปรไฟล์ช่าง กรุณาติดต่อผู้ดูแลระบบ" });
+        booking.Applicants ??= [];
+        if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
+            return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });
+        var applicant = new BookingApplicant {
+            TechnicianId = technician.Id, Name = technician.Name, Initials = DtoMapper.Initials(technician.Name),
+            Title = technician.Title, Rating = technician.Rating, ReviewCount = technician.ReviewCount,
+            JobsCompleted = technician.JobsCompleted, Quote = CalculateQuote(technician, booking.Service, Math.Max(1, booking.UnitCount)),
+            Area = technician.Area, Verified = technician.IsVerified, AppliedAt = DateTime.UtcNow, Note = request.Note?.Trim()
+        };
+        var previous = booking.Status;
+        booking.Applicants.Add(applicant);
+        booking.Status = BookingStates.AwaitingCustomerSelection;
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างส่งความสนใจรับงาน: " + technician.Name, CreatedAt = DateTime.UtcNow });
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(DtoMapper.ToDto(booking, technician.Id));
+    }
+
+    [Authorize(Roles = "Customer,Manager,Admin"), HttpPost("bookings/{id:int}/confirm-technician")]
+    public async Task<IActionResult> ConfirmBookingTechnician(int id, ConfirmBookingTechnicianRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if ((CurrentRole is AppRoles.Customer or AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
+        if (booking.Status is not (BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection))
+            return Conflict(new { message = "งานนี้ถูกยืนยันหรือปิดไปแล้ว" });
+        booking.Applicants ??= [];
+        var chosen = booking.Applicants.FirstOrDefault(x => x.TechnicianId == request.TechnicianId);
+        if (chosen is null) return BadRequest(new { message = "ช่างคนนี้ยังไม่ได้แสดงความสนใจในงาน" });
+        var oldStatus = booking.Status;
+        booking.TechnicianId = chosen.TechnicianId;
+        booking.TechnicianName = chosen.Name;
+        booking.TechnicianInitials = chosen.Initials;
+        booking.Price = chosen.Quote;
+        foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
+        booking.Status = BookingStates.Confirmed;
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = booking.Status, Notes = "ลูกค้ายืนยันช่าง: " + chosen.Name, CreatedAt = DateTime.UtcNow });
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(DtoMapper.ToDto(booking));
     }
 
     [Authorize, HttpPatch("bookings/{id:int}/status")]
@@ -189,7 +262,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
         if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) &&
-            (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)))
+            (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed or BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection)))
             return Forbid();
 
         if (CurrentRole != AppRoles.Admin) {
@@ -442,6 +515,26 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
         if (tech is not null && reviews.Count > 0) { tech.ReviewCount = reviews.Count; tech.Rating = Math.Round((decimal)reviews.Average(x => x.Rating), 2); await store.Technicians.ReplaceOneAsync(x => x.Id == tech.Id, tech); }
         return Created($"/api/bookings/{bookingId}/reviews", new { id = review.Id, review.Rating, review.Comment, review.CreatedAt });
+    }
+
+    private static decimal CalculateQuote(TechnicianProfile technician, string service, int unitCount)
+    {
+        var count = Math.Clamp(unitCount, 1, 30);
+        var price = technician.BasePrice * count;
+        if (service.Contains("ตรวจเช็ก", StringComparison.OrdinalIgnoreCase)) price += 300m * count;
+        if (service.Contains("แขวน", StringComparison.OrdinalIgnoreCase)) price += 250m * count;
+        return price;
+    }
+
+    private static double DistanceKm(double latitude1, double longitude1, double latitude2, double longitude2)
+    {
+        const double EarthRadiusKm = 6371.0;
+        var dLat = (latitude2 - latitude1) * Math.PI / 180.0;
+        var dLon = (longitude2 - longitude1) * Math.PI / 180.0;
+        var a = Math.Pow(Math.Sin(dLat / 2), 2)
+            + Math.Cos(latitude1 * Math.PI / 180.0) * Math.Cos(latitude2 * Math.PI / 180.0)
+            * Math.Pow(Math.Sin(dLon / 2), 2);
+        return EarthRadiusKm * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(Math.Max(0, 1 - a)));
     }
 
     private int CurrentUserId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;

@@ -44,7 +44,7 @@ var app = builder.Build();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/", () => Results.Ok(new { name = "AirCare Connect API", version = "1.0.0", database = "MongoDB Atlas", status = "running" }));
+app.MapGet("/", () => Results.Ok(new { name = "AirClean API", version = "1.0.0", database = "MongoDB Atlas", status = "running" }));
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 app.MapControllers();
 
