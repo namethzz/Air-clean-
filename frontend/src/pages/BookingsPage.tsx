@@ -18,7 +18,7 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
   }, [role,onRefresh]);
   function actionFor(booking: Booking) {
     if (role !== 'technician' && role !== 'admin') {
-      if (booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง') return <span className="table-secondary">{booking.applicants?.length ? 'มีช่างสนใจ '+booking.applicants.length+' คน' : 'กำลังรอช่างสนใจ'}</span>;
+      if (booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง') return <div><button className="table-action-button" onClick={() => onStatusChange(booking.id,'ยกเลิก')}>ยกเลิกคำขอ</button><span className="table-secondary">{booking.applicants?.length ? 'มีช่างสนใจ '+booking.applicants.length+' คน' : 'กำลังรอช่างสนใจ'}</span></div>;
       if (booking.status === 'กำลังเดินทาง' || booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') return <button className="table-action-button" onClick={() => onNavigate('tracking')}>{booking.status === 'รอชำระเงิน' ? <Wallet size={13}/> : <Navigation size={13}/>} {booking.status === 'รอชำระเงิน' ? 'ชำระหน้างาน' : 'ติดตามช่าง'} <ChevronRight size={14}/></button>;
       return <button className="icon-button table-view-button" aria-label="ดูรายละเอียด" title="ดูรายละเอียด" onClick={() => onNavigate('tracking')}><ChevronRight size={17}/></button>;
     }
@@ -31,13 +31,13 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
     return <button className="icon-button table-view-button" aria-label="ดูรายละเอียด" title="ดูรายละเอียด" onClick={() => onNavigate('tracking')}><ChevronRight size={17}/></button>;
   }
   return <div className="page-stack">
-    <div className="page-heading-row"><div><div className="eyebrow">BOOKING MANAGEMENT</div><h1>การจองของฉัน</h1><p className="page-subtitle">ติดตามนัดหมาย ระหว่างเดินทาง ไปถึงหน้างาน และปิดงานหลังชำระเงิน</p></div><button className="primary-button" onClick={onNewBooking}><Plus size={17}/> จองบริการใหม่</button></div>
-    <div className="booking-summary-strip"><div><span className="summary-dot summary-dot-teal"/><strong>{countFor('ยืนยันแล้ว')}</strong><span>ยืนยันนัดแล้ว</span></div><div><span className="summary-dot summary-dot-amber"/><strong>{countFor('รอยืนยัน')}</strong><span>รอตอบรับ</span></div><div><span className="summary-dot summary-dot-green"/><strong>{countFor('รอชำระเงิน')}</strong><span>รอชำระเงิน</span></div><div className="summary-strip-note"><CalendarDays size={16}/> รับงาน เดินทาง และปิดภารกิจในขั้นตอนเดียว</div></div>
+    <div className="page-heading-row"><div><div className="eyebrow">BOOKING MANAGEMENT</div><h1>การจองของฉัน</h1><p className="page-subtitle">ติดตามนัดหมาย ระหว่างเดินทาง ไปถึงหน้างาน และปิดงานหลังชำระเงิน</p></div>{role !== 'technician' && <button className="primary-button" onClick={onNewBooking}><Plus size={17}/> จองบริการใหม่</button>}</div>
+    <div className="booking-summary-strip"><div><span className="summary-dot summary-dot-teal"/><strong>{countFor('ยืนยันแล้ว')}</strong><span>ยืนยันนัดแล้ว</span></div><div><span className="summary-dot summary-dot-amber"/><strong>{countFor('เปิดรับช่าง') + countFor('รอเลือกช่าง')}</strong><span>รอเลือกช่าง</span></div><div><span className="summary-dot summary-dot-green"/><strong>{countFor('รอชำระเงิน')}</strong><span>รอชำระเงิน</span></div><div className="summary-strip-note"><CalendarDays size={16}/> รับงาน เดินทาง และปิดภารกิจในขั้นตอนเดียว</div></div>
     <section className="panel bookings-table-panel"><div className="panel-heading"><div><h2>รายการจองทั้งหมด</h2><p>รหัสการจองและข้อมูลนัดหมายล่าสุด</p></div><button className="outline-button small-outline" onClick={() => setSortNewest((value) => !value)}><ArrowDownUp size={15}/> {sortNewest ? 'ใหม่ไปเก่า' : 'เก่าไปใหม่'}</button></div>
       <div className="booking-tabs">{tabs.map((tab) => <button className={activeTab===tab?'active':''} key={tab} onClick={() => setActiveTab(tab)}>{tab}<span>{countFor(tab)}</span></button>)}</div>
       <div className="table-scroll"><table className="data-table"><thead><tr><th>รหัส / บริการ</th><th>วันและเวลา</th><th>ช่างผู้ให้บริการ</th><th>ราคา</th><th>สถานะ</th><th>การจัดการ</th></tr></thead><tbody>{filtered.map((booking) => <tr key={booking.id}><td><div className="booking-code">{booking.code}</div><strong>{booking.service}</strong><small className="table-secondary">{booking.unitLabel}</small></td><td><div className="table-date">{thaiDate(booking.date)}</div><small className="table-secondary"><Clock3 size={12}/> {booking.time} น.</small></td><td><div className="table-technician"><span className="avatar avatar-small">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong><small><MapPin size={11}/> {booking.address}</small></div></div></td><td className="table-price">฿{booking.price.toLocaleString()}</td><td><StatusBadge status={booking.status}/></td><td>{actionFor(booking)}</td></tr>)}</tbody></table></div>
       {filtered.length===0 && <div className="empty-state"><SlidersHorizontal size={24}/><strong>ไม่มีรายการในหมวดนี้</strong><span>เมื่อมีรายการจองใหม่ จะแสดงข้อมูลที่นี่</span></div>}
-      <div className="table-footer"><span>แสดง {filtered.length} จาก {bookings.length} รายการ</span><span>V.2 · ชำระหน้างาน</span></div>
+      <div className="table-footer"><span>แสดง {filtered.length} จาก {bookings.length} รายการ</span><span>ชำระหน้างาน</span></div>
     </section>
 
     {(role === 'customer' || role === 'manager' || role === 'admin') && <section className="panel interested-technicians-panel">
@@ -59,6 +59,6 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
         </article>)}
       </div>}
     </section>}
-    <div className="info-callout"><Wrench size={19}/><div><strong>ภารกิจจะเสร็จสิ้นเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</strong><span>การยืนยันใน V.2 เป็นการบันทึกจากลูกค้าและช่าง ยังไม่มีการตรวจสอบธุรกรรม PromptPay ผ่านธนาคารอัตโนมัติ</span></div></div>
+    <div className="info-callout"><Wrench size={19}/><div><strong>ภารกิจจะเสร็จสิ้นเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</strong><span>การยืนยันชำระเงิน เป็นการบันทึกจากลูกค้าและช่าง ยังไม่มีการตรวจสอบธุรกรรม PromptPay ผ่านธนาคารอัตโนมัติ</span></div></div>
   </div>;
 }

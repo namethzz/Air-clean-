@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import BookingModal, { type BookingPayload } from './components/BookingModal';
 import AuthPage from './pages/AuthPage';
+import LandingPage from './pages/LandingPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import TechniciansPage from './pages/TechniciansPage';
@@ -25,7 +26,7 @@ const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
   tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน',
 };
-const activeStatuses:BookingStatus[] = ['รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
+const activeStatuses:BookingStatus[] = ['เปิดรับช่าง','รอเลือกช่าง','รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
 function emptyState():AppState {
   return { technicians:[], summary:{totalUnits:0,upcomingBookings:0,serviceCompletion:0,totalSpent:0},
     bookings:[], airConditioners:[], batchBookings:[], serviceReports:[] };
@@ -45,6 +46,8 @@ function errorMessage(error:unknown,fallback:string):string {
   return error instanceof Error&&error.message?error.message:fallback;
 }
 export default function App() {
+  const [visitorScreen,setVisitorScreen] = useState<'landing'|'login'|'register'>('landing');
+  const [signupRole,setSignupRole] = useState<'customer'|'technician'|'manager'>('customer');
   const [page,setPage] = useState<PageKey>('overview');
   const [user,setUser] = useState<UserProfile|null>(null);
   const [state,setState] = useState<AppState>(emptyState);
@@ -188,7 +191,10 @@ export default function App() {
   },[user,page,state,searchQuery,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
   if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><Activity size={23}/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
-  if(!user)return <AuthPage initialError={sessionError} onAuthenticated={onAuthenticated}/>;
+  if(!user) {
+    if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
+    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
+  }
 
   return <div className="app-shell">
     <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>

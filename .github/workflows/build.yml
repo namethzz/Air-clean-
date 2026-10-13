@@ -10,6 +10,10 @@ jobs:
   backend:
     name: ASP.NET Core API
     runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -21,6 +25,22 @@ jobs:
       - name: Build
         working-directory: backend/AirCare.Api
         run: dotnet build --no-restore --configuration Release
+      - name: Test marketplace against disposable database
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DATABASE: airclean_ci
+          JWT_KEY: isolated-ci-signing-key-32-characters-minimum
+          ASPNETCORE_ENVIRONMENT: Development
+          SEED_DEMO_DATA: false
+          PORT: 5080
+        run: |
+          dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          if ! python3 tests/marketplace_smoke.py; then
+            cat /tmp/airclean-api.log
+            exit 1
+          fi
 
   frontend:
     name: React frontend
@@ -32,7 +52,7 @@ jobs:
           node-version: 20
       - name: Install
         working-directory: frontend
-        run: npm install
+        run: npm ci
       - name: Build
         working-directory: frontend
         run: npm run build

@@ -132,3 +132,11 @@ export async function createServiceReport(payload:CreateServiceReportPayload): P
 export async function approveServiceReport(id:number): Promise<void> {
   return request<void>('/service-reports/' + id + '/approve', { method:'PATCH' });
 }
+
+export interface TechnicianProfilePayload {
+  title: string; area: string; basePrice: number; availableText: string; skills: string;
+}
+export function fetchMyTechnicianProfile(): Promise<Technician> { return request<Technician>('/technicians/me'); }
+export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<Technician> {
+  return request<Technician>('/technicians/me', { method: 'PATCH', body: JSON.stringify(payload) });
+}

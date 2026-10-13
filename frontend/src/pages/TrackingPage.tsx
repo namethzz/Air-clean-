@@ -138,7 +138,7 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
           {canConfirmPayment && ((role==='customer' && !customerConfirmed) || (isTechnician && !technicianConfirmed)) && <button className="primary-button full-width" style={{marginTop:10}} onClick={() => onPaymentConfirm(selected.id,paymentMethod)}>{role==='customer'?'ฉันชำระเงินแล้ว':'ฉันได้รับเงินแล้ว'} <CheckCircle2 size={15}/></button>}
           {canConfirmPayment && (role === 'customer' || isTechnician) && <button className="outline-button full-width" style={{marginTop:8}} onClick={reportIssue}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>}
           {selected.status==='มีปัญหาการชำระเงิน' && <p>รายการนี้ถูกส่งให้ผู้ดูแลตรวจสอบแล้ว โปรดติดต่อผู้ดูแลก่อนเปลี่ยนสถานะ</p>}
-          <p className="tracking-disclaimer">V.2 บันทึกการยืนยันจากทั้งสองฝ่ายเท่านั้น ยังไม่ได้ตรวจสอบธุรกรรม PromptPay ผ่านธนาคารหรือผู้ให้บริการชำระเงิน</p>
+          <p className="tracking-disclaimer">ระบบบันทึกการยืนยันจากทั้งสองฝ่ายเท่านั้น ยังไม่ได้ตรวจสอบธุรกรรม PromptPay ผ่านธนาคารหรือผู้ให้บริการชำระเงิน</p>
         </div>}
 
         {selected.status === 'เสร็จสิ้น' && <div className="tracking-status-line" style={{marginTop:14}}><div className="tracking-status-icon"><CheckCircle2 size={18}/></div><div className="tracking-status-copy"><strong>ปิดภารกิจเรียบร้อย</strong><span>ลูกค้าและช่างยืนยันการชำระเงินแล้ว · ฿{selected.price.toLocaleString()}</span></div></div>}

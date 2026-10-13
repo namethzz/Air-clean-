@@ -45,11 +45,13 @@ For the Render Static Site:
 - Publish directory: dist
 - Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
 
+The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
+
 If the API address is missing or the server is unreachable, the interface reports the problem rather than showing sample data.
 
 ## Adding live data
 
-The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. If a technician account has no profile, the API creates a basic unverified profile when the technician first opens nearby jobs. It starts with a default base price of ฿550 and an unspecified service area; update these values through the controlled backend/database workflow before public use. Never expose database credentials in the frontend.
+The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. If a technician account has no profile, the API creates a basic unverified profile when the technician first opens nearby jobs. It starts with a default base price of ฿550 and an unspecified service area; Technicians can edit their service title, base price, area, availability and skills on My Profile. Verification and review statistics remain system-managed. Never expose database credentials in the frontend.
 
 Disabling the seeder prevents new demo records from being created in production, but does not automatically delete records already stored in MongoDB. Back up the database first, then remove old demo records manually or use a fresh production database before opening the site to customers.
 
@@ -68,3 +70,7 @@ Disabling the seeder prevents new demo records from being created in production,
 Backend: configure MongoDB and JWT settings, then run dotnet restore and dotnet run from backend/AirCare.Api.
 
 Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, then run npm run dev.
+
+## Automated validation
+
+GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.
