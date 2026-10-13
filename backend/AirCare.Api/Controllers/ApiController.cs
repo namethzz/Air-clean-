@@ -387,19 +387,11 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var report = new ServiceReport { Id = reportId, BookingId = booking.Id, BookingCode = booking.Code, CustomerId = booking.CustomerId, TechnicianId = booking.TechnicianId, Summary = request.Summary.Trim(), CleanedFilter = request.CleanedFilter, CleanedCoil = request.CleanedCoil, CheckedDrain = request.CheckedDrain, CheckedCooling = request.CheckedCooling, BeforePhotoUrl = request.BeforePhotoUrl, AfterPhotoUrl = request.AfterPhotoUrl, CreatedAt = DateTime.UtcNow };
         await store.ServiceReports.InsertOneAsync(report);
         var oldStatus = booking.Status;
-        booking.Status = BookingStates.Completed;
+        booking.Status = BookingStates.AwaitingPayment;
+        booking.PaymentStatus = "Unpaid";
         booking.UpdatedAt = DateTime.UtcNow;
-        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = BookingStates.Completed, Notes = "ช่างส่งรายงานบริการ", CreatedAt = DateTime.UtcNow });
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = BookingStates.AwaitingPayment, Notes = "ช่างส่งรายงานบริการ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
         await store.Bookings.ReplaceOneAsync(x => x.Id == booking.Id, booking);
-        if (booking.AirConditionerId.HasValue) {
-            var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
-            if (unit is not null) {
-                var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
-                unit.LastServiceDate = DateTime.UtcNow.Date; unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6); unit.Health = "good";
-                unit.Services.Add(new ServiceRecord { Id = unit.Services.Count == 0 ? 1 : unit.Services.Max(x => x.Id) + 1, Date = DateTime.UtcNow.Date, TechnicianName = tech?.Name ?? booking.TechnicianName, Service = booking.Service, Price = booking.Price, Summary = request.Summary.Trim(), Status = BookingStates.Completed });
-                await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);
-            }
-        }
         return Created($"/api/service-reports/{report.Id}", new { id = report.Id, bookingId = report.BookingId, report.Summary, report.CreatedAt });
     }
 
