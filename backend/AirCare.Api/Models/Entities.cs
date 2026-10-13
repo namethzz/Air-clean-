@@ -20,7 +20,7 @@ public class TechnicianProfile {
 public class AirConditioner {
  [BsonId] public int Id {get;set;} public int OwnerId {get;set;} public string Label {get;set;}=""; public string Room {get;set;}=""; public string Brand {get;set;}=""; public string Model {get;set;}=""; public string Type {get;set;}=""; public DateTime? LastServiceDate {get;set;} public DateTime? NextServiceDate {get;set;} public string Health {get;set;}="good"; public string SerialNumber {get;set;}=""; public List<ServiceRecord> Services {get;set;}=[];
 }
-public class ServiceRecord { public int Id {get;set;} public DateTime Date {get;set;} public string TechnicianName {get;set;}=""; public string Service {get;set;}=""; public decimal Price {get;set;} public string Summary {get;set;}=""; public string Status {get;set;}=BookingStates.Completed; }
+public class ServiceRecord { public int Id {get;set;} public int? BookingId {get;set;} public DateTime Date {get;set;} public string TechnicianName {get;set;}=""; public string Service {get;set;}=""; public decimal Price {get;set;} public string Summary {get;set;}=""; public string Status {get;set;}=BookingStates.Completed; }
 public class BookingEvent { public int ChangedByUserId {get;set;} public string? FromStatus {get;set;} public string ToStatus {get;set;}=""; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; }
 [BsonIgnoreExtraElements]
 public class Booking {
