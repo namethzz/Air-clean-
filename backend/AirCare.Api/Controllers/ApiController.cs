@@ -193,12 +193,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             .Select(x => new { Booking = x, DistanceKm = DistanceKm(latitude, longitude, x.Latitude!.Value, x.Longitude!.Value) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)) with {
+            .Select(x => (DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)) with {
                 Customer = "ลูกค้าในพื้นที่",
                 Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
                 Latitude = null,
                 Longitude = null
-            })
+            }))
             .ToList();
         return Ok(nearby);
     }

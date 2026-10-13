@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock3, MapPin, Navigation, RefreshCw, ShieldCheck, Wind, Wrench } from 'lucide-react';
+import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, Wind, Wrench } from 'lucide-react';
 import type { Booking } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import { fetchNearbyJobs } from '../lib/api';
