@@ -67,10 +67,16 @@ export async function login(email: string, password: string): Promise<UserProfil
   saveToken(result.token);
   return fromApiUser(result.user);
 }
-export async function register(fullName: string, email: string, password: string): Promise<UserProfile> {
-  const result = await request<AuthResponse>('/auth/register', { method:'POST', body:JSON.stringify({ fullName:fullName.trim(), email:email.trim(), password }) });
+export async function register(fullName: string, email: string, password: string, role: Exclude<UserRole, 'admin'> = 'customer'): Promise<UserProfile> {
+  const result = await request<AuthResponse>('/auth/register', { method:'POST', body:JSON.stringify({ fullName:fullName.trim(), email:email.trim(), password, role }) });
   saveToken(result.token);
   return fromApiUser(result.user);
+}
+export async function updateMyProfile(payload: { fullName: string; email: string }): Promise<UserProfile> {
+  const result = await request<{ id:number; fullName:string; email:string; role:string }>('/auth/profile', {
+    method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim() })
+  });
+  return { id:result.id, fullName:result.fullName, email:result.email, role:roleFromApi(result.role) };
 }
 export async function fetchCurrentUser(): Promise<UserProfile | null> {
   if (!localStorage.getItem(TOKEN_KEY)) { clearAuth(); return null; }

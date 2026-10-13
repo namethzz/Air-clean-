@@ -33,7 +33,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var email = request.Email.Trim().ToLowerInvariant();
         if (await store.Users.Find(x => x.Email == email).AnyAsync())
             return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" });
-        var user = new AppUser { Id = await store.NextIdAsync("users"), FullName = request.FullName.Trim(), Email = email, Role = AppRoles.Customer, CreatedAt = DateTime.UtcNow };
+        var requestedRole = request.Role.Trim().ToLowerInvariant() switch {
+            "technician" or "ช่างแอร์" => AppRoles.Technician,
+            "manager" or "ผู้ดูแลอาคาร" => AppRoles.Manager,
+            _ => AppRoles.Customer
+        };
+        // Never allow public registration to grant Admin privileges.
+        var user = new AppUser { Id = await store.NextIdAsync("users"), FullName = request.FullName.Trim(), Email = email, Role = requestedRole, CreatedAt = DateTime.UtcNow };
         user.PasswordHash = hasher.HashPassword(user, request.Password);
         try { await store.Users.InsertOneAsync(user); }
         catch (MongoWriteException) { return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" }); }
@@ -45,6 +51,22 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         return user is null ? NotFound() : Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+    }
+
+    [Authorize, HttpPatch("auth/profile")]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
+    {
+        var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
+        if (user is null) return NotFound(new { message = "ไม่พบบัญชีผู้ใช้" });
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await store.Users.Find(x => x.Email == email && x.Id != user.Id).AnyAsync())
+            return Conflict(new { message = "อีเมลนี้ถูกใช้โดยบัญชีอื่นแล้ว" });
+
+        user.FullName = request.FullName.Trim();
+        user.Email = email;
+        await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
+        return Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
     }
 
     [AllowAnonymous, HttpGet("technicians")]

@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 namespace AirCare.Api.DTOs;
 public record LoginRequest([Required,EmailAddress] string Email,[Required] string Password);
-public record RegisterRequest([Required,MinLength(2)] string FullName,[Required,EmailAddress] string Email,[Required,MinLength(8)] string Password);
+public record RegisterRequest([Required,MinLength(2),MaxLength(120)] string FullName,[Required,EmailAddress,MaxLength(254)] string Email,[Required,MinLength(8),MaxLength(128)] string Password,[MaxLength(30)] string Role="Customer");
+public record UpdateProfileRequest([Required,MinLength(2),MaxLength(120)] string FullName,[Required,EmailAddress,MaxLength(254)] string Email);
 public record AuthUserDto(int Id,string FullName,string Email,string Role);
 public record LoginResponse(string Token,DateTime ExpiresAt,AuthUserDto User);
 public record TechnicianDto(int Id,string Name,string Initials,string Title,decimal Rating,int ReviewCount,int JobsCompleted,decimal BasePrice,string Area,bool Verified,string AvailableText,string[] Skills,string Accent,int MatchScore,string MatchReason);

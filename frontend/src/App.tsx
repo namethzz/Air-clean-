@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import BookingModal, { type BookingPayload } from './components/BookingModal';
 import AuthPage from './pages/AuthPage';
+import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import TechniciansPage from './pages/TechniciansPage';
 import BookingsPage from './pages/BookingsPage';
@@ -21,7 +22,7 @@ import type { AppState, Booking, BookingStatus, DashboardSummary, PageKey, Payme
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน',
 };
 const activeStatuses:BookingStatus[] = ['รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
 function emptyState():AppState {
@@ -95,6 +96,7 @@ export default function App() {
   useEffect(()=>{if(user)void refreshData();},[user,refreshData]);
 
   function navigate(next:PageKey){setPage(next);setMobileNavOpen(false);setSearchQuery('');}
+  function profileUpdated(nextUser:UserProfile){setUser(nextUser);showNotice('อัปเดตโปรไฟล์เรียบร้อยแล้ว');}
   function onAuthenticated(nextUser:UserProfile){
     setUser(nextUser);setState(emptyState());setPage('overview');setSearchQuery('');setSessionError('');setDataError('');
   }
@@ -169,6 +171,7 @@ export default function App() {
       case 'passport':return <PassportPage units={state.airConditioners}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
+      case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated}/>;
     }
   },[user,page,state,searchQuery,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 

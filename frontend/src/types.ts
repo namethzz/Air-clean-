@@ -1,4 +1,4 @@
-export type PageKey='overview'|'technicians'|'bookings'|'tracking'|'passport'|'batch'|'reports';
+export type PageKey='overview'|'technicians'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile';
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
 export type PaymentMethod='Cash'|'PromptPay';
