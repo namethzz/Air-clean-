@@ -1,4 +1,4 @@
-import type { AirConditioner, BatchBooking, Booking, DashboardSummary, Technician } from '../types';
+import type { AirConditioner, BatchBooking, Booking, DashboardSummary, PaymentMethod, Technician } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.demo.token';
@@ -41,7 +41,7 @@ export async function fetchTechnicians(): Promise<Technician[]> { return request
 export async function fetchBookings(): Promise<Booking[]> { return request<Booking[]>('/bookings'); }
 export async function fetchAirConditioners(): Promise<AirConditioner[]> { return request<AirConditioner[]>('/air-conditioners'); }
 export async function fetchBatchBookings(): Promise<BatchBooking[]> { return request<BatchBooking[]>('/batch-bookings'); }
-export async function createBooking(payload: { technicianId: number; service: string; unitLabel: string; address: string; scheduledAt: string; price: number; notes?: string }): Promise<Booking> {
+export async function createBooking(payload: { technicianId: number; service: string; unitLabel: string; address: string; scheduledAt: string; price: number; notes?: string; latitude?: number; longitude?: number }): Promise<Booking> {
   return request<Booking>('/bookings', { method: 'POST', body: JSON.stringify(payload) });
 }
 export async function createBatchBooking(payload: { buildingName: string; address: string; unitCount: number; scheduledDate: string; notes?: string }): Promise<BatchBooking> {
@@ -49,4 +49,14 @@ export async function createBatchBooking(payload: { buildingName: string; addres
 }
 export async function updateBookingStatus(id: number, status: string): Promise<void> {
   return request<void>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+export async function updateTechnicianLocation(id: number, payload: { latitude: number; longitude: number; accuracy?: number }): Promise<void> {
+  return request<void>(`/bookings/${id}/location`, { method: 'POST', body: JSON.stringify(payload) });
+}
+export async function confirmOnsitePayment(id: number, method: PaymentMethod): Promise<Booking> {
+  return request<Booking>(`/bookings/${id}/payment-confirmation`, { method: 'PATCH', body: JSON.stringify({ method, confirmed: true }) });
+}
+export async function reportPaymentIssue(id: number, reason: string): Promise<Booking> {
+  return request<Booking>(`/bookings/${id}/payment-issue`, { method: 'POST', body: JSON.stringify({ reason }) });
 }
