@@ -1,0 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+namespace AirCare.Api.DTOs;
+public record LoginRequest([Required,EmailAddress] string Email,[Required] string Password);
+public record RegisterRequest([Required,MinLength(2)] string FullName,[Required,EmailAddress] string Email,[Required,MinLength(8)] string Password);
+public record AuthUserDto(int Id,string FullName,string Email,string Role);
+public record LoginResponse(string Token,DateTime ExpiresAt,AuthUserDto User);
+public record TechnicianDto(int Id,string Name,string Initials,string Title,decimal Rating,int ReviewCount,int JobsCompleted,decimal BasePrice,string Area,bool Verified,string AvailableText,string[] Skills,string Accent,int MatchScore,string MatchReason);
+public record ServiceRecordDto(int Id,string Date,string Technician,string Service,decimal Price,string Summary,string Status);
+public record AirConditionerDto(int Id,string Label,string Room,string Brand,string Model,string Type,string LastServiceDate,string NextServiceDate,string Health,string SerialNumber,IReadOnlyList<ServiceRecordDto> Services);
+public record BookingDto(int Id,string Code,string Customer,int TechnicianId,string Technician,string TechnicianInitials,string Service,string UnitLabel,string Address,string Date,string Time,decimal Price,string Status,string CreatedAt);
+public record CreateBookingRequest([Required,Range(1,int.MaxValue)] int TechnicianId,[Required,MaxLength(100)] string Service,[Required,MaxLength(180)] string UnitLabel,[Required,MaxLength(300)] string Address,[Required] DateTime ScheduledAt,[Range(0,100000)] decimal Price,[MaxLength(1000)] string? Notes);
+public record UpdateBookingStatusRequest([Required] string Status,[MaxLength(500)] string? Notes);
+public record BatchBookingDto(int Id,string Code,string Building,string Address,int UnitCount,int CompletedUnits,string ScheduledDate,string Status,decimal Quote);
+public record CreateBatchBookingRequest([Required,MaxLength(160)] string BuildingName,[Required,MaxLength(300)] string Address,[Range(1,500)] int UnitCount,[Required] DateTime ScheduledDate,[MaxLength(1000)] string? Notes);
+public record CreateServiceReportRequest([Range(1,int.MaxValue)] int BookingId,[Required,MaxLength(2000)] string Summary,bool CleanedFilter,bool CleanedCoil,bool CheckedDrain,bool CheckedCooling,[MaxLength(500)] string? BeforePhotoUrl,[MaxLength(500)] string? AfterPhotoUrl);
+public record CreateReviewRequest([Range(1,5)] int Rating,[MaxLength(1000)] string Comment);

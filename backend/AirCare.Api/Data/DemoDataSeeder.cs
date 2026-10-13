@@ -1,0 +1,19 @@
+using AirCare.Api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+namespace AirCare.Api.Data;
+public static class DemoDataSeeder {
+ public static async Task SeedAsync(IServiceProvider services) {
+  using var scope=services.CreateScope(); var db=scope.ServiceProvider.GetRequiredService<AppDbContext>(); var hasher=scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
+  await db.Database.EnsureCreatedAsync(); if(await db.Users.AnyAsync()) return;
+  var users=new List<AppUser>{new(){FullName="นที วัฒนกุล",Email="customer@aircare.demo",Role=AppRoles.Customer},new(){FullName="ธนกร ใจดี",Email="technician@aircare.demo",Role=AppRoles.Technician},new(){FullName="คุณกานต์ ผู้ดูแลอาคาร",Email="manager@aircare.demo",Role=AppRoles.Manager},new(){FullName="AirCare Admin",Email="admin@aircare.demo",Role=AppRoles.Admin},new(){FullName="ปกรณ์ มั่นคง",Email="technician2@aircare.demo",Role=AppRoles.Technician},new(){FullName="อาทิตย์ แสงทอง",Email="technician3@aircare.demo",Role=AppRoles.Technician}};
+  foreach(var u in users) u.PasswordHash=hasher.HashPassword(u,"Aircare123!"); db.Users.AddRange(users); await db.SaveChangesAsync();
+  db.Technicians.AddRange(new TechnicianProfile{UserId=users[1].Id,Title="ช่างแอร์อาวุโส",Rating=4.9m,ReviewCount=128,JobsCompleted=426,BasePrice=550,Area="ลาดพร้าว · วังทองหลาง",IsVerified=true,AvailableText="วันนี้ 14:00 เป็นต้นไป",SkillsCsv="ล้างแอร์ผนัง,ตรวจเช็กระบบ,แอร์หลายเครื่อง",Accent="sage"},new TechnicianProfile{UserId=users[4].Id,Title="ช่างระบบปรับอากาศ",Rating=4.8m,ReviewCount=86,JobsCompleted=301,BasePrice=500,Area="จตุจักร · ลาดพร้าว",IsVerified=true,AvailableText="พรุ่งนี้ 09:00–12:00",SkillsCsv="ล้างแอร์ผนัง,แอร์แขวน,งานอาคาร",Accent="blue"},new TechnicianProfile{UserId=users[5].Id,Title="ช่างอิสระ",Rating=4.7m,ReviewCount=54,JobsCompleted=174,BasePrice=450,Area="ห้วยขวาง · ดินแดง",IsVerified=true,AvailableText="พรุ่งนี้ 13:00 เป็นต้นไป",SkillsCsv="ล้างแอร์ผนัง,ตรวจท่อน้ำทิ้ง",Accent="sand"}); await db.SaveChangesAsync();
+  var unit=new AirConditioner{OwnerId=users[0].Id,Label="แอร์ห้องนอน",Room="Bedroom 01",Brand="Daikin",Model="FTKF12WV2S",Type="ติดผนัง · 12,000 BTU",LastServiceDate=new(2026,9,15),NextServiceDate=new(2027,3,15),Health="good",SerialNumber="DK-1182-9041"};
+  var unit2=new AirConditioner{OwnerId=users[0].Id,Label="แอร์ห้องนั่งเล่น",Room="Living room",Brand="Daikin",Model="FTKF18WV2S",Type="ติดผนัง · 18,000 BTU",LastServiceDate=new(2026,7,10),NextServiceDate=new(2027,1,10),Health="due",SerialNumber="DK-2083-1138"};
+  db.AirConditioners.AddRange(unit,unit2); await db.SaveChangesAsync();
+  db.ServiceRecords.Add(new ServiceRecord{AirConditionerId=unit.Id,Date=new(2026,9,15),TechnicianName="ธนกร ใจดี",Service="ล้างแอร์มาตรฐาน",Price=550,Summary="ทำความสะอาดแผ่นกรอง คอยล์เย็น และตรวจสอบการระบายน้ำ",Status=BookingStates.Completed});
+  db.Bookings.AddRange(new Booking{Code="AC-26018",CustomerId=users[0].Id,TechnicianId=1,AirConditionerId=unit.Id,Service="ล้างแอร์มาตรฐาน",UnitLabel="ห้องนอน · Daikin 12,000 BTU",Address="ลาดพร้าว 71, กรุงเทพฯ",ScheduledAt=new(2026,10,15,10,30,0),Price=550,Status=BookingStates.Confirmed,CreatedAt=new(2026,10,11),UpdatedAt=new(2026,10,11)},new Booking{Code="AC-26021",CustomerId=users[0].Id,TechnicianId=2,AirConditionerId=unit2.Id,Service="ล้างแอร์ + ตรวจเช็ก",UnitLabel="ห้องนั่งเล่น · Daikin 18,000 BTU",Address="ลาดพร้าว 71, กรุงเทพฯ",ScheduledAt=new(2026,10,18,13,0,0),Price=800,Status=BookingStates.Pending,CreatedAt=new(2026,10,12),UpdatedAt=new(2026,10,12)}); await db.SaveChangesAsync();
+  db.BatchBookings.Add(new BatchBooking{Code="BT-0031",ManagerId=users[2].Id,BuildingName="The Green Residence",Address="ลาดพร้าว 101, กรุงเทพฯ",UnitCount=20,CompletedUnits=12,ScheduledDate=new(2026,10,20),Status="Confirmed",Quote=9800}); await db.SaveChangesAsync();
+ }
+}
