@@ -2,7 +2,11 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace AirCare.Api.Models;
 
 public static class AppRoles { public const string Customer="Customer"; public const string Technician="Technician"; public const string Manager="Manager"; public const string Admin="Admin"; }
-public static class BookingStates { public const string Pending="Pending"; public const string Confirmed="Confirmed"; public const string InProgress="InProgress"; public const string Completed="Completed"; public const string Cancelled="Cancelled"; }
+public static class BookingStates {
+ public const string Pending="Pending"; public const string Confirmed="Confirmed"; public const string Traveling="Traveling";
+ public const string Arrived="Arrived"; public const string InProgress="InProgress"; public const string AwaitingPayment="AwaitingPayment";
+ public const string PaymentIssue="PaymentIssue"; public const string Completed="Completed"; public const string Cancelled="Cancelled";
+}
 
 [BsonIgnoreExtraElements]
 public class AppUser {
@@ -20,7 +24,13 @@ public class ServiceRecord { public int Id {get;set;} public DateTime Date {get;
 public class BookingEvent { public int ChangedByUserId {get;set;} public string? FromStatus {get;set;} public string ToStatus {get;set;}=""; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; }
 [BsonIgnoreExtraElements]
 public class Booking {
- [BsonId] public int Id {get;set;} public string Code {get;set;}=""; public int CustomerId {get;set;} public string CustomerName {get;set;}=""; public int TechnicianId {get;set;} public string TechnicianName {get;set;}=""; public string TechnicianInitials {get;set;}=""; public int? AirConditionerId {get;set;} public string Service {get;set;}=""; public string UnitLabel {get;set;}=""; public string Address {get;set;}=""; public DateTime ScheduledAt {get;set;} public decimal Price {get;set;} public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[];
+ [BsonId] public int Id {get;set;} public string Code {get;set;}=""; public int CustomerId {get;set;} public string CustomerName {get;set;}=""; public int TechnicianId {get;set;} public string TechnicianName {get;set;}=""; public string TechnicianInitials {get;set;}=""; public int? AirConditionerId {get;set;} public string Service {get;set;}=""; public string UnitLabel {get;set;}=""; public string Address {get;set;}=""; public DateTime ScheduledAt {get;set;} public decimal Price {get;set;}
+ public double? Latitude {get;set;} public double? Longitude {get;set;}
+ public double? TechnicianLatitude {get;set;} public double? TechnicianLongitude {get;set;} public double? LocationAccuracy {get;set;}
+ public DateTime? LocationUpdatedAt {get;set;} public string TravelStatus {get;set;}="NotStarted";
+ public string? PaymentMethod {get;set;} public string PaymentStatus {get;set;}="Unpaid";
+ public bool CustomerConfirmedPayment {get;set;} public bool TechnicianConfirmedPayment {get;set;}
+ public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[];
 }
 [BsonIgnoreExtraElements]
 public class BatchBooking {
