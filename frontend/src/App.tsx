@@ -173,7 +173,7 @@ export default function App() {
     switch (page) {
       case 'overview': return <DashboardPage state={state} role={role} onNavigate={handleNavigate} onNewBooking={() => openBooking()} />;
       case 'technicians': return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={openBooking} />;
-      case 'bookings': return <BookingsPage bookings={state.bookings} role={role} searchQuery={searchQuery} onNewBooking={() => openBooking()} onStatusChange={handleStatusChange} />;
+      case 'bookings': return <BookingsPage bookings={state.bookings} role={role} searchQuery={searchQuery} onNewBooking={() => openBooking()} onNavigate={handleNavigate} onStatusChange={handleStatusChange} />;
       case 'tracking': return <TrackingPage bookings={state.bookings} role={role} onStatusChange={handleStatusChange} onLocationUpdate={handleLocationUpdate} onPaymentConfirm={handlePaymentConfirm} onPaymentIssue={handlePaymentIssue} onRefresh={refreshBookings} />;
       case 'passport': return <PassportPage units={state.airConditioners} />;
       case 'batch': return <BatchPage bookings={state.batchBookings} onCreate={handleBatchCreate} />;
