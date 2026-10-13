@@ -25,7 +25,7 @@ AirCare Connect is a responsive air-conditioner service booking workspace built 
 Configure these on the Render API service:
 
 - MONGODB_URI: MongoDB Atlas connection string
-- MONGODB_DATABASE: for example aircareconnect
+- MONGODB_DATABASE: use aircareconnect_live for the clean production database defined in render.yaml
 - JWT_KEY: private random secret of at least 32 bytes
 - FRONTEND_ORIGIN: exact HTTPS origin of the frontend, without a trailing slash
 - INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD: optional first-admin credentials; set both together. Password must be at least 12 characters and use a new email.
