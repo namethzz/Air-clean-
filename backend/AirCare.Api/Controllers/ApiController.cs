@@ -135,7 +135,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             if (normalized.Length == 0) return BadRequest(new { message = "สถานะไม่ถูกต้อง" });
             rows = rows.Where(x => x.Status == normalized).ToList();
         }
-        return Ok(rows.OrderByDescending(x => x.ScheduledAt).Select(DtoMapper.ToDto).ToList());
+        return Ok(rows.OrderByDescending(x => x.ScheduledAt).Select(x => DtoMapper.ToDto(x)).ToList());
     }
 
     [Authorize, HttpGet("bookings/{id:int}")]
