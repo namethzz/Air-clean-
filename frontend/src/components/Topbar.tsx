@@ -5,7 +5,7 @@ const greetings:Record<UserRole,string>={customer:'พื้นที่ดู�
 function initials(name:string):string{return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.slice(0,1)).join('')||'AC';}
 export default function Topbar({role,userName,searchQuery,onSearchChange,onNewBooking,onLogout}:Props){
  return <header className="topbar">
-  <div className="topbar-context"><div className="breadcrumb">AIRCARE <span>/</span> WORKSPACE</div><div className="topbar-title">{greetings[role]}</div></div>
+  <div className="topbar-context"><div className="breadcrumb">AIRCLEAN <span>/</span> WORKSPACE</div><div className="topbar-title">{greetings[role]}</div></div>
   <div className="topbar-actions">
    <label className="global-search"><Search size={17}/><input value={searchQuery} onChange={event=>onSearchChange(event.target.value)} placeholder="ค้นหาช่างหรือรายการจอง..." aria-label="ค้นหาช่างหรือรายการจอง"/></label>
    {role!=='technician'&&<button type="button" className="primary-button topbar-book-button" onClick={onNewBooking}>จองบริการ</button>}
