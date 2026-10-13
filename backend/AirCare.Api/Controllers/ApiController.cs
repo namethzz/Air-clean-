@@ -121,7 +121,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
-        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && booking.CustomerId != CurrentUserId) return Forbid();
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
@@ -160,12 +160,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (target.Length == 0) return BadRequest(new { message = "สถานะไม่ถูกต้อง" });
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
-        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && booking.CustomerId != CurrentUserId) return Forbid();
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
-        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)))
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)))
             return Forbid();
         if (CurrentRole != AppRoles.Admin) {
             var allowed = booking.Status switch {
@@ -261,7 +261,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var report = await store.ServiceReports.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (report is null) return NotFound();
-        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && report.CustomerId != CurrentUserId) return Forbid();
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && report.CustomerId != CurrentUserId) return Forbid();
         report.CustomerApproved = true;
         await store.ServiceReports.ReplaceOneAsync(x => x.Id == id, report);
         return NoContent();
