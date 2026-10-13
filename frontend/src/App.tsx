@@ -9,11 +9,12 @@ import BookingsPage from './pages/BookingsPage';
 import PassportPage from './pages/PassportPage';
 import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
-import { createBatchBooking, createBooking, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchTechnicians, loginAsDemo, tryDemoLogin, updateBookingStatus } from './lib/api';
+import TrackingPage from './pages/TrackingPage';
+import { confirmOnsitePayment, createBatchBooking, createBooking, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchTechnicians, loginAsDemo, reportPaymentIssue, tryDemoLogin, updateBookingStatus, updateTechnicianLocation } from './lib/api';
 import { initialState } from './lib/mockData';
-import type { AppState, Booking, BookingStatus, PageKey, UserRole } from './types';
+import type { AppState, Booking, BookingStatus, PageKey, PaymentMethod, UserRole } from './types';
 
-const pageTitles: Record<PageKey, string> = { overview: 'ภาพรวม', technicians: 'ค้นหาช่าง', bookings: 'การจองของฉัน', passport: 'Aircon Passport', batch: 'งานแบบกลุ่ม', reports: 'รายงานบริการ' };
+const pageTitles: Record<PageKey, string> = { overview: 'ภาพรวม', technicians: 'ค้นหาช่าง', bookings: 'การจองของฉัน', tracking: 'แผนที่และการเดินทาง', passport: 'Aircon Passport', batch: 'งานแบบกลุ่ม', reports: 'รายงานบริการ' };
 function todayLabel() { return new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
 
 export default function App() {
@@ -63,7 +64,7 @@ export default function App() {
     localStorage.setItem('aircare.demo.role', nextRole);
     try { await loginAsDemo(nextRole); } catch { /* Keep local demo mode available. */ }
     await refreshData();
-    if (nextRole === 'technician') setPage('reports');
+    if (nextRole === 'technician') setPage('tracking');
     else if (nextRole === 'manager') setPage('batch');
     else setPage('overview');
     showNotice(`เปลี่ยนเป็นโหมด${({ customer: 'ลูกค้า', technician: 'ช่างแอร์', manager: 'ผู้ดูแลอาคาร', admin: 'ผู้ดูแลระบบ' } as Record<UserRole, string>)[nextRole]}แล้ว`);
@@ -77,10 +78,11 @@ export default function App() {
       id: localId, code: `AC-${String(localId).slice(-5)}`, customer: 'คุณนที', technicianId: payload.technicianId,
       technician: technician?.name ?? 'ช่างแอร์', technicianInitials: technician?.initials ?? 'ชง', service: payload.service,
       unitLabel: payload.unitLabel, address: payload.address, date: payload.date, time: payload.time, price: payload.price,
+      latitude: payload.latitude, longitude: payload.longitude, travelStatus: 'NotStarted', paymentStatus: 'Unpaid', customerConfirmedPayment: false, technicianConfirmedPayment: false,
       status: 'รอยืนยัน', createdAt: new Date().toISOString().slice(0, 10),
     };
     try {
-      const saved = await createBooking({ technicianId: payload.technicianId, service: payload.service, unitLabel: payload.unitLabel, address: payload.address, scheduledAt: `${payload.date}T${payload.time}:00`, price: payload.price });
+      const saved = await createBooking({ technicianId: payload.technicianId, service: payload.service, unitLabel: payload.unitLabel, address: payload.address, scheduledAt: `${payload.date}T${payload.time}:00`, price: payload.price, latitude: payload.latitude, longitude: payload.longitude });
       setState((previous) => ({ ...previous, bookings: [saved, ...previous.bookings] }));
       setApiConnected(true);
     } catch {
@@ -96,12 +98,64 @@ export default function App() {
       const bookings = previous.bookings.map((item) => item.id === id ? { ...item, status } : item);
       return { ...previous, bookings, summary: {
         ...previous.summary,
-        upcomingBookings: bookings.filter((item) => ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังดำเนินการ'].includes(item.status)).length,
+        upcomingBookings: bookings.filter((item) => ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'].includes(item.status)).length,
         totalSpent: bookings.filter((item) => item.status === 'เสร็จสิ้น').reduce((sum, item) => sum + item.price, 0),
       } };
     });
-    showNotice(status === 'เสร็จสิ้น' ? 'อัปเดตงานเสร็จสิ้นแล้ว' : 'อัปเดตสถานะงานแล้ว');
+    showNotice(status === 'เสร็จสิ้น' ? 'ปิดภารกิจเรียบร้อยแล้ว' : status === 'รอชำระเงิน' ? 'บันทึกงานเสร็จ รอชำระเงินหน้างาน' : status === 'กำลังเดินทาง' ? 'เริ่มเดินทางแล้ว กำลังแชร์ GPS เมื่ออนุญาตตำแหน่ง' : 'อัปเดตสถานะงานแล้ว');
   }
+
+  const handleLocationUpdate = useCallback(async (id: number, latitude: number, longitude: number, accuracy?: number) => {
+    try {
+      await updateTechnicianLocation(id, { latitude, longitude, accuracy });
+      setState((previous) => ({ ...previous, bookings: previous.bookings.map((item) => item.id === id ? { ...item, technicianLatitude: latitude, technicianLongitude: longitude, locationAccuracy: accuracy, locationUpdatedAt: new Date().toISOString() } : item) }));
+      setApiConnected(true);
+    } catch {
+      if (apiConnected) return;
+      setState((previous) => ({ ...previous, bookings: previous.bookings.map((item) => item.id === id ? { ...item, technicianLatitude: latitude, technicianLongitude: longitude, locationAccuracy: accuracy, locationUpdatedAt: new Date().toISOString() } : item) }));
+    }
+  }, [apiConnected]);
+
+  const handlePaymentConfirm = useCallback(async (id: number, method: PaymentMethod) => {
+    try {
+      const saved = await confirmOnsitePayment(id, method);
+      setState((previous) => ({ ...previous, bookings: previous.bookings.map((item) => item.id === id ? saved : item) }));
+      showNotice(saved.status === 'เสร็จสิ้น' ? 'ทั้งสองฝ่ายยืนยันแล้ว ปิดภารกิจเรียบร้อย' : 'บันทึกการยืนยันแล้ว รออีกฝ่ายยืนยัน');
+      setApiConnected(true);
+    } catch {
+      if (apiConnected) { showNotice('บันทึกไม่สำเร็จบน Backend กรุณาตรวจสอบ Logs'); return; }
+      setState((previous) => {
+        const bookings = previous.bookings.map((item) => {
+          if (item.id !== id) return item;
+          const customerConfirmedPayment = item.customerConfirmedPayment || role === 'customer';
+          const technicianConfirmedPayment = item.technicianConfirmedPayment || role === 'technician';
+          const completed = customerConfirmedPayment && technicianConfirmedPayment;
+          return { ...item, paymentMethod: method, paymentStatus: completed ? 'Paid' : 'ConfirmationPending', customerConfirmedPayment, technicianConfirmedPayment, status: completed ? 'เสร็จสิ้น' as BookingStatus : item.status };
+        });
+        return { ...previous, bookings };
+      });
+      showNotice('บันทึกการยืนยันใน Demo mode แล้ว');
+    }
+  }, [apiConnected, role]);
+
+  const handlePaymentIssue = useCallback(async (id: number, reason: string) => {
+    try {
+      const saved = await reportPaymentIssue(id, reason);
+      setState((previous) => ({ ...previous, bookings: previous.bookings.map((item) => item.id === id ? saved : item) }));
+      showNotice('ส่งเรื่องให้ผู้ดูแลตรวจสอบแล้ว');
+    } catch {
+      if (apiConnected) { showNotice('ส่งเรื่องไม่สำเร็จบน Backend'); return; }
+      setState((previous) => ({ ...previous, bookings: previous.bookings.map((item) => item.id === id ? { ...item, status: 'มีปัญหาการชำระเงิน' } : item) }));
+      showNotice('บันทึกปัญหาใน Demo mode แล้ว');
+    }
+  }, [apiConnected]);
+
+  const refreshBookings = useCallback(async () => {
+    try {
+      const bookings = await fetchBookings();
+      setState((previous) => ({ ...previous, bookings }));
+    } catch { /* Offline demo keeps local state. */ }
+  }, []);
 
   async function handleBatchCreate(payload: { building: string; address: string; unitCount: number; date: string }) {
     try {
@@ -120,6 +174,7 @@ export default function App() {
       case 'overview': return <DashboardPage state={state} role={role} onNavigate={handleNavigate} onNewBooking={() => openBooking()} />;
       case 'technicians': return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={openBooking} />;
       case 'bookings': return <BookingsPage bookings={state.bookings} role={role} searchQuery={searchQuery} onNewBooking={() => openBooking()} onStatusChange={handleStatusChange} />;
+      case 'tracking': return <TrackingPage bookings={state.bookings} role={role} onStatusChange={handleStatusChange} onLocationUpdate={handleLocationUpdate} onPaymentConfirm={handlePaymentConfirm} onPaymentIssue={handlePaymentIssue} onRefresh={refreshBookings} />;
       case 'passport': return <PassportPage units={state.airConditioners} />;
       case 'batch': return <BatchPage bookings={state.batchBookings} onCreate={handleBatchCreate} />;
       case 'reports': return <ReportsPage state={state} role={role} />;
