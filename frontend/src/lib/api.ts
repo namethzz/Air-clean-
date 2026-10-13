@@ -94,10 +94,20 @@ export async function fetchAirConditioners(): Promise<AirConditioner[]> { return
 export async function fetchBatchBookings(): Promise<BatchBooking[]> { return request<BatchBooking[]>('/batch-bookings'); }
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
-  technicianId:number; service:string; unitLabel:string; address:string; scheduledAt:string;
+  service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
   price:number; notes?:string; latitude?:number; longitude?:number;
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
+}
+export async function fetchNearbyJobs(latitude:number,longitude:number,radiusKm=25):Promise<Booking[]> {
+  const query=new URLSearchParams({latitude:String(latitude),longitude:String(longitude),radiusKm:String(radiusKm)});
+  return request<Booking[]>('/technician-jobs?'+query.toString());
+}
+export async function applyForBooking(id:number,note?:string):Promise<Booking> {
+  return request<Booking>('/bookings/'+id+'/applications',{method:'POST',body:JSON.stringify({note})});
+}
+export async function confirmBookingTechnician(id:number,technicianId:number):Promise<Booking> {
+  return request<Booking>('/bookings/'+id+'/confirm-technician',{method:'POST',body:JSON.stringify({technicianId})});
 }
 export async function createBatchBooking(payload: {
   buildingName:string; address:string; unitCount:number; scheduledDate:string; notes?:string;
