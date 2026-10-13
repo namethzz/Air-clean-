@@ -1,4 +1,4 @@
-import { AirVent, CalendarDays, ChevronDown, CircleHelp, ClipboardCheck, LayoutDashboard, LogOut, Search, Settings2, ShieldCheck, Users, Wind } from 'lucide-react';
+import { AirVent, CalendarDays, ChevronDown, CircleHelp, ClipboardCheck, LayoutDashboard, LogOut, MapPinned, Search, Settings2, ShieldCheck, Users, Wind } from 'lucide-react';
 import type { PageKey, UserRole } from '../types';
 
 interface SidebarProps { page: PageKey; onNavigate: (page: PageKey) => void; role: UserRole; onRoleChange: (role: UserRole) => void; }
@@ -6,6 +6,7 @@ const navItems: { key: PageKey; label: string; icon: typeof LayoutDashboard; rol
   { key: 'overview', label: 'ภาพรวม', icon: LayoutDashboard },
   { key: 'technicians', label: 'ค้นหาช่าง', icon: Search, roles: ['customer', 'manager', 'admin'] },
   { key: 'bookings', label: 'การจองของฉัน', icon: CalendarDays },
+  { key: 'tracking', label: 'แผนที่และการเดินทาง', icon: MapPinned, roles: ['customer', 'technician', 'manager', 'admin'] },
   { key: 'passport', label: 'Aircon Passport', icon: AirVent, roles: ['customer', 'manager', 'admin'] },
   { key: 'batch', label: 'งานแบบกลุ่ม', icon: Users, roles: ['manager', 'admin', 'customer'] },
   { key: 'reports', label: 'รายงานบริการ', icon: ClipboardCheck, roles: ['technician', 'manager', 'admin'] },
