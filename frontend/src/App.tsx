@@ -44,7 +44,7 @@ export default function App() {
         if (batches.status === 'fulfilled') next.batchBookings = batches.value;
         next.summary = {
           totalUnits: next.airConditioners.length,
-          upcomingBookings: next.bookings.filter((item) => ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังดำเนินการ'].includes(item.status)).length,
+          upcomingBookings: next.bookings.filter((item) => ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'].includes(item.status)).length,
           serviceCompletion: next.airConditioners.length ? Math.round((next.airConditioners.filter((item) => item.services.length > 0).length / next.airConditioners.length) * 100) : 0,
           totalSpent: next.bookings.filter((item) => item.status === 'เสร็จสิ้น').reduce((sum, item) => sum + item.price, 0),
         };
@@ -93,7 +93,9 @@ export default function App() {
   }
 
   async function handleStatusChange(id: number, status: BookingStatus) {
-    try { await updateBookingStatus(id, status); } catch { /* Update local demo state if the API is unavailable. */ }
+    try { await updateBookingStatus(id, status); } catch {
+      if (apiConnected) { showNotice('อัปเดตสถานะบน Backend ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์หรือ Logs'); return; }
+    }
     setState((previous) => {
       const bookings = previous.bookings.map((item) => item.id === id ? { ...item, status } : item);
       return { ...previous, bookings, summary: {
