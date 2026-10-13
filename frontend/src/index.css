@@ -81,3 +81,86 @@ button:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:560px){.topbar-logout-button{width:36px;min-width:36px;height:36px;min-height:36px;padding:0;border-radius:9px}.topbar-logout-button span{display:none}.global-search{width:calc(100% - 135px);max-width:310px}}
 
 .auth-role-lock-note{display:block;margin-top:7px;color:#7b9286;font-size:11px;line-height:1.55}
+
+
+/* Nearby technician marketplace and customer candidate review */
+.status-badge.info { background:#e8f4f1; color:#287c6d; }
+.nearby-job-toolbar { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid var(--line,#e6e9e7);border-radius:18px;padding:16px 18px; }
+.nearby-location-status { display:flex;align-items:center;gap:11px;color:#26806f; }
+.nearby-location-status div { display:grid;gap:3px; }
+.nearby-location-status strong { color:var(--ink,#1f2a28);font-size:14px; }
+.nearby-location-status span { color:var(--muted,#737e7a);font-size:12px; }
+.nearby-results-line { display:flex;align-items:center;gap:8px;color:var(--muted,#737e7a);font-size:13px; }
+.nearby-results-line strong { color:var(--ink,#1f2a28);font-size:16px; }
+.nearby-job-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.nearby-job-card { min-width:0;background:#fff;border:1px solid var(--line,#e6e9e7);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 5px 18px rgba(35,58,48,.035); }
+.nearby-job-card-top { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+.nearby-job-card h2 { font-size:20px;margin:0;color:var(--ink,#1f2a28); }
+.nearby-job-distance { display:flex;align-items:center;gap:7px;color:#287c6d;font-size:13px; }
+.nearby-job-distance strong { font-size:15px; }
+.nearby-job-distance span { color:var(--muted,#737e7a); }
+.nearby-job-facts { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.nearby-job-facts div { background:#f7f9f7;border-radius:12px;padding:11px;display:grid;gap:4px; }
+.nearby-job-facts span { color:var(--muted,#737e7a);font-size:11px; }
+.nearby-job-facts strong { color:var(--ink,#1f2a28);font-size:13px; }
+.nearby-job-description { display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#56625d;line-height:1.6; }
+.nearby-job-description svg { flex-shrink:0;margin-top:2px;color:#287c6d; }
+.nearby-job-privacy { display:flex;gap:7px;align-items:flex-start;background:#f0f7f4;border-radius:10px;padding:9px 10px;color:#287c6d;font-size:11px;line-height:1.5; }
+.nearby-job-privacy svg { flex-shrink:0;margin-top:1px; }
+.nearby-job-price { display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line,#e6e9e7);padding-top:13px;margin-top:auto; }
+.nearby-job-price div { display:grid;gap:3px; }
+.nearby-job-price span,.nearby-job-price small { color:var(--muted,#737e7a);font-size:11px; }
+.nearby-job-price strong { color:#287c6d;font-size:23px; }
+.nearby-applied-state { display:flex;gap:10px;align-items:flex-start;border-radius:12px;background:#eef7f1;padding:12px;color:#287c6d; }
+.nearby-applied-state svg { flex-shrink:0;margin-top:2px; }
+.nearby-applied-state div { display:grid;gap:4px; }
+.nearby-applied-state strong { font-size:13px; }
+.nearby-applied-state span { font-size:12px;line-height:1.5;color:#536d61; }
+.nearby-empty { display:grid;justify-items:center;text-align:center;gap:10px;padding:40px 20px;color:#75817b; }
+.nearby-empty strong { color:var(--ink,#1f2a28);font-size:16px; }
+.nearby-empty span { font-size:13px; }
+.nearby-market-note { display:flex;gap:12px;align-items:flex-start;padding:16px;background:#f2f7f3;border-radius:16px;color:#287c6d; }
+.nearby-market-note svg { flex-shrink:0;margin-top:2px; }
+.nearby-market-note div { display:grid;gap:5px; }
+.nearby-market-note strong { color:#284d41;font-size:14px; }
+.nearby-market-note span { color:#61746a;font-size:12px;line-height:1.6; }
+.interested-technicians-panel { display:grid;gap:15px; }
+.candidate-request-list { display:grid;gap:14px; }
+.candidate-request { border:1px solid var(--line,#e6e9e7);border-radius:16px;padding:16px;display:grid;gap:15px; }
+.candidate-request-heading { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
+.candidate-request-heading h3 { margin:4px 0;font-size:17px;color:var(--ink,#1f2a28); }
+.candidate-request-heading p { margin:3px 0;color:var(--muted,#737e7a);font-size:12px;line-height:1.5; }
+.candidate-request-address { display:flex;align-items:flex-start;gap:5px; }
+.candidate-request-address svg { flex-shrink:0;margin-top:2px; }
+.candidate-technician-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.candidate-technician-card { min-width:0;border:1px solid #e4eae5;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px; }
+.candidate-tech-head { display:flex;align-items:center;gap:9px; }
+.candidate-tech-head>div { min-width:0;display:grid;gap:3px;flex:1; }
+.candidate-tech-head strong { font-size:13px;color:var(--ink,#1f2a28); }
+.candidate-tech-head small { font-size:11px;color:var(--muted,#737e7a); }
+.candidate-verified { color:#287c6d;flex-shrink:0; }
+.candidate-tech-stats { display:flex;flex-wrap:wrap;gap:11px;color:#6d766f;font-size:11px; }
+.candidate-tech-stats span,.candidate-tech-area { display:flex;align-items:center;gap:5px; }
+.candidate-tech-stats span:first-child { color:#a8751f; }
+.candidate-tech-area { color:var(--muted,#737e7a);font-size:11px;line-height:1.5; }
+.candidate-tech-note { margin:0;background:#f8f9f7;border-radius:9px;padding:8px 9px;color:#5c6962;font-size:12px;line-height:1.5; }
+.candidate-tech-price { margin-top:auto;padding-top:9px;border-top:1px solid var(--line,#e6e9e7);display:flex;justify-content:space-between;align-items:center;gap:8px; }
+.candidate-tech-price span { color:var(--muted,#737e7a);font-size:11px; }
+.candidate-tech-price strong { color:#287c6d;font-size:20px; }
+.candidate-waiting { display:flex;gap:10px;align-items:flex-start;padding:13px;background:#fff9eb;color:#9c7025;border-radius:12px; }
+.candidate-waiting svg { flex-shrink:0;margin-top:2px; }
+.candidate-waiting div { display:grid;gap:4px; }
+.candidate-waiting strong { color:#75541f;font-size:13px; }
+.candidate-waiting span { color:#8d7855;font-size:12px;line-height:1.5; }
+.marketplace-estimate { border:1px solid #d8e9df;background:#f1f8f3;border-radius:14px;padding:14px 15px;display:grid;gap:8px; }
+.marketplace-estimate>div { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+.marketplace-estimate span { color:#587063;font-size:12px; }
+.marketplace-estimate strong { color:#287c6d;font-size:24px; }
+.marketplace-estimate small { display:flex;align-items:flex-start;gap:7px;color:#62766b;font-size:11px;line-height:1.5; }
+.marketplace-estimate svg { flex-shrink:0;margin-top:1px; }
+@media(max-width:760px) {
+ .nearby-job-grid,.candidate-technician-grid { grid-template-columns:1fr; }
+ .nearby-job-card { padding:16px; }
+ .nearby-job-toolbar { align-items:flex-start; }
+ .candidate-request-heading { flex-direction:column; }
+}
