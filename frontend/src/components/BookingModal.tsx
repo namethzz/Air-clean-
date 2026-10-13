@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, CalendarDays, Check, MapPin, Wind, X } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Wind, X } from 'lucide-react';
 import type { SavedAddress, Technician } from '../types';
 import LocationPicker from './LocationPicker';
 export interface BookingPayload { technicianId: number; service: string; unitLabel: string; address: string; date: string; time: string; price: number; latitude: number; longitude: number; }
