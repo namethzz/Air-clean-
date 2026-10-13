@@ -12,8 +12,9 @@ import PassportPage from './pages/PassportPage';
 import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
+import NearbyJobsPage from './pages/NearbyJobsPage';
 import {
-  approveServiceReport, clearAuth, confirmOnsitePayment, createBatchBooking, createBooking,
+  approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBatchBooking, createBooking,
   createServiceReport, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type CreateServiceReportPayload,
@@ -21,7 +22,7 @@ import {
 import type { AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile } from './types';
 
 const pageTitles:Record<PageKey,string> = {
-  overview:'ภาพรวม', technicians:'ค้นหาช่าง', bookings:'รายการจอง',
+  overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
   tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน',
 };
 const activeStatuses:BookingStatus[] = ['รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
@@ -49,7 +50,6 @@ export default function App() {
   const [state,setState] = useState<AppState>(emptyState);
   const [searchQuery,setSearchQuery] = useState('');
   const [bookingModalOpen,setBookingModalOpen] = useState(false);
-  const [preselectedTechnician,setPreselectedTechnician] = useState<number|undefined>();
   const [notice,setNotice] = useState('');
   const [apiConnected,setApiConnected] = useState(false);
   const [mobileNavOpen,setMobileNavOpen] = useState(false);
@@ -104,18 +104,29 @@ export default function App() {
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');
   }
-  function openBooking(technicianId?:number){setPreselectedTechnician(technicianId);setBookingModalOpen(true);}
+  function openBooking(_technicianId?:number){setBookingModalOpen(true);}
 
   async function bookingSubmit(payload:BookingPayload):Promise<boolean>{
     if(!user)return false;
     try{
       const saved=await createBooking({
-        technicianId:payload.technicianId,service:payload.service,unitLabel:payload.unitLabel,address:payload.address,
+        service:payload.service,unitLabel:payload.unitLabel,propertyType:payload.propertyType,unitCount:payload.unitCount,address:payload.address,
         scheduledAt:payload.date+'T'+payload.time+':00',price:payload.price,latitude:payload.latitude,longitude:payload.longitude,
       });
       setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
-      setPage('bookings');showNotice('ส่งคำขอจองแล้ว ข้อมูลถูกบันทึกในระบบ');return true;
+      setPage('bookings');showNotice('ส่งคำขอแล้ว รอช่างใกล้เคียงส่งความสนใจ');return true;
     }catch(error){showNotice(errorMessage(error,'บันทึกการจองไม่สำเร็จ กรุณาลองใหม่'));return false;}
+  }
+  async function applyForNearbyJob(id:number):Promise<boolean>{
+    try{await applyForBooking(id);showNotice('ส่งความสนใจรับงานแล้ว รอลูกค้าเลือกและยืนยัน');return true;}
+    catch(error){showNotice(errorMessage(error,'ส่งความสนใจไม่สำเร็จ'));return false;}
+  }
+  async function selectTechnician(id:number,technicianId:number):Promise<boolean>{
+    try{
+      const saved=await confirmBookingTechnician(id,technicianId);
+      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      showNotice('ยืนยันช่างเรียบร้อยแล้ว ช่างจะเห็นงานในรายการของตน');return true;
+    }catch(error){showNotice(errorMessage(error,'ยืนยันช่างไม่สำเร็จ กรุณาโหลดข้อมูลใหม่'));return false;}
   }
   async function statusChange(id:number,status:BookingStatus){
     try{
@@ -165,8 +176,9 @@ export default function App() {
     if(!user)return null;
     switch(page){
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
-      case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={openBooking}/>;
-      case 'bookings':return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange}/>;
+      case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
+      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob}/>;
+      case 'bookings':return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
       case 'passport':return <PassportPage units={state.airConditioners}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
@@ -188,7 +200,7 @@ export default function App() {
       <div className="page-content">{content}</div>
       <footer className="app-footer"><span>© 2026 AirClean</span><span className="footer-center"><span className={'connection-dot '+(apiConnected?'connected':'')}/>{apiConnected?<><Wifi size={13}/> เชื่อมต่อระบบแล้ว</>:<><WifiOff size={13}/> ตรวจสอบการเชื่อมต่อ</>}</span><span>บริการดูแลแอร์ · ข้อมูลจากระบบจริง</span></footer>
     </main>
-    {bookingModalOpen&&<BookingModal technicians={state.technicians} onClose={()=>{setBookingModalOpen(false);setPreselectedTechnician(undefined);}} onSubmit={bookingSubmit} initialTechnicianId={preselectedTechnician}/>}
+    {bookingModalOpen&&<BookingModal technicians={state.technicians} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
     {notice&&<div className="toast-notice" role="status"><div className="toast-check"><CheckCircle2 size={17}/></div><span>{notice}</span><button className="icon-button" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={15}/></button></div>}
     {isLoading&&<div className="loading-indicator"><span/>กำลังโหลดข้อมูล...</div>}
   </div>;
