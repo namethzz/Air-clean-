@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: aircare-connect-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/AirCare.Api/Dockerfile
+    dockerContext: ./backend/AirCare.Api
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: aircareconnect
+      - key: JWT_KEY
+        generateValue: true
+      - key: SEED_DEMO_DATA
+        value: true
+      - key: FRONTEND_ORIGIN
+        value: http://localhost:5173

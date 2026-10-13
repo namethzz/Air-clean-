@@ -1,18 +1,23 @@
-# AirCare Connect API (V.1)
+# AirCare Connect API — MongoDB Atlas + Render
 
-ASP.NET Core 8 Web API + EF Core + SQLite. Database is created and seeded on the first run.
+## Local run
+Set environment variables first:
+- `MONGODB_URI`: MongoDB Atlas connection string
+- `MONGODB_DATABASE`: database name (default `aircareconnect`)
+- `JWT_KEY`: secret string of at least 32 bytes
 
+Then:
 ```powershell
 dotnet restore
 dotnet run
 ```
 
-API root: http://localhost:5080 · Health check: http://localhost:5080/health
+The API uses the port supplied by Render's `PORT` variable (defaults to 10000 locally). Health check: `/health`.
 
-Demo accounts (all passwords: `Aircare123!`):
-- `customer@aircare.demo`
-- `technician@aircare.demo`
-- `manager@aircare.demo`
-- `admin@aircare.demo`
+## Render setup
+This repository includes `render.yaml` and a Dockerfile. Connect the repository in Render and choose the Blueprint flow, or create a Docker Web Service using:
+- Dockerfile path: `./backend/AirCare.Api/Dockerfile`
+- Docker context: `./backend/AirCare.Api`
+- Health check path: `/health`
 
-The JWT key and seeded accounts are for local development only. Replace them and use secret configuration before deploying.
+Set `MONGODB_URI` using the connection string copied from Atlas. Add a database user and allow network access for Render in Atlas Network Access. Never commit secrets.
