@@ -145,6 +145,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
             TechnicianId = tech.Id, TechnicianName = tech.Name, TechnicianInitials = DtoMapper.Initials(tech.Name),
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
+            Latitude = request.Latitude, Longitude = request.Longitude,
             ScheduledAt = request.ScheduledAt, Price = price, Status = BookingStates.Pending, Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.Pending, Notes = "สร้างคำขอจอง", CreatedAt = DateTime.UtcNow }]
@@ -165,23 +166,169 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
-        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)))
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) &&
+            (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)))
             return Forbid();
+
         if (CurrentRole != AppRoles.Admin) {
             var allowed = booking.Status switch {
                 BookingStates.Pending => target is BookingStates.Confirmed or BookingStates.Cancelled,
-                BookingStates.Confirmed => target is BookingStates.InProgress or BookingStates.Cancelled,
-                BookingStates.InProgress => target is BookingStates.Completed or BookingStates.Cancelled,
+                BookingStates.Confirmed => target is BookingStates.Traveling or BookingStates.Cancelled,
+                BookingStates.Traveling => target == BookingStates.Arrived,
+                BookingStates.Arrived => target == BookingStates.InProgress,
+                BookingStates.InProgress => target == BookingStates.AwaitingPayment,
                 _ => false
             };
             if (!allowed) return Conflict(new { message = "ไม่สามารถเปลี่ยนสถานะจากขั้นตอนปัจจุบันได้" });
+            if (target == BookingStates.Confirmed && CurrentRole != AppRoles.Technician)
+                return Forbid();
         }
+
         var oldStatus = booking.Status;
         booking.Status = target;
         booking.UpdatedAt = DateTime.UtcNow;
+        if (target == BookingStates.Arrived) booking.TravelStatus = "Arrived";
+        if (target == BookingStates.Traveling) booking.TravelStatus = "EnRoute";
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = target, Notes = request.Notes, CreatedAt = DateTime.UtcNow });
         await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
         return NoContent();
+    }
+
+    [Authorize, HttpGet("bookings/{id:int}/tracking")]
+    public async Task<IActionResult> GetBookingTracking(int id)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
+        }
+        return Ok(DtoMapper.ToDto(booking));
+    }
+
+    [Authorize(Roles = "Technician,Admin"), HttpPost("bookings/{id:int}/location")]
+    public async Task<IActionResult> UpdateTechnicianLocation(int id, TechnicianLocationRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        }
+        if (booking.Status != BookingStates.Traveling)
+            return Conflict(new { message = "แชร์ตำแหน่งได้เมื่อกดกำลังเดินทางเท่านั้น" });
+
+        booking.TechnicianLatitude = request.Latitude;
+        booking.TechnicianLongitude = request.Longitude;
+        booking.LocationAccuracy = request.Accuracy;
+        booking.LocationUpdatedAt = DateTime.UtcNow;
+        booking.TravelStatus = "EnRoute";
+        booking.UpdatedAt = DateTime.UtcNow;
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(new { updated = true, locationUpdatedAt = booking.LocationUpdatedAt });
+    }
+
+    [Authorize(Roles = "Technician,Admin"), HttpPost("bookings/{id:int}/service-complete")]
+    public async Task<IActionResult> CompleteService(int id)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        }
+        if (booking.Status != BookingStates.InProgress)
+            return Conflict(new { message = "ต้องเริ่มให้บริการก่อนแจ้งว่างานเสร็จ" });
+        var previous = booking.Status;
+        booking.Status = BookingStates.AwaitingPayment;
+        booking.PaymentStatus = "Unpaid";
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างแจ้งว่างานเสร็จ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(DtoMapper.ToDto(booking));
+    }
+
+    [Authorize(Roles = "Customer,Technician"), HttpPatch("bookings/{id:int}/payment-confirmation")]
+    public async Task<IActionResult> ConfirmOnsitePayment(int id, OnsitePaymentRequest request)
+    {
+        var method = request.Method.Trim();
+        if (method is not ("Cash" or "PromptPay"))
+            return BadRequest(new { message = "เลือกเงินสดหรือ PromptPay เท่านั้น" });
+        if (!request.Confirmed) return BadRequest(new { message = "ต้องยืนยันว่าชำระหรือได้รับเงินแล้ว" });
+
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (CurrentRole == AppRoles.Customer && booking.CustomerId != CurrentUserId) return Forbid();
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        }
+        if (booking.Status == BookingStates.Completed && booking.PaymentStatus == "Paid")
+            return Ok(DtoMapper.ToDto(booking));
+        if (booking.Status != BookingStates.AwaitingPayment && booking.Status != BookingStates.PaymentIssue)
+            return Conflict(new { message = "ยืนยันการชำระเงินได้หลังช่างแจ้งว่างานเสร็จเท่านั้น" });
+        if (!string.IsNullOrWhiteSpace(booking.PaymentMethod) && booking.PaymentMethod != method)
+            return Conflict(new { message = "วิธีชำระเงินไม่ตรงกัน กรุณาให้ทั้งสองฝ่ายเลือกวิธีเดียวกัน" });
+
+        booking.PaymentMethod = method;
+        booking.PaymentStatus = "ConfirmationPending";
+        if (CurrentRole == AppRoles.Customer) booking.CustomerConfirmedPayment = true;
+        if (CurrentRole == AppRoles.Technician) booking.TechnicianConfirmedPayment = true;
+
+        var previousStatus = booking.Status;
+        if (booking.CustomerConfirmedPayment && booking.TechnicianConfirmedPayment) {
+            booking.PaymentStatus = "Paid";
+            booking.Status = BookingStates.Completed;
+            booking.TravelStatus = "Completed";
+            var existingReportService = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
+            if (booking.AirConditionerId.HasValue) {
+                var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
+                if (unit is not null && !unit.Services.Any(x => x.Id == booking.Id)) {
+                    unit.LastServiceDate = DateTime.UtcNow.Date;
+                    unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6);
+                    unit.Health = "good";
+                    unit.Services.Add(new ServiceRecord {
+                        Id = await store.NextIdAsync("serviceRecords"),
+                        Date = DateTime.UtcNow.Date,
+                        TechnicianName = booking.TechnicianName,
+                        Service = booking.Service,
+                        Price = booking.Price,
+                        Summary = existingReportService?.Summary ?? "ยืนยันงานเสร็จและรับชำระเงินหน้างานแล้ว",
+                        Status = BookingStates.Completed
+                    });
+                    await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);
+                }
+            }
+        }
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent {
+            ChangedByUserId = CurrentUserId, FromStatus = previousStatus, ToStatus = booking.Status,
+            Notes = booking.PaymentStatus == "Paid" ? "ทั้งสองฝ่ายยืนยันการชำระเงินหน้างานแล้ว" : $"ยืนยันการชำระเงินโดย {(CurrentRole == AppRoles.Customer ? "ลูกค้า" : "ช่าง")} รออีกฝ่ายยืนยัน",
+            CreatedAt = DateTime.UtcNow
+        });
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(DtoMapper.ToDto(booking));
+    }
+
+    [Authorize(Roles = "Customer,Technician"), HttpPost("bookings/{id:int}/payment-issue")]
+    public async Task<IActionResult> ReportPaymentIssue(int id, PaymentIssueRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (CurrentRole == AppRoles.Customer && booking.CustomerId != CurrentUserId) return Forbid();
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        }
+        if (booking.Status != BookingStates.AwaitingPayment) return Conflict(new { message = "เปิดข้อโต้แย้งได้เมื่อรายการรอชำระเงิน" });
+        var previous = booking.Status;
+        booking.Status = BookingStates.PaymentIssue;
+        booking.PaymentStatus = "Issue";
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = request.Reason.Trim(), CreatedAt = DateTime.UtcNow });
+        await store.Bookings.ReplaceOneAsync(x => x.Id == id, booking);
+        return Ok(DtoMapper.ToDto(booking));
     }
 
     [Authorize(Roles = "Manager,Admin,Customer"), HttpGet("batch-bookings")]
@@ -235,7 +382,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
-        if (booking.Status is not (BookingStates.InProgress or BookingStates.Completed)) return Conflict(new { message = "ต้องเริ่มงานก่อนส่งรายงาน" });
+        if (booking.Status is not (BookingStates.InProgress or BookingStates.AwaitingPayment)) return Conflict(new { message = "ต้องเริ่มงานก่อนส่งรายงาน" });
         var reportId = await store.NextIdAsync("serviceReports");
         var report = new ServiceReport { Id = reportId, BookingId = booking.Id, BookingCode = booking.Code, CustomerId = booking.CustomerId, TechnicianId = booking.TechnicianId, Summary = request.Summary.Trim(), CleanedFilter = request.CleanedFilter, CleanedCoil = request.CleanedCoil, CheckedDrain = request.CheckedDrain, CheckedCooling = request.CheckedCooling, BeforePhotoUrl = request.BeforePhotoUrl, AfterPhotoUrl = request.AfterPhotoUrl, CreatedAt = DateTime.UtcNow };
         await store.ServiceReports.InsertOneAsync(report);
