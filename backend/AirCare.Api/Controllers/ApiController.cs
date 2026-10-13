@@ -284,12 +284,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             var existingReportService = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
             if (booking.AirConditionerId.HasValue) {
                 var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
-                if (unit is not null && !unit.Services.Any(x => x.Id == booking.Id)) {
+                if (unit is not null && !unit.Services.Any(x => x.BookingId == booking.Id)) {
                     unit.LastServiceDate = DateTime.UtcNow.Date;
                     unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6);
                     unit.Health = "good";
                     unit.Services.Add(new ServiceRecord {
                         Id = await store.NextIdAsync("serviceRecords"),
+                        BookingId = booking.Id,
                         Date = DateTime.UtcNow.Date,
                         TechnicianName = booking.TechnicianName,
                         Service = booking.Service,
