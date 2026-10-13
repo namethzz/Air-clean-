@@ -3,7 +3,7 @@ import { ArrowDownUp, CalendarDays, ChevronRight, Clock3, MapPin, Navigation, Pl
 import type { Booking, BookingStatus, PageKey, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
 interface Props { bookings: Booking[]; role: UserRole; searchQuery: string; onNewBooking: () => void; onNavigate: (page: PageKey) => void; onStatusChange: (id: number, status: BookingStatus) => void; }
-const tabs = ['ทั้งหมด', 'รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน', 'เสร็จสิ้น', 'ยกเลิก'] as const;
+const tabs = ['ทั้งหมด', 'รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน', 'มีปัญหาการชำระเงิน', 'เสร็จสิ้น', 'ยกเลิก'] as const;
 function thaiDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }); }
 export default function BookingsPage({ bookings, role, searchQuery, onNewBooking, onNavigate, onStatusChange }: Props) {
   const [activeTab, setActiveTab] = useState<string>('ทั้งหมด'); const [sortNewest, setSortNewest] = useState(true);
