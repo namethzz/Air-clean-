@@ -6,8 +6,11 @@ AirClean is a responsive air-conditioner service booking workspace built with Re
 
 - Customer account registration and login through the API.
 - Role-based navigation for customers, technicians, building managers and administrators.
+- Customers publish an unassigned service request with the address pin, property type, unit count, date and service details.
+- Nearby technicians can review open jobs by GPS distance and send interest with their proposed quote.
+- Customers compare interested technicians, ratings, job history and quotes, then confirm one technician before the booking becomes assigned.
 - Booking requests save through the API. Failed requests display an error and do not create local fake records.
-- Map-based service address selection, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
+- Map-based service address selection, privacy-protected nearby job discovery, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
 - Responsive layouts for mobile phones, tablets and desktop browsers.
 - Empty states appear when the database contains no technicians, bookings, air-conditioners, batch jobs or reports.
 
@@ -56,6 +59,8 @@ Disabling the seeder prevents new demo records from being created in production,
 - Service photos currently accept external image URLs; file-upload storage is not implemented.
 - Password reset, email verification, push notifications and always-on background GPS are not included.
 - Saved frequent addresses are stored in the browser and do not sync between devices.
+- Nearby job discovery uses the technician's current GPS location and a configurable radius. Exact customer address and coordinates are hidden in the open-jobs feed and are intended to be shown after the customer confirms a technician.
+- Estimated quotes are calculated from technician base price and the selected service/unit count; final prices remain the technician's quoted price that the customer confirms.
 - The deployed Render services still need full end-to-end testing and a security/privacy review before use at scale.
 
 ## Run locally
