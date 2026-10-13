@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, Building2, Crosshair, Home, MapPin, Plus, Trash2 } from 'lucide-react';
+import { Bookmark, Building2, Crosshair, Home, MapPin, Trash2 } from 'lucide-react';
 import type { SavedAddress } from '../types';
 import LocationMap from './LocationMap';
 
