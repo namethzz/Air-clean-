@@ -3,11 +3,11 @@ import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, UserRound, Wi
 import type { UserProfile } from '../types';
 import { isApiConfigured, login, register } from '../lib/api';
 
-interface Props { onAuthenticated:(user:UserProfile)=>void; initialError?:string; }
-export default function AuthPage({onAuthenticated,initialError=''}:Props) {
-  const [mode,setMode] = useState<'login'|'register'>('login');
+interface Props { onAuthenticated:(user:UserProfile)=>void; initialError?:string; initialMode?:'login'|'register'; initialRole?:'customer'|'technician'|'manager'; onBack?:()=>void; }
+export default function AuthPage({onAuthenticated,initialError='',initialMode='login',initialRole='customer',onBack}:Props) {
+  const [mode,setMode] = useState<'login'|'register'>(initialMode);
   const [fullName,setFullName] = useState('');
-  const [role,setRole] = useState<'customer'|'technician'|'manager'>('customer');
+  const [role,setRole] = useState<'customer'|'technician'|'manager'>(initialRole);
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
   const [confirmPassword,setConfirmPassword] = useState('');
@@ -41,6 +41,7 @@ export default function AuthPage({onAuthenticated,initialError=''}:Props) {
     <section className="auth-panel-wrap">
       <div className="auth-panel">
         <div className="auth-mobile-brand"><span className="auth-brand-icon"><Wind size={22}/></span><span>AirClean</span></div>
+        <button className="auth-back-button" type="button" onClick={onBack}>← กลับหน้าหลัก</button>
         <div className="auth-heading">
           <span className="auth-eyebrow">{mode==='login'?'ยินดีต้อนรับกลับ':'เริ่มใช้งาน AirClean'}</span>
           <h2>{mode==='login'?'เข้าสู่ระบบ':'สร้างบัญชี'}</h2>

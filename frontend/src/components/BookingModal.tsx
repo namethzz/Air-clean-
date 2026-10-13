@@ -27,7 +27,7 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
   const [submitted,setSubmitted]=useState(false);
   const [submitting,setSubmitting]=useState(false);
   const [formError,setFormError]=useState('');
-  const basePrice=technicians.length?Math.min(...technicians.map(tech=>tech.basePrice)):0;
+  const basePrice=technicians.length?Math.min(...technicians.map(tech=>tech.basePrice)):550;
   const propertyType=place.placeType==='บ้าน'?'บ้านเดี่ยว':place.placeType;
   const price=(basePrice*unitCount)
     +(service.includes('ตรวจเช็ก')?300*unitCount:0)
@@ -37,7 +37,6 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError('');
-    if(technicians.length===0) { setFormError('ขณะนี้ยังไม่มีโปรไฟล์ช่างในระบบ กรุณาลองใหม่ภายหลัง'); return; }
     if(!place.address.trim()) { setFormError('กรุณากรอกที่อยู่ให้ครบถ้วน'); return; }
     if(!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
     setSubmitting(true);
@@ -77,7 +76,7 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
           <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง</small>
         </div>
         {formError&&<div className="auth-error" role="alert">{formError}</div>}
-        <button type="submit" className="primary-button full-width" disabled={submitting||technicians.length===0}>{submitting?'กำลังส่งคำขอ...':'ส่งคำขอให้ช่างใกล้เคียง'} <ArrowRight size={17}/></button>
+        <button type="submit" className="primary-button full-width" disabled={submitting}>{submitting?'กำลังส่งคำขอ...':'ส่งคำขอให้ช่างใกล้เคียง'} <ArrowRight size={17}/></button>
       </form>}
     </section>
   </div>;
