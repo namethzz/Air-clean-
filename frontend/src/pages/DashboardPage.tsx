@@ -2,6 +2,7 @@ import HeroFinancial from '../components/ui/hero-financial';
 import './CustomerExperience.css';
 import { ArrowRight, CalendarClock, CheckCircle2, ChevronRight, Clock3, MapPin, Wallet, Wind, Wrench } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
+import CustomerHome from './CustomerHome';
 import StatusBadge from '../components/StatusBadge';
 import type { AppState, PageKey, UserRole } from '../types';
 interface Props { state: AppState; role: UserRole; userName: string; onNavigate: (page: PageKey) => void; onNewBooking: () => void; }
@@ -20,6 +21,7 @@ const sideCopy: Record<UserRole, { title: string; sub: string; note: string; cta
   admin: { title: 'ตรวจสอบภาพรวมระบบ', sub: 'รายการที่ต้องมีผู้ดูแลตรวจสอบ', note: 'ดูรายการจองและรายงานบริการ รวมถึงรายการที่ถูกแจ้งปัญหาการชำระเงินเพื่อให้ผู้ดูแลตรวจสอบ', cta: 'ดูรายการจอง', to: 'bookings' },
 };
 export default function DashboardPage({ state, role, userName, onNavigate, onNewBooking }: Props) {
+  if (role === 'customer') return <CustomerHome bookings={state.bookings} reports={state.serviceReports} userName={userName} onNavigate={onNavigate} onNewBooking={onNewBooking}/>;
   const technician = role === 'technician';
   const active = state.bookings.filter(b => !['เสร็จสิ้น', 'ยกเลิก'].includes(b.status));
   const completed = state.bookings.filter(b => b.status === 'เสร็จสิ้น');

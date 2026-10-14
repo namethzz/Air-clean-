@@ -8,6 +8,8 @@ interface Props {
   compact?:boolean; userName?:string;
   /** Compact (signed-in) variant: override the role-neutral defaults. */
   heading?:string; description?:string; primaryLabel?:string; secondaryLabel?:string;
+  /** Short label above the heading, and whether to show the photo (default true). */
+  eyebrow?:string; withPhoto?:boolean;
   onStart:()=>void; onLogin?:()=>void; onTechnician?:()=>void; onBookings?:()=>void;
 }
 
@@ -18,12 +20,13 @@ const facts=[
   {icon:ShieldCheck,title:'ที่อยู่ปลอดภัย',text:'เฉพาะช่างที่คุณเลือกเท่านั้นที่เห็นที่อยู่เต็ม'},
 ];
 
-export function HeroFinancial({compact=false,userName,heading,description,primaryLabel,secondaryLabel,onStart,onLogin,onTechnician,onBookings}:Props){
+export function HeroFinancial({compact=false,userName,heading,description,primaryLabel,secondaryLabel,eyebrow,withPhoto=true,onStart,onLogin,onTechnician,onBookings}:Props){
   const isMobile=useMediaQuery('(max-width: 768px)');
 
   if(compact){
-    return <section className="acx-compact" aria-label="ขอช่างล้างแอร์">
+    return <section className={'acx-compact'+(withPhoto?'':' acx-compact--text')} aria-label={heading??'ขอช่างล้างแอร์'}>
       <div className="acx-compact-copy">
+        {eyebrow&&<span className="acx-eyebrow">{eyebrow}</span>}
         <h1>{heading??`สวัสดี ${userName??''}`.trim()}</h1>
         <p>{description??'ส่งคำขอครั้งเดียว แล้วเลือกช่างจากข้อเสนอที่ส่งมาให้คุณ'}</p>
         <div className="acx-actions">
@@ -31,7 +34,7 @@ export function HeroFinancial({compact=false,userName,heading,description,primar
           {onBookings&&<button type="button" className="acx-btn acx-btn-ghost-light" onClick={onBookings}>{secondaryLabel??'ดูนัดหมายของฉัน'}<ChevronRight size={16}/></button>}
         </div>
       </div>
-      <div className="acx-compact-photo"><img src={AirCleaningPhoto.src} alt={photoAlt}/></div>
+      {withPhoto&&<div className="acx-compact-photo"><img src={AirCleaningPhoto.src} alt={photoAlt}/></div>}
     </section>;
   }
 
