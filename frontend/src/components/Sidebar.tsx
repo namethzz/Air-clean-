@@ -18,6 +18,7 @@ export default function Sidebar({page,onNavigate,role,user,onLogout}:Props){
   return <aside className="sidebar">
     <div className="brand-lockup"><div className="brand-symbol"><Wind size={22} strokeWidth={2.1}/></div><div><div className="brand-name">AirClean<span>.</span></div><div className="brand-caption">COMFORT, IN CONTROL</div></div></div>
     <div className="workspace-switcher"><div className="workspace-icon"><AirVent size={18}/></div><div className="workspace-copy"><span>พื้นที่ทำงาน</span><strong>{names[role]}</strong></div></div>
+    <div className="role-chip" aria-label={'บทบาทของคุณ: '+names[role]}><span className="role-chip-dot" aria-hidden="true"/>{names[role]}</div>
     <div className="sidebar-label">เมนูหลัก</div>
     <nav className="side-nav" aria-label="เมนูหลัก">{visible.map(item=>{const Icon=item.icon;return <button type="button" className={'nav-item '+(page===item.key?'active':'')} key={item.key} onClick={()=>onNavigate(item.key)}><Icon size={18} strokeWidth={1.9}/><span>{item.label}</span></button>;})}</nav>
     <div className="sidebar-bottom">
