@@ -202,7 +202,7 @@ export default function App() {
     <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
     <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout}/></div>
     <main className="main-shell">
-      <Topbar role={user.role} userName={user.fullName} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} onLogout={logout}/>
+      <Topbar role={user.role} page={page} title={pageTitles[page]} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()}/>
       <div className="mobile-page-bar"><button className="icon-button" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={20}/></button><div><strong>{pageTitles[page]}</strong><span>{todayLabel()}</span></div>{user.role!=='technician'&&<button className="icon-button" onClick={()=>openBooking()} aria-label="จองบริการ"><Activity size={19}/></button>}</div>
       {dataError&&<div className="app-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button className="outline-button" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
       <div className="page-content">{content}</div>
