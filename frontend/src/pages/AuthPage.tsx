@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, UserRound, Wind } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { isApiConfigured, login, register } from '../lib/api';
+import { AirCleaningPhoto } from '../components/ui/hero-financial-utils/assets-index';
 
 interface Props { onAuthenticated:(user:UserProfile)=>void; initialError?:string; initialMode?:'login'|'register'; initialRole?:'customer'|'technician'|'manager'; onBack?:()=>void; }
 export default function AuthPage({onAuthenticated,initialError='',initialMode='login',initialRole='customer',onBack}:Props) {
@@ -28,22 +29,20 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
   }
   return <main className="auth-screen">
     <section className="auth-visual" aria-label="AirClean">
+      <img className="auth-photo" src={AirCleaningPhoto.src} alt="" aria-hidden="true"/>
       <div className="auth-brand"><span className="auth-brand-icon"><Wind size={24}/></span><span>AirClean</span></div>
       <div className="auth-visual-copy">
-        <span className="auth-overline">ดูแลแอร์ เป็นเรื่องง่าย</span>
         <h1>ทุกการนัดหมาย<br/>เป็นระเบียบในที่เดียว</h1>
         <p>จองบริการ ติดตามงาน และเก็บประวัติการดูแลเครื่องปรับอากาศ โดยไม่ต้องสลับหลายช่องทาง</p>
         <div className="auth-benefit"><CheckCircle2 size={17}/><span>เห็นสถานะงานและรายละเอียดนัดหมายชัดเจน</span></div>
         <div className="auth-benefit"><CheckCircle2 size={17}/><span>ใช้ได้บนมือถือ แท็บเล็ต และคอมพิวเตอร์</span></div>
       </div>
-      <div className="auth-visual-footer">AIRCLEAN · HOME SERVICE WORKSPACE</div>
     </section>
     <section className="auth-panel-wrap">
       <div className="auth-panel">
         <div className="auth-mobile-brand"><span className="auth-brand-icon"><Wind size={22}/></span><span>AirClean</span></div>
         <button className="auth-back-button" type="button" onClick={onBack}>← กลับหน้าหลัก</button>
         <div className="auth-heading">
-          <span className="auth-eyebrow">{mode==='login'?'ยินดีต้อนรับกลับ':'เริ่มใช้งาน AirClean'}</span>
           <h2>{mode==='login'?'เข้าสู่ระบบ':'สร้างบัญชี'}</h2>
           <p>{mode==='login'?'เข้าสู่ระบบเพื่อดูการจองและติดตามบริการของคุณ':'สมัครบัญชีเพื่อเริ่มจองบริการและเก็บประวัติงาน'}</p>
         </div>
