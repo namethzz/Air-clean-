@@ -1,0 +1,157 @@
+/* AirClean workspace theme for technician, manager and admin screens.
+   The shared shell (.ac-shell) restyles the customer-facing classes by hand in CustomerExperience.css.
+   Every other class that still carried the original green palette in index.css and LocationMap.css is
+   re-tinted here to the brand blue (hue 214) with its lightness and saturation preserved, so contrast
+   ratios stay close to the original design. Properties already set by hand in CustomerExperience.css are skipped.
+   Amber, sand and lavender accents are left untouched. */
+.ac-shell .brand-caption{color:#99a8bc}
+.ac-shell .workspace-icon{background:#283e5b;color:#c9d6e8}
+.ac-shell .workspace-copy span{color:#93a2b5}
+.ac-shell .workspace-copy strong{color:#f1f3f6}
+.ac-shell .breadcrumb{color:#838d9a}
+.ac-shell .breadcrumb span{color:#c3c7cc}
+.ac-shell .global-search kbd{color:#9aa0a7;background:#f3f4f6;border:1px solid #e7e9ec}
+.ac-shell .eyebrow{color:#7c8897}
+.ac-shell .primary-button:hover{background:#113058}
+.ac-shell .hero-kicker{color:#bbcadd}
+.ac-shell .mint{background:#e0e7f1;color:#345279}
+.ac-shell .blue{background:#e4ebf5}
+.ac-shell .metric-spark span{background:#aabbd1}
+.ac-shell .text-button:hover{color:#162d4c}
+.ac-shell .booking-row{border-bottom:1px solid #edeff2}
+.ac-shell .activity-item{border-bottom:1px solid #edeff2}
+.ac-shell .loading-indicator{border:1px solid #e6e9ec;box-shadow:0 4px 15px #12253e10}
+.ac-shell .search-hero .hero-kicker{color:#46658d}
+.ac-shell .tag-top{color:#415e85}
+.ac-shell .technician-card-footer{border-top:1px solid #eceef1}
+.ac-shell .booking-tabs{border-bottom:1px solid #edeff2}
+.ac-shell .data-table th{border-bottom:1px solid #edeff2}
+.ac-shell .data-table td{border-bottom:1px solid #eff1f3}
+.ac-shell .info-callout{border-color:#e4e8ee}
+.ac-shell .unit-selector{color:#6d7a8a}
+.ac-shell .unit-selector-copy strong{color:#35475e}
+.ac-shell .unit-selector-copy span{color:#989ea5}
+.ac-shell .unit-selector-copy small{color:#8993a0}
+.ac-shell .passport-note{background:#f3f5f8;color:#738194}
+.ac-shell .unit-detail-top p{color:#87919e}
+.ac-shell .unit-visual{background:#eef1f5}
+.ac-shell .unit-machine{background:linear-gradient(#f8fafc,#dce1e7);box-shadow:0 10px 18px #485c761b}
+.ac-shell .machine-line{background:#d2d7dd}
+.ac-shell .machine-vents i{background:#b1bbc7}
+.ac-shell .machine-light{background:#6286b5}
+.ac-shell .unit-visual-meta span{color:#9098a2}
+.ac-shell .unit-visual-meta strong{color:#405269}
+.ac-shell .unit-condition strong{color:#4c6079}
+.ac-shell .unit-condition small{color:#989ea6}
+.ac-shell .unit-info-grid>div{background:#f9fafb;border:1px solid #eceff2}
+.ac-shell .unit-info-grid span{color:#969ca3}
+.ac-shell .unit-info-grid strong{color:#42546b}
+.ac-shell .unit-info-grid small{color:#547196}
+.ac-shell .service-history-header p{color:#989da4}
+.ac-shell .service-history-item{border-bottom:1px solid #eceff2}
+.ac-shell .history-date{background:#eaeef4;color:#435f83}
+.ac-shell .history-item-content>span{color:#8d97a4}
+.ac-shell .history-item-content p{color:#7f8997}
+.ac-shell .batch-feature{color:#f3f6f9}
+.ac-shell .building-window-grid{background:#c4cfdd;box-shadow:0 10px 22px #0b1a2d35}
+.ac-shell .building-window-grid span{background:#486284}
+.ac-shell .building-ground{background:#6b82a1}
+.ac-shell .building-mini-card{color:#1f334e;box-shadow:0 7px 20px #0c1c3025}
+.ac-shell .building-mini-icon{background:#e0e8f3;color:#305079}
+.ac-shell .building-mini-card span{color:#86919f}
+.ac-shell .batch-form-summary{background:#f2f4f7;color:#7c8898}
+.ac-shell .batch-row{border-bottom:1px solid #eceff2}
+.ac-shell .batch-progress-label{color:#838d9b}
+.ac-shell .batch-progress-label strong{color:#4e6787}
+.ac-shell .progress-track{background:#e6e9ee}
+.ac-shell .batch-row-side span{color:#9a9fa6}
+.ac-shell .batch-row-side strong{color:#58677b}
+.ac-shell .batch-row-side small{color:#8b95a2}
+.ac-shell .modal-header{border-bottom:1px solid #eceef1}
+.ac-shell .auth-screen{background:#f7f8fa;color:#16273e}
+.ac-shell .auth-visual{color:#f0f3f8;background:radial-gradient(circle at 83% 18%,#345279 0,transparent 31%),linear-gradient(145deg,#10243e,#0b1b30 72%,#152c49)}
+.ac-shell .auth-brand b{color:#a7bdd9}
+.ac-shell .auth-brand-icon{background:#dfe7f1;color:#143055}
+.ac-shell .auth-visual-copy p{color:#c0cbd9}
+.ac-shell .auth-benefit{color:#e1e8f0}
+.ac-shell .auth-benefit svg{color:#92aed3}
+.ac-shell .auth-mobile-brand b{color:#274c7c}
+.ac-shell .auth-heading h2{color:#15273f}
+.ac-shell .auth-heading p{color:#788595}
+.ac-shell .auth-mode-switch{background:#eaedf1}
+.ac-shell .auth-mode-switch button{color:#697686}
+.ac-shell .auth-mode-switch button.active{color:#162e4e;box-shadow:0 2px 7px #11253e0e}
+.ac-shell .auth-field{color:#314259}
+.ac-shell .auth-input-wrap{border:1px solid #dce1e7;color:#8391a4}
+.ac-shell .auth-input-wrap:focus-within{border-color:#6383ac;box-shadow:0 0 0 3px #7090bb1b}
+.ac-shell .auth-input-wrap input{color:#16273e}
+.ac-shell .auth-input-wrap input::placeholder{color:#a8aeb7}
+.ac-shell .auth-password-toggle{color:#7c8898}
+.ac-shell .auth-submit{background:#173c6c;box-shadow:0 8px 18px #173c6c21}
+.ac-shell .auth-submit:hover:not(:disabled){background:#0f2f59}
+.ac-shell .auth-registration-note{color:#7d8896}
+.ac-shell .auth-security-note{border-top:1px solid #e7eaee;color:#828c9a}
+.ac-shell .auth-security-note svg{color:#5d7798}
+.ac-shell .auth-copyright{color:#a1a7ae}
+.ac-shell .auth-loading{background:#f5f6f8;color:#5c6b7f}
+.ac-shell .report-live-metric small{color:#7f8a98}
+.ac-shell .report-live-metric strong{color:#162b47}
+.ac-shell .report-live-item{border:1px solid #e8ebee;color:#2f435e}
+.ac-shell .report-live-item-copy span{color:#4f5e72}
+.ac-shell .report-live-item-copy small{color:#9399a1}
+.ac-shell .report-live-detail-head{border-bottom:1px solid #e8ebee}
+.ac-shell .report-live-detail-head h2{color:#162840}
+.ac-shell .report-live-detail-head p{color:#838d9b}
+.ac-shell .report-summary-text{border-bottom:1px solid #e8ebee}
+.ac-shell .report-summary-text strong{color:#2f4460}
+.ac-shell .report-live-photos h3{color:#2f4460}
+.ac-shell .report-summary-text p{color:#505d6f}
+.ac-shell .report-live-photos a{border:1px solid #e5e8ec;color:#425c7e;background:#f9fafc}
+.ac-shell .report-live-photos span{border:1px solid #e5e8ec;color:#425c7e;background:#f9fafc}
+.ac-shell .report-check-grid label{color:#465569}
+.ac-shell .report-check-grid input{accent-color:#274c7c}
+.ac-shell .report-form-note{color:#798696}
+.ac-shell .auth-role-select{color:#23354d}
+.ac-shell .profile-summary-panel>p{color:#7a8696}
+.ac-shell .profile-summary-note{border-top:1px solid #e7eaee}
+.ac-shell .profile-input-wrap{color:#8291a4}
+.ac-shell .profile-input-wrap input{color:#23354d}
+.ac-shell .profile-form input[readonly]{background:#f4f5f7;color:#6a7789}
+.ac-shell .profile-saved{color:#264a7a}
+.ac-shell .auth-role-lock-note{color:#778496}
+.ac-shell .nearby-job-toolbar{border:1px solid var(--line,#e6e7e9)}
+.ac-shell .nearby-location-status{color:#254d81}
+.ac-shell .nearby-location-status strong{color:var(--ink,#1e242b)}
+.ac-shell .nearby-results-line strong{color:var(--ink,#1e242b)}
+.ac-shell .nearby-job-card{border:1px solid var(--line,#e6e7e9)}
+.ac-shell .nearby-job-card h2{color:var(--ink,#1e242b)}
+.ac-shell .nearby-job-distance{color:#274c7d}
+.ac-shell .nearby-job-facts div{background:#f7f8f9}
+.ac-shell .nearby-job-facts strong{color:var(--ink,#1e242b)}
+.ac-shell .nearby-job-description{color:#535b65}
+.ac-shell .nearby-job-description svg{color:#274c7d}
+.ac-shell .nearby-job-privacy{background:#f0f3f7;color:#274c7d}
+.ac-shell .nearby-job-price{border-top:1px solid var(--line,#e6e7e9)}
+.ac-shell .nearby-job-price strong{color:#274c7d}
+.ac-shell .nearby-applied-state{background:#eef2f7;color:#274c7d}
+.ac-shell .nearby-applied-state span{color:#505e70}
+.ac-shell .nearby-empty strong{color:var(--ink,#1e242b)}
+.ac-shell .nearby-market-note{background:#f2f4f7;color:#274c7d}
+.ac-shell .nearby-market-note strong{color:#27384e}
+.ac-shell .nearby-market-note span{color:#5d6978}
+.ac-shell .candidate-request-heading h3{color:var(--ink,#1e242b)}
+.ac-shell .candidate-tech-head strong{color:var(--ink,#1e242b)}
+.ac-shell .candidate-tech-price{border-top:1px solid var(--line,#e6e7e9)}
+.ac-shell .landing{--landing-ink:#16273d;--landing-muted:#606c7b}
+.ac-shell .auth-back-button{color:#657488}
+.ac-shell .aircare-map-frame{background:#e7ebf0}
+.ac-shell .aircare-pin{box-shadow:0 5px 15px #16283f40}
+.ac-shell .aircare-pin i{background:#d9e3f0}
+.ac-shell .map-pick-hint{border:1px solid #e2e5e9;box-shadow:0 3px 10px #23354d10;color:#4e5e74}
+.ac-shell .map-attribution-note{color:#7e8895}
+.ac-shell .saved-address-select{color:#556274}
+.ac-shell .tracking-info-row{border-bottom:1px solid #eceff2}
+.ac-shell .payment-check-row svg{color:#476b9b}
+.ac-shell .tracking-empty{color:#7d8896}
+.ac-shell .tracking-live-status{background:#f2f3f5;color:#64707f}
+.ac-shell .tracking-live-status>span{background:#a1a6ad}

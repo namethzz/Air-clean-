@@ -14,6 +14,7 @@ import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
+import './pages/WorkspaceTheme.css';
 import {
   approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBatchBooking, createBooking,
   createServiceReport, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
@@ -197,7 +198,7 @@ export default function App() {
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
   }
 
-  return <div className={`app-shell ${user.role === 'customer' ? 'ac-customer-shell' : ''}`}>
+  return <div className="app-shell ac-shell" data-role={user.role}>
     <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
     <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout}/></div>
     <main className="main-shell">

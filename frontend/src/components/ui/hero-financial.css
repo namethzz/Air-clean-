@@ -96,7 +96,7 @@
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 
 /* Browser surfaces on customer-facing screens: selection, caret, form accents, scrollbars */
-.acx-hero,.acl,.ac-customer-shell,.auth-screen{accent-color:var(--ac-blue);caret-color:var(--ac-blue)}
-.acx-hero ::selection,.acl ::selection,.ac-customer-shell ::selection,.auth-screen ::selection{background:#bcd4fa;color:var(--ac-ink)}
-.ac-customer-shell,.ac-customer-shell *{scrollbar-color:#b5c3d3 transparent}
+.acx-hero,.acl,.ac-shell,.auth-screen{accent-color:var(--ac-blue);caret-color:var(--ac-blue)}
+.acx-hero ::selection,.acl ::selection,.ac-shell ::selection,.auth-screen ::selection{background:#bcd4fa;color:var(--ac-ink)}
+.ac-shell,.ac-shell *{scrollbar-color:#b5c3d3 transparent}
 .acx-hero p,.acl p{text-wrap:pretty}

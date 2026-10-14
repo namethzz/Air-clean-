@@ -4,7 +4,12 @@ import { useMediaQuery } from '@/components/ui/hero-financial-utils/use-media-qu
 import MotionDrawer from '@/components/ui/hero-financial-utils/motion-drawer';
 import './hero-financial.css';
 
-interface Props { compact?:boolean; userName?:string; onStart:()=>void; onLogin?:()=>void; onTechnician?:()=>void; onBookings?:()=>void; }
+interface Props {
+  compact?:boolean; userName?:string;
+  /** Compact (signed-in) variant: override the role-neutral defaults. */
+  heading?:string; description?:string; primaryLabel?:string; secondaryLabel?:string;
+  onStart:()=>void; onLogin?:()=>void; onTechnician?:()=>void; onBookings?:()=>void;
+}
 
 const photoAlt='ช่างสวมถุงมือสีฟ้ากำลังถอดแผ่นกรองเพื่อทำความสะอาดเครื่องปรับอากาศ';
 const facts=[
@@ -13,17 +18,17 @@ const facts=[
   {icon:ShieldCheck,title:'ที่อยู่ปลอดภัย',text:'เฉพาะช่างที่คุณเลือกเท่านั้นที่เห็นที่อยู่เต็ม'},
 ];
 
-export function HeroFinancial({compact=false,userName,onStart,onLogin,onTechnician,onBookings}:Props){
+export function HeroFinancial({compact=false,userName,heading,description,primaryLabel,secondaryLabel,onStart,onLogin,onTechnician,onBookings}:Props){
   const isMobile=useMediaQuery('(max-width: 768px)');
 
   if(compact){
     return <section className="acx-compact" aria-label="ขอช่างล้างแอร์">
       <div className="acx-compact-copy">
-        <h1>สวัสดี {userName}</h1>
-        <p>ส่งคำขอครั้งเดียว แล้วเลือกช่างจากข้อเสนอที่ส่งมาให้คุณ</p>
+        <h1>{heading??`สวัสดี ${userName??''}`.trim()}</h1>
+        <p>{description??'ส่งคำขอครั้งเดียว แล้วเลือกช่างจากข้อเสนอที่ส่งมาให้คุณ'}</p>
         <div className="acx-actions">
-          <button type="button" className="acx-btn acx-btn-light" onClick={onStart}>ขอช่างล้างแอร์<ArrowRight size={18}/></button>
-          <button type="button" className="acx-btn acx-btn-ghost-light" onClick={onBookings}>ดูนัดหมายของฉัน<ChevronRight size={16}/></button>
+          <button type="button" className="acx-btn acx-btn-light" onClick={onStart}>{primaryLabel??'ขอช่างล้างแอร์'}<ArrowRight size={18}/></button>
+          {onBookings&&<button type="button" className="acx-btn acx-btn-ghost-light" onClick={onBookings}>{secondaryLabel??'ดูนัดหมายของฉัน'}<ChevronRight size={16}/></button>}
         </div>
       </div>
       <div className="acx-compact-photo"><img src={AirCleaningPhoto.src} alt={photoAlt}/></div>
