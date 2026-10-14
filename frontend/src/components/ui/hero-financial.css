@@ -5,13 +5,14 @@
   --ac-ink:#13253b;--ac-ink-2:#445870;--ac-ink-3:#5d7089;
   --ac-white:#fff;--ac-mist:#f3f6f9;--ac-frame:#dce4ed;
   --ac-coolant:#0f7f78;--ac-amber:#9a5b00;--ac-red:#b3392f;
+  --ac-on-blue:#f1f6fd;--ac-focus:#1a4fb0;--ac-gutter:clamp(18px,4vw,56px);
   --ac-display:'Anuphan','IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
   --ac-text:'IBM Plex Sans Thai','Noto Sans Thai','DM Sans',sans-serif;
 }
 
 /* Buttons shared by hero, landing and compact hero */
 .acx-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid transparent;border-radius:12px;font:600 16px/1 var(--ac-text);text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
-.acx-btn:focus-visible,.acx-link:focus-visible,.acx-hero nav a:focus-visible,.acx-hero nav button:focus-visible{outline:3px solid #8fb4f2;outline-offset:3px}
+.acx-btn:focus-visible,.acx-link:focus-visible,.acx-hero nav a:focus-visible,.acx-hero nav button:focus-visible{outline:3px solid var(--ac-focus);outline-offset:3px}
 .acx-btn-blue{background:var(--ac-blue);color:#fff}
 .acx-btn-blue:hover{background:var(--ac-blue-deep)}
 .acx-btn-ink{background:var(--ac-ink);color:#fff;min-height:42px;padding:0 18px;font-size:15px}
@@ -20,7 +21,9 @@
 .acx-btn-light:hover{background:var(--ac-blue-tint)}
 .acx-btn-ghost-light{background:transparent;color:#fff;border-color:#ffffff80}
 .acx-btn-ghost-light:hover{background:#ffffff1f;border-color:#fff}
-.acx-link{color:var(--ac-ink);font:600 16px/1 var(--ac-text);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px;text-decoration-color:var(--ac-blue)}
+.acx-btn:active{transform:translateY(1px)}
+.acx-compact .acx-btn:focus-visible,.acl-partner .acx-btn:focus-visible{outline-color:#fff}
+.acx-link{display:inline-flex;align-items:center;min-height:44px;color:var(--ac-ink);font:600 16px/1 var(--ac-text);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px;text-decoration-color:var(--ac-blue)}
 .acx-link:hover{color:var(--ac-blue-deep)}
 
 /* Public hero */
@@ -57,7 +60,7 @@
 .acx-compact{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);overflow:hidden;border-radius:20px;background:var(--ac-blue);color:#fff;font-family:var(--ac-text)}
 .acx-compact-copy{display:flex;flex-direction:column;justify-content:center;gap:14px;padding:clamp(24px,3.2vw,44px)}
 .acx-compact h1{margin:0;font:700 clamp(26px,3vw,38px)/1.3 var(--ac-display);letter-spacing:-.015em;overflow-wrap:anywhere}
-.acx-compact p{margin:0;max-width:34ch;font-size:16px;line-height:1.8;color:#e3ecfb}
+.acx-compact p{margin:0;max-width:34ch;font-size:16px;line-height:1.8;color:var(--ac-on-blue)}
 .acx-compact .acx-actions{margin-top:10px;gap:12px}
 .acx-compact .acx-btn{min-height:46px;font-size:15px}
 .acx-compact-photo{position:relative;min-height:260px}
@@ -81,6 +84,7 @@
   .acx-facts li+li{border-left:0;border-top:1px solid var(--ac-frame)}
   .acx-facts li{padding:18px 20px}
   .acx-nav{gap:12px}
+  .acx-btn-ink{min-height:44px}
   .acx-nav>.ac-menu-button{margin-left:auto}
   .acx-compact{grid-template-columns:1fr}
   .acx-compact-photo{order:-1;min-height:0;aspect-ratio:16/9}
@@ -90,3 +94,9 @@
   .acx-btn{transition:none}
 }
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+
+/* Browser surfaces on customer-facing screens: selection, caret, form accents, scrollbars */
+.acx-hero,.acl,.ac-customer-shell,.auth-screen{accent-color:var(--ac-blue);caret-color:var(--ac-blue)}
+.acx-hero ::selection,.acl ::selection,.ac-customer-shell ::selection,.auth-screen ::selection{background:#bcd4fa;color:var(--ac-ink)}
+.ac-customer-shell,.ac-customer-shell *{scrollbar-color:#b5c3d3 transparent}
+.acx-hero p,.acl p{text-wrap:pretty}
