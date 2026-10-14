@@ -89,6 +89,9 @@
   .acx-compact{grid-template-columns:1fr}
   .acx-compact-photo{order:-1;min-height:0;aspect-ratio:16/9}
 }
+@media(min-width:561px) and (max-width:900px){
+  .acx-photo{aspect-ratio:16/9}
+}
 @media(prefers-reduced-motion:reduce){
   .acx-photo,.acx-photo img,.acx-facts li{animation:none}
   .acx-btn{transition:none}
