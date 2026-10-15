@@ -2,9 +2,10 @@ export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
 export type PaymentMethod='Cash'|'PromptPay';
-export interface UserProfile{id:number;fullName:string;email:string;role:UserRole;hasPassword?:boolean;providers?:string[];}
+export interface UserProfile{id:number;fullName:string;email:string;role:UserRole;hasPassword?:boolean;providers?:string[];emailNotifications?:boolean;}
 export interface SavedAddress{id:string;label:string;placeType:'บ้าน'|'คอนโด'|'หอพัก';address:string;building?:string;floor?:string;room?:string;note?:string;latitude:number;longitude:number;locationSelected?:boolean;}
 export interface Technician{id:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;basePrice:number;area:string;verified:boolean;availableText:string;skills:string[];accent:string;matchScore:number;matchReason:string;}
+export interface AppNotification{id:string;title:string;body:string;target:'bookings'|'approvals'|'nearbyJobs'|'profile'|string;bookingId?:number|null;createdAt:string;read:boolean;}
 export type VerificationStatus='Pending'|'Approved'|'Rejected';
 export interface TechnicianApplication{id:number;userId:number;name:string;email:string;phone:string;title:string;area:string;basePrice:number;availableText:string;skills:string[];experienceYears:number;rating:number;reviewCount:number;jobsCompleted:number;verified:boolean;verificationStatus:VerificationStatus;verificationNote?:string|null;appliedAt?:string|null;reviewedAt?:string|null;}
 export interface ServiceRecord{id:number;date:string;technician:string;service:string;price:number;summary:string;status:'เสร็จสิ้น'|'รอตรวจสอบ';}

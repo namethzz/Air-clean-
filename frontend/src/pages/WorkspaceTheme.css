@@ -202,3 +202,50 @@
 .form-field .profile-input-wrap input,.form-field .profile-input-wrap input:focus{min-height:44px;border:0;border-radius:0;background:transparent;box-shadow:none;padding:10px 0}
 .form-field .profile-input-wrap:focus-within{border-color:#2468d8;box-shadow:0 0 0 3px #2468d826}
 .profile-linked{margin:10px 0 0;font-size:13.5px;color:#445870;text-align:center}
+.profile-toggle{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid #dce4ed;border-radius:12px;cursor:pointer}
+.profile-toggle input{flex:none;width:20px;height:20px;margin-top:3px;accent-color:#2468d8}
+.profile-toggle span{display:flex;flex-direction:column;gap:2px}
+.profile-toggle strong{font-size:15px;color:#13253b}
+.profile-toggle small{font-size:13.5px;line-height:1.6;color:#5d7089}
+
+/* Notification bell */
+.nb{position:relative;flex:none}
+.nb-trigger{position:relative;display:grid;place-items:center;width:44px;height:44px;border:1px solid #dce4ed;border-radius:12px;background:#fff;color:#13253b;cursor:pointer}
+.nb-trigger:hover{background:#f3f6f9}
+.nb-trigger:focus-visible{outline:2px solid #1a4fb0;outline-offset:2px}
+.nb-count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border:2px solid #fff;border-radius:999px;background:#b3392f;color:#fff;font:700 11px/16px 'DM Sans',sans-serif;text-align:center}
+.nb-panel{position:absolute;z-index:60;top:calc(100% + 8px);right:0;display:flex;flex-direction:column;width:min(380px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 120px));border:1px solid #dce4ed;border-radius:16px;background:#fff;box-shadow:0 18px 48px #13253b29;overflow:hidden}
+.nb-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 12px 12px 16px;border-bottom:1px solid #e8eef4}
+.nb-head strong{font-size:16px;color:#13253b}
+.nb-head>div{display:flex;align-items:center;gap:4px}
+.nb-link{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 10px;border:0;border-radius:8px;background:none;color:#1a4fb0;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.nb-link:hover{background:#e8f0fc}
+.nb-close{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:8px;background:none;color:#5d7089;cursor:pointer}
+.nb-close:hover{background:#f3f6f9}
+.nb-list{flex:1;margin:0;padding:6px;list-style:none;overflow-y:auto}
+.nb-item{display:flex;gap:10px;width:100%;padding:10px;border:0;border-radius:10px;background:none;text-align:left;font:inherit;cursor:pointer}
+.nb-item:hover{background:#f3f6f9}
+.nb-item:focus-visible{outline:2px solid #1a4fb0;outline-offset:-2px}
+.nb-dot{flex:none;width:8px;height:8px;margin-top:8px;border-radius:50%;background:transparent}
+.nb-item.unread .nb-dot{background:#2468d8}
+.nb-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nb-text strong{font-size:14.5px;font-weight:600;color:#13253b;line-height:1.45}
+.nb-item:not(.unread) .nb-text strong{font-weight:500;color:#445870}
+.nb-text span{font-size:13.5px;line-height:1.5;color:#445870;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.nb-text small{font-size:12.5px;color:#5d7089}
+.nb-empty{margin:0;padding:24px 18px;font-size:14px;line-height:1.7;color:#5d7089;text-align:center}
+.nb-foot{padding:6px 8px;border-top:1px solid #e8eef4}
+/* The page bars style every direct div, strong and span; keep the bell and its panel independent of them. */
+.mobile-page-bar>.nb{flex:none;margin-left:auto}
+.nb .nb-head strong{font:600 16px/1.4 'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;color:#13253b}
+.nb .nb-text strong{font:600 14.5px/1.45 'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;color:#13253b}
+.nb .nb-item:not(.unread) .nb-text strong{font-weight:500;color:#445870}
+.nb .nb-text span{font-size:13.5px;line-height:1.5;color:#445870}
+.nb .nb-text small{font-size:12.5px;color:#5d7089}
+@media (max-width:860px){.nb-panel{position:fixed;top:64px;right:16px;left:16px;width:auto}}
+.push-note,.push-state{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;font-size:14px;line-height:1.65}
+.push-note{border:1px solid #f0d9a4;background:#fff9ed;color:#7a5410}
+.push-state{border:1px solid #dce4ed;background:#f3f6f9;color:#445870}
+.push-state.on{border-color:#b9ded9;background:#effaf8;color:#0f6f69}
+.push-note svg,.push-state svg{flex:none;margin-top:2px}
+.push-actions{display:flex;flex-wrap:wrap;gap:8px}

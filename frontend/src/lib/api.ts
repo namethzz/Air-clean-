@@ -1,4 +1,4 @@
-import type { AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -7,7 +7,7 @@ export interface CreateServiceReportPayload {
   bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
   checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
 }
-interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null }
+interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean }
 interface AuthResponse { token: string; expiresAt: string; user: ApiUser }
 export class ApiError extends Error {
   constructor(message: string, public status?: number, public data?: Record<string, unknown>) { super(message); this.name = 'ApiError'; }
@@ -27,7 +27,7 @@ function roleFromApi(role: string): UserRole {
   }
 }
 function fromApiUser(user: ApiUser): UserProfile {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [] };
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true };
 }
 function saveToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
@@ -77,9 +77,9 @@ export async function register(fullName: string, email: string, password: string
   saveToken(result.token);
   return fromApiUser(result.user);
 }
-export async function updateMyProfile(payload: { fullName: string; email: string }): Promise<UserProfile> {
+export async function updateMyProfile(payload: { fullName: string; email: string; emailNotifications?: boolean }): Promise<UserProfile> {
   const result = await request<ApiUser>('/auth/profile', {
-    method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim() })
+    method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim(), emailNotifications:payload.emailNotifications })
   });
   return fromApiUser(result);
 }
@@ -104,6 +104,21 @@ export async function externalLogin(provider: 'google'|'apple', idToken: string,
   saveToken(result.token);
   return fromApiUser(result.user);
 }
+export async function fetchNotifications(limit = 30): Promise<{ unread: number; items: AppNotification[] }> {
+  return request('/notifications?limit=' + limit);
+}
+/** Marks the given notifications read, or every notification when no ids are given. */
+export async function markNotificationsRead(ids?: string[]): Promise<void> {
+  return request<void>('/notifications/read', { method:'POST', body:JSON.stringify({ ids }) });
+}
+export async function fetchPushPublicKey(): Promise<string> { return (await request<{ publicKey: string }>('/push/public-key')).publicKey; }
+export async function savePushSubscription(subscription: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+  return request<void>('/push/subscriptions', { method:'POST', body:JSON.stringify(subscription) });
+}
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  return request<void>('/push/subscriptions/remove', { method:'POST', body:JSON.stringify({ endpoint }) });
+}
+export async function sendTestPush(): Promise<string> { return (await request<{ message: string }>('/push/test', { method:'POST' })).message; }
 export async function sendTestEmail(email: string): Promise<string> {
   return (await request<{ message: string }>('/admin/test-email', { method:'POST', body:JSON.stringify({ email:email.trim() }) })).message;
 }

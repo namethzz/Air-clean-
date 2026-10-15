@@ -19,6 +19,8 @@ import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
+import NotificationBell from './components/NotificationBell';
+import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
   approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
@@ -26,7 +28,7 @@ import {
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type AirConditionerPayload, type CreateServiceReportPayload,
 } from './lib/api';
-import type { AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
+import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
@@ -114,6 +116,33 @@ export default function App() {
     setIsLoading(false);
   },[user]);
   useEffect(()=>{if(user)void refreshData();},[user,refreshData]);
+  useEffect(()=>{void registerServiceWorker();},[]);
+
+  /** Links from notifications: ?job=ID opens that job, ?page=NAME opens a page. */
+  const openLink=useCallback((url:string)=>{
+    const params=new URL(url,window.location.origin).searchParams;
+    const job=Number(params.get('job'));
+    const target=params.get('page') as PageKey|null;
+    if(job>0){setPage('bookings');setMobileNavOpen(false);setJobFocus({id:job,token:Date.now()});}
+    else if(target&&target in pageTitles)setPage(target);
+  },[]);
+  useEffect(()=>{
+    if(!user)return;
+    const params=new URLSearchParams(window.location.search);
+    if(params.has('job')||params.has('page')){
+      openLink(window.location.href);
+      params.delete('job');params.delete('page');
+      window.history.replaceState(null,'',window.location.pathname+(params.size?'?'+params.toString():'')+window.location.hash);
+    }
+    const onMessage=(event:MessageEvent)=>{if(event.data?.type==='airclean-open'&&typeof event.data.url==='string')openLink(event.data.url);};
+    navigator.serviceWorker?.addEventListener('message',onMessage);
+    return ()=>navigator.serviceWorker?.removeEventListener('message',onMessage);
+  },[user,openLink]);
+  function openNotification(item:AppNotification){
+    if(item.bookingId){openJob(item.bookingId);void refreshBookings();}
+    else if(item.target in pageTitles)navigate(item.target as PageKey);
+  }
+  function setupPush(){navigate('profile');window.setTimeout(()=>document.getElementById('push-settings')?.scrollIntoView({behavior:'smooth',block:'start'}),150);}
 
   function navigate(next:PageKey){
     // Customers and technicians track, pay and report inside "my jobs", so those pages open there.
@@ -126,7 +155,9 @@ export default function App() {
   function onAuthenticated(nextUser:UserProfile){
     setAuthInfo('');setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
   }
-  function logout(){
+  async function logout(){
+    // Stop this device's push notifications so the next person using it does not receive them.
+    await Promise.race([disablePush().catch(()=>undefined),new Promise(resolve=>window.setTimeout(resolve,3000))]);
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');
   }
@@ -253,15 +284,16 @@ export default function App() {
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
   }
 
+  const bell = <NotificationBell onOpen={openNotification} onSetupPush={setupPush}/>;
   const customer = user.role==='customer'||user.role==='technician'; // both get the phone bottom bar
   return <div className="app-shell ac-shell" data-role={user.role}>
     <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
     <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={user.role==='customer'?()=>openBooking():undefined} actionCount={actionCount}/></div>
     <main className="main-shell">
-      <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()}/>
+      <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={bell}/>
       {customer
-        ?<div className="mobile-page-bar customer-bar"><span className="customer-bar-mark"><Wind size={18}/></span><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div></div>
-        :<div className="mobile-page-bar"><button className="icon-button" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={20}/></button><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{user.role!=='technician'&&<button className="icon-button" onClick={()=>openBooking()} aria-label="จองบริการ"><Activity size={19}/></button>}</div>}
+        ?<div className="mobile-page-bar customer-bar"><span className="customer-bar-mark"><Wind size={18}/></span><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}</div>
+        :<div className="mobile-page-bar"><button className="icon-button" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={20}/></button><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}{user.role!=='technician'&&<button className="icon-button" onClick={()=>openBooking()} aria-label="จองบริการ"><Activity size={19}/></button>}</div>}
       {dataError&&<div className="app-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button className="outline-button" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
       <div className="page-content">{content}</div>
       <footer className="app-footer"><span>© 2026 AirClean</span>{!apiConnected&&<span className="footer-center" role="status"><WifiOff size={13}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>

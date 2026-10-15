@@ -16,6 +16,8 @@ builder.Services.AddControllers();
 builder.Services.AddSingleton<MongoStore>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddSingleton<WebPushSender>();
+builder.Services.AddSingleton<Notifier>();
 builder.Services.AddSingleton<ExternalIdentityValidator>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 

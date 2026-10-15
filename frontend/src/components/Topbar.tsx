@@ -1,12 +1,13 @@
+import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import type { PageKey, UserRole } from '../types';
 
-interface Props { role: UserRole; page: PageKey; title: string; searchQuery: string; onSearchChange: (value: string) => void; onNewBooking: () => void; }
+interface Props { role: UserRole; page: PageKey; title: string; searchQuery: string; onSearchChange: (value: string) => void; onNewBooking: () => void; bell?: ReactNode; }
 
 /** Search only filters these pages, so it appears only there. */
 const searchHints: Partial<Record<PageKey, string>> = { technicians: 'ค้นหาช่าง...', bookings: 'ค้นหารายการจอง...' };
 
-export default function Topbar({ role, page, title, searchQuery, onSearchChange, onNewBooking }: Props) {
+export default function Topbar({ role, page, title, searchQuery, onSearchChange, onNewBooking, bell }: Props) {
   // Customers' job list is short and has its own tabs, so it has no search box.
   const hint = role === 'customer' || role === 'technician' ? undefined : searchHints[page];
   // The overview already has its own single call to action.
@@ -17,6 +18,7 @@ export default function Topbar({ role, page, title, searchQuery, onSearchChange,
     <div className="topbar-actions">
       {hint && <label className="global-search"><Search size={17}/><input value={searchQuery} onChange={event => onSearchChange(event.target.value)} placeholder={hint} aria-label={hint.replace('...', '')}/></label>}
       {canBook && <button type="button" className="primary-button topbar-book-button" onClick={onNewBooking}>ขอช่างล้างแอร์</button>}
+      {bell}
     </div>
   </header>;
 }

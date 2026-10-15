@@ -297,4 +297,109 @@ if brevo_port:
         time.sleep(0.1)
     reset_mail = next(item for item in sent if item['to'][0]['email'] == mail_email)
     assert '?reset=' in reset_mail['textContent']
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email delivery, Google/Apple sign-in and cancellation.')
+    # Job notifications: each step emails the person who needs to act, and the opt-out is honoured.
+    def mail_to(address, subject_part, timeout=5.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            found = [item for item in sent if item['to'][0]['email'] == address and subject_part in item['subject']]
+            if found:
+                return found[-1]
+            time.sleep(0.1)
+        raise AssertionError(f'no email to {address} about {subject_part!r}; got {[(i["to"][0]["email"], i["subject"]) for i in sent[-8:]]}')
+    n_customer, n_customer_email = register('Customer')
+    n_tech, n_tech_email = register('Technician')
+    n_other, n_other_email = register('Technician')
+    mail_to(admin_email, 'มีช่างสมัครใหม่')
+    n_profile = call('/technicians/me', token=n_tech)
+    n_other_profile = call('/technicians/me', token=n_other)
+    call(f"/technicians/{n_other_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ทดสอบเหตุผล'}, admin)
+    assert 'ทดสอบเหตุผล' in mail_to(n_other_email, 'ยังไม่ผ่าน')['textContent']
+    for row in [n_profile, n_other_profile]:
+        call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)
+    mail_to(n_tech_email, 'ได้รับการอนุมัติ')
+    job = call('/bookings', 'POST', {**payload, 'address': 'NOTIFY-HOUSE-9'}, n_customer, 201)
+    call(f"/bookings/{job['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{job['id']}/applications", 'POST', {}, n_other)
+    assert job['code'] in mail_to(n_customer_email, 'มีช่างเสนอราคา')['subject']
+    call(f"/bookings/{job['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
+    assert 'NOTIFY-HOUSE-9' in mail_to(n_tech_email, 'ลูกค้ายืนยัน')['textContent']
+    mail_to(n_other_email, 'เลือกช่างท่านอื่น')
+    call(f"/bookings/{job['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, n_tech, 204)
+    mail_to(n_customer_email, 'กำลังเดินทาง')
+    for status in ['ถึงหน้างาน', 'กำลังดำเนินการ']:
+        call(f"/bookings/{job['id']}/status", 'PATCH', {'status': status}, n_tech, 204)
+    call('/service-reports', 'POST', {'bookingId': job['id'], 'summary': 'เรียบร้อย', 'cleanedFilter': True, 'cleanedCoil': True, 'checkedDrain': True, 'checkedCooling': True}, n_tech, 201)
+    assert 'เก็บเงินปลายทาง' in mail_to(n_customer_email, 'ล้างแอร์เสร็จแล้ว')['textContent']
+    for token in [n_customer, n_tech]:
+        call(f"/bookings/{job['id']}/payment-confirmation", 'PATCH', {'method': 'Cash', 'confirmed': True}, token)
+    mail_to(n_customer_email, 'งานเสร็จสมบูรณ์')
+    mail_to(n_tech_email, 'งานเสร็จสมบูรณ์')
+    # A customer who turns emails off gets none; cancelling a confirmed job tells the technician.
+    me = call('/auth/me', token=n_customer)
+    assert me['emailNotifications'] is True
+    assert call('/auth/profile', 'PATCH', {'fullName': me['fullName'], 'email': me['email'], 'emailNotifications': False}, n_customer)['emailNotifications'] is False
+    quiet = call('/bookings', 'POST', payload, n_customer, 201)
+    call(f"/bookings/{quiet['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{quiet['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
+    call(f"/bookings/{quiet['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, n_customer, 204)
+    mail_to(n_tech_email, 'ลูกค้ายกเลิกงาน')
+    time.sleep(1)
+    assert not [item for item in sent if item['to'][0]['email'] == n_customer_email and quiet['code'] in item['subject']]
+# In-app notifications (the bell): every event is recorded, even for people who turned emails off.
+if brevo_port:
+    feed = call('/notifications', token=n_customer)
+    offer = next(item for item in feed['items'] if item['title'].startswith('มีช่างเสนอราคา') and item['bookingId'] == quiet['id'])
+    assert offer['target'] == 'bookings' and not offer['read'] and feed['unread'] >= 1
+    assert all(item['bookingId'] != quiet['id'] for item in call('/notifications', token=n_tech)['items'] if item['title'].startswith('มีช่างเสนอราคา'))
+    call('/notifications/read', 'POST', {'ids': [offer['id']]}, n_customer, 204)
+    after = call('/notifications', token=n_customer)
+    assert next(item for item in after['items'] if item['id'] == offer['id'])['read'] and after['unread'] == feed['unread'] - 1
+    call('/notifications/read', 'POST', {}, n_customer, 204)
+    assert call('/notifications', token=n_customer)['unread'] == 0
+    approvals = [item for item in call('/notifications', token=admin)['items'] if item['title'].startswith('มีช่างสมัครใหม่')]
+    assert approvals and approvals[0]['target'] == 'approvals'
+# Web Push: the server encrypts for the browser's key and signs with VAPID; gone devices are dropped.
+push_port = os.environ.get('TEST_PUSH_PORT')
+if push_port:
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from fake_push import FakePushService
+    pusher = FakePushService(int(push_port))
+    p_customer, _ = register('Customer')
+    p_tech, _ = register('Technician')
+    vapid_key = call('/push/public-key', token=p_customer)['publicKey']
+    call('/push/test', 'POST', {}, p_customer, 409)
+    phone = pusher.subscribe('phone')
+    call('/push/subscriptions', 'POST', {**phone, 'p256dh': 'bad'}, p_customer, 400)
+    call('/push/subscriptions', 'POST', {**phone, 'endpoint': 'ftp://example.test/x'}, p_customer, 400)
+    call('/push/subscriptions', 'POST', phone, p_customer, 204)
+    laptop = pusher.subscribe('laptop')
+    call('/push/subscriptions', 'POST', laptop, p_customer, 204)
+    p_profile = call('/technicians/me', token=p_tech)
+    call(f"/technicians/{p_profile['id']}/verification", 'PATCH', {'verified': True}, admin)
+    p_job = call('/bookings', 'POST', payload, p_customer, 201)
+    call(f"/bookings/{p_job['id']}/applications", 'POST', {}, p_tech)
+    for _ in range(50):
+        if len([m for m in pusher.received if 'payload' in m]) >= 2:
+            break
+        time.sleep(0.1)
+    errors = [m for m in pusher.received if 'error' in m]
+    assert not errors, errors
+    delivered = {m['path']: m for m in pusher.received}
+    assert set(delivered) == {'/push/phone', '/push/laptop'}, delivered.keys()
+    message = delivered['/push/phone']
+    assert message['payload']['title'].startswith('มีช่างเสนอราคา') and message['payload']['url'].endswith(f"/?job={p_job['id']}")
+    assert message['headers']['content-encoding'] == 'aes128gcm' and int(message['headers']['ttl']) > 0
+    FakePushService.verify_vapid(message['headers']['authorization'], vapid_key, phone['endpoint'])
+    # A device the push service reports as gone is removed; the other one still receives.
+    pusher.gone.add('/push/phone')
+    pusher.received.clear()
+    assert '2 อุปกรณ์' in call('/push/test', 'POST', {}, p_customer)['message']
+    for _ in range(50):
+        if any(m.get('path') == '/push/laptop' for m in pusher.received):
+            break
+        time.sleep(0.1)
+    assert call('/push/test', 'POST', {}, p_customer)['message'].count('1 อุปกรณ์') == 1
+    call('/push/subscriptions/remove', 'POST', {'endpoint': laptop['endpoint']}, p_customer, 204)
+    call('/push/test', 'POST', {}, p_customer, 409)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in and cancellation.')

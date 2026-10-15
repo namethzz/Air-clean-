@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, KeyRound, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
 import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
+import PushSettings from '../components/PushSettings';
 import { changePassword, updateMyProfile } from '../lib/api';
 
 interface Props {
@@ -16,17 +17,18 @@ const roleLabels: Record<UserRole,string> = {
 export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
   const [fullName,setFullName] = useState(user.fullName);
   const [email,setEmail] = useState(user.email);
+  const [emailNotifications,setEmailNotifications] = useState(user.emailNotifications !== false);
   const [saving,setSaving] = useState(false);
   const [error,setError] = useState('');
   const [saved,setSaved] = useState(false);
 
-  useEffect(() => { setFullName(user.fullName); setEmail(user.email); },[user.fullName,user.email]);
+  useEffect(() => { setFullName(user.fullName); setEmail(user.email); setEmailNotifications(user.emailNotifications !== false); },[user.fullName,user.email,user.emailNotifications]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(''); setSaved(false); setSaving(true);
     try {
-      const updated = await updateMyProfile({ fullName, email });
+      const updated = await updateMyProfile({ fullName, email, emailNotifications });
       onUpdated(updated); setSaved(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'บันทึกโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่');
@@ -51,6 +53,7 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
           <label className="form-field"><span>ชื่อที่ใช้ติดต่อ</span><div className="profile-input-wrap"><UserRound size={17}/><input value={fullName} onChange={e=>setFullName(e.target.value)} minLength={2} maxLength={120} required/></div></label>
           <label className="form-field"><span>อีเมล</span><div className="profile-input-wrap"><Mail size={17}/><input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} maxLength={254} required/></div></label>
           <label className="form-field"><span>บทบาทบัญชี (กำหนดตอนสมัคร)</span><input value={roleLabels[user.role]} readOnly aria-readonly="true"/></label>
+          <label className="profile-toggle"><input type="checkbox" checked={emailNotifications} onChange={e=>setEmailNotifications(e.target.checked)}/><span><strong>รับการแจ้งเตือนทางอีเมล</strong><small>เช่น มีช่างเสนอราคา ลูกค้ายืนยันงาน ช่างเริ่มเดินทาง และงานเสร็จ อีเมลลืมรหัสผ่านยังส่งเสมอ</small></span></label>
           {error && <div className="auth-error" role="alert">{error}</div>}
           {saved && <div className="profile-saved" role="status"><CheckCircle2 size={17}/>บันทึกโปรไฟล์เรียบร้อยแล้ว</div>}
           <button className="primary-button" type="submit" disabled={saving || !fullName.trim() || !email.trim()}><Save size={16}/>{saving?'กำลังบันทึก...':'บันทึกการเปลี่ยนแปลง'}</button>
@@ -58,6 +61,7 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
       </section>
     </div>
     {user.role === 'technician' && <TechnicianProfileSettings/>}
+    <PushSettings/>
     <ChangePasswordPanel hasPassword={user.hasPassword !== false} onChanged={updated => onUpdated(updated)}/>
     {onLogout && <button type="button" className="outline-button profile-logout-mobile" onClick={onLogout}><LogOut size={17}/> ออกจากระบบ</button>}
   </div>;
