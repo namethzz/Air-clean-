@@ -111,6 +111,7 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
       const result = await payMembership(months, slip);
       // A slip the bank check turned down stays on this form with the reason, ready for another slip.
       if (result.status === 'Rejected') { setTurnedDown(result.note || 'สลิปนี้ใช้ต่ออายุไม่ได้'); setSlip(''); if (file.current) file.current.value = ''; setBusy(false); return; }
+      setBusy(false); setSlip(''); if (file.current) file.current.value = '';
       onSent(result);
     }
     catch (reason) { setError(errorText(reason, 'ส่งสลิปไม่สำเร็จ')); setBusy(false); }
