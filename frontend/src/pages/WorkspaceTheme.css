@@ -1009,17 +1009,19 @@
   margin-top: 2px;
   color: #1a4fb0;
 }
-.pp-small {
-  font-size: 13.5px !important;
-  color: #5d7089 !important;
+.pp-small,
+.pp-sheet > .pp-small {
+  font-size: 13.5px;
+  color: #5d7089;
 }
-.pp-error {
+.pp-error,
+.pp-sheet > .pp-error {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
   background: #fdecea;
-  color: #a53c3c !important;
-  font-size: 14px !important;
+  color: #a53c3c;
+  font-size: 14px;
   text-align: left;
 }
 .pp-primary {

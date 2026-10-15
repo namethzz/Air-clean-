@@ -813,8 +813,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 9px !important;
-  color: #9a a59f;
+  color: #9aa59f;
 }
 .bookings-table-panel {
   padding: 20px;
@@ -1291,7 +1290,7 @@ select:focus-visible {
   }
   .summary-strip-note {
     width: 100%;
-    margin-left: 0 !important;
+    margin-left: 0;
   }
   .form-grid-two {
     grid-template-columns: 1fr;

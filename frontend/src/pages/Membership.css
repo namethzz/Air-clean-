@@ -425,8 +425,10 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.ms-amount {
-  font: 700 26px/1.2 var(--ac-display) !important;
+.ms-amount,
+.ms-pay dd.ms-amount,
+.ms-slip-info > span.ms-amount {
+  font: 700 26px/1.2 var(--ac-display);
   color: var(--ac-ink);
   font-variant-numeric: tabular-nums;
 }
@@ -765,7 +767,8 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
-.ms-check-error {
-  color: var(--ac-amber) !important;
+.ms-check-error,
+.ms-slip-info .ms-check-error {
+  color: var(--ac-amber);
   font-weight: 600;
 }

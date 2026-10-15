@@ -17,7 +17,7 @@
   font-size: 8px;
 }
 .aircare-leaflet-map .leaflet-control-zoom a {
-  color: #244c44 !important;
+  color: #244c44;
 }
 .aircare-leaflet-icon {
   background: transparent;

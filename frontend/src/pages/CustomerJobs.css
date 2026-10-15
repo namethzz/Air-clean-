@@ -2338,10 +2338,16 @@ span.rm-chip {
 .tj-receipt {
   width: 100%;
 }
-.rc-form textarea {
-  min-height: 88px !important;
+/* The receipt opens outside the app shell, so its fields need their own size. */
+.rc-form .form-field input {
+  font-size: 16px;
+}
+.rc-form textarea,
+.rc-form .form-field textarea {
+  min-height: 88px;
+  font-size: 16px;
   height: auto;
-  padding: 12px 14px !important;
+  padding: 12px 14px;
   line-height: 1.6;
 }
 
@@ -2507,13 +2513,14 @@ span.rm-chip {
   flex-direction: column;
   gap: 8px;
 }
-.tj-day-head {
+.tj-day-head,
+.cj-page .tj-day-head {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
   margin: 0 2px 10px;
-  font-family: var(--ac-text) !important;
+  font-family: var(--ac-text);
 }
 .tj-day-head strong {
   font: 700 17px/1.35 var(--ac-display);
