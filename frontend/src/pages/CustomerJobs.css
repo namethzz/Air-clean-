@@ -179,3 +179,28 @@
 .cj-stars button:focus-visible{outline:2px solid var(--ac-focus);outline-offset:2px}
 .cj-review-label{font-size:14px;color:var(--ac-ink-2)}
 .cj-review textarea{width:100%;padding:10px 12px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;color:var(--ac-ink);font:inherit;font-size:15px;resize:vertical}
+
+/* Technician: offer waiting, destination, closing the job */
+.tj-offer{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.tj-offer>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;border-radius:12px;background:var(--ac-blue-tint)}
+.tj-offer span{font-size:14px;color:var(--ac-ink-2)}
+.tj-offer strong{font:700 22px var(--ac-display);color:var(--ac-ink)}
+.tj-destination{display:flex;flex-direction:column;gap:10px}
+.tj-destination h3{display:flex;align-items:center;gap:6px}
+.tj-address{margin:0;font-size:17px;font-weight:600;line-height:1.6;color:var(--ac-ink)}
+.tj-destination .cj-primary,.tj-destination .cj-ghost{justify-content:center;text-decoration:none}
+.tj-finish{display:flex;flex-direction:column;gap:10px;border-color:var(--ac-blue)}
+.tj-more{border:1px solid var(--ac-frame);border-radius:12px;padding:10px 12px}
+.tj-more summary{min-height:32px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ac-blue-deep)}
+.tj-more[open] summary{margin-bottom:8px}
+.cj-row-offer .cj-row-date{opacity:.65}
+
+/* After the job */
+.cj-after{display:flex;flex-direction:column;gap:12px}
+.cj-next-clean{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--ac-mist)}
+.cj-next-clean svg{flex:none;margin-top:2px;color:var(--ac-blue)}
+.cj-next-clean div{display:flex;flex-direction:column;gap:2px}
+.cj-next-clean strong{font-size:15px;color:var(--ac-ink)}
+.cj-next-clean span{font-size:14px;line-height:1.6;color:var(--ac-ink-2)}
+.cj-after-actions{display:flex;flex-wrap:wrap;gap:8px}
+.cj-after-actions>*{flex:1 1 200px;justify-content:center}

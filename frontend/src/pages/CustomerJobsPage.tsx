@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink,
-  MapPin, Plus, ShieldCheck, Smartphone, Star, Wind, Wrench,
+  AirVent, AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink,
+  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
-import { currentStep, guideFor, isClosed, journeySteps, needsAction, sortJobs } from '../lib/jobFlow';
+import { currentStep, guideFor, isClosedForCustomer, journeySteps, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
 import Stepper, { useIsWide } from '../components/JobStepper';
 import './CustomerJobs.css';
@@ -20,7 +20,8 @@ interface Props {
   onStatusChange: (id: number, status: BookingStatus) => void;
   onPaymentConfirm: (id: number, method: PaymentMethod) => void;
   onPaymentIssue: (id: number, reason: string) => void;
-  onApproveReport: (id: number) => Promise<boolean>;
+  onReportProblem: (id: number, reason: string) => Promise<boolean>;
+  onOpenPassport: () => void;
   onReview: (bookingId: number, rating: number, comment: string) => Promise<boolean>;
   onRefresh: () => void;
 }
@@ -43,14 +44,14 @@ export default function CustomerJobsPage(props: Props) {
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const open = useMemo(() => sortJobs(bookings.filter(item => !isClosed(item)), reports), [bookings, reports]);
-  const closed = useMemo(() => bookings.filter(isClosed).sort((a, b) => b.id - a.id), [bookings]);
+  const open = useMemo(() => sortJobs(bookings.filter(item => !isClosedForCustomer(item)), reports), [bookings, reports]);
+  const closed = useMemo(() => bookings.filter(isClosedForCustomer).sort((a, b) => b.id - a.id), [bookings]);
 
   useEffect(() => {
     if (!focus) return;
     const target = bookings.find(item => item.id === focus.id);
     setSelectedId(focus.id);
-    if (target) setTab(isClosed(target) ? 'closed' : 'open');
+    if (target) setTab(isClosedForCustomer(target) ? 'closed' : 'open');
   }, [focus?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -109,7 +110,7 @@ export default function CustomerJobsPage(props: Props) {
 }
 
 
-function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onApproveReport, onReview, onRefresh }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
   const report = reports.find(item => item.bookingId === booking.id);
   const cancelled = booking.status === 'ยกเลิก';
@@ -124,7 +125,7 @@ function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChang
       <StatusBadge status={booking.status}/>
     </header>
 
-    {!cancelled && <Stepper labels={journeySteps} step={currentStep(booking.status)}/>}
+    {!cancelled && <Stepper labels={journeySteps} step={currentStep(booking)}/>}
 
     <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
@@ -132,16 +133,18 @@ function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChang
       {choosing && <Offers booking={booking} onSelect={onSelectTechnician} onRefresh={onRefresh}/>}
       {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
       {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
-      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ชำระแล้ว ฿{booking.price.toLocaleString()}</p>}
+      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> จ่ายแล้ว ฿{booking.price.toLocaleString()}{booking.paymentMethod ? ` · ${booking.paymentMethod === 'PromptPay' ? 'โอน' : 'เงินสด'}` : ''}</p>}
       {booking.status === 'เสร็จสิ้น' && <Review booking={booking} onReview={onReview}/>}
     </section>
+
+    {booking.status === 'เสร็จสิ้น' && <AfterService booking={booking} onNewBooking={onNewBooking} onOpenPassport={onOpenPassport} onReportProblem={onReportProblem}/>}
 
     {hasTech && <section className="cj-block">
       <h3>ช่างของคุณ</h3>
       <div className="cj-person"><span className="cj-avatar">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong>{booking.applicants?.find(item => item.selected) && <small>{booking.applicants.find(item => item.selected)!.title}</small>}</div></div>
     </section>}
 
-    {report && <ReportBlock report={report} onApprove={onApproveReport}/>}
+    {report && <ReportBlock report={report}/>}
 
     <section className="cj-block">
       <h3>รายละเอียดงาน</h3>
@@ -244,24 +247,45 @@ function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
   </div>;
 }
 
-function ReportBlock({ report, onApprove }: { report: ServiceReportRecord; onApprove: (id: number) => Promise<boolean> }) {
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  async function approve() {
-    setBusy(true); setFailed(false);
-    const ok = await onApprove(report.id);
-    setBusy(false);
-    if (!ok) setFailed(true);
-  }
-  return <section className={'cj-block' + (report.customerApproved ? '' : ' cj-report-open')}>
-    <h3>รายงานจากช่าง</h3>
+function ReportBlock({ report }: { report: ServiceReportRecord }) {
+  return <section className="cj-block">
+    <h3>สรุปงานจากช่าง</h3>
     <p className="cj-report-summary">{report.summary}</p>
     <ul className="cj-checklist">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'ok' : ''}><Check size={15} strokeWidth={3}/> {item.label}</li>)}</ul>
     {(report.beforePhotoUrl || report.afterPhotoUrl) && <p className="cj-photos">{report.beforePhotoUrl && <a href={report.beforePhotoUrl} target="_blank" rel="noreferrer">ดูภาพก่อนทำ</a>}{report.afterPhotoUrl && <a href={report.afterPhotoUrl} target="_blank" rel="noreferrer">ดูภาพหลังทำ</a>}</p>}
-    {report.customerApproved
-      ? <p className="cj-done"><CheckCircle2 size={18}/> คุณยืนยันรายงานแล้ว</p>
-      : <button type="button" className="cj-primary full" disabled={busy} onClick={() => void approve()}>{busy ? 'กำลังยืนยัน...' : 'ยืนยันว่าตรวจรายงานแล้ว'} <ShieldCheck size={16}/></button>}
-    {failed && <p className="cj-error" role="alert">ยืนยันรายงานไม่สำเร็จ ลองอีกครั้ง</p>}
+  </section>;
+}
+
+/** What to do after the job: the next recommended cleaning, book again, keep the history, or report a problem. */
+function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }: { booking: Booking; onNewBooking: () => void; onOpenPassport: () => void; onReportProblem: Props['onReportProblem'] }) {
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const next = new Date(booking.date + 'T00:00:00');
+  next.setMonth(next.getMonth() + 6);
+  async function send() {
+    setBusy(true);
+    const ok = await onReportProblem(booking.id, reason.trim());
+    setBusy(false);
+    if (ok) { setSent(true); setReporting(false); }
+  }
+  return <section className="cj-block cj-after">
+    <h3>ขั้นต่อไป</h3>
+    <div className="cj-next-clean"><CalendarClock size={20}/><div><strong>ล้างครั้งถัดไปแนะนำ {next.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong><span>ล้างทุก 6 เดือนช่วยให้แอร์เย็นเร็ว ประหยัดไฟ และลดฝุ่น</span></div></div>
+    <div className="cj-after-actions">
+      <button type="button" className="cj-primary" onClick={onNewBooking}><RotateCcw size={16}/> ขอช่างล้างแอร์อีกครั้ง</button>
+      <button type="button" className="cj-ghost" onClick={onOpenPassport}><AirVent size={16}/> {booking.airConditionerId ? 'ดูประวัติในแอร์ของฉัน' : 'บันทึกแอร์ไว้ในแอร์ของฉัน'}</button>
+    </div>
+    {sent
+      ? <p className="cj-done"><CheckCircle2 size={18}/> ส่งเรื่องให้ผู้ดูแลแล้ว จะติดต่อกลับเร็วที่สุด</p>
+      : reporting
+        ? <div className="cj-confirm">
+          <label htmlFor={`problem-${booking.id}`}>เกิดปัญหาอะไรกับงานนี้</label>
+          <textarea id={`problem-${booking.id}`} rows={3} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="เช่น ล้างแล้วน้ำยังหยด หรือมีปัญหาเรื่องเงิน"/>
+          <div><button type="button" className="cj-primary" disabled={busy || reason.trim().length < 3} onClick={() => void send()}>{busy ? 'กำลังส่ง...' : 'ส่งให้ผู้ดูแล'}</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
+        </div>
+        : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> มีปัญหากับงานนี้</button>}
   </section>;
 }
 

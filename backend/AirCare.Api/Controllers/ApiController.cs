@@ -448,14 +448,16 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             rows = rows.Where(x => x.CustomerId == CurrentUserId).ToList();
         else if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-            rows = tech is null ? [] : rows.Where(x => x.TechnicianId == tech.Id).ToList();
+            rows = tech is null ? [] : rows.Where(x => x.TechnicianId == tech.Id || IsOpenOffer(x, tech.Id)).ToList();
         }
         if (!string.IsNullOrWhiteSpace(status)) {
             var normalized = DtoMapper.NormalizeStatus(status);
             if (normalized.Length == 0) return BadRequest(new { message = "สถานะไม่ถูกต้อง" });
             rows = rows.Where(x => x.Status == normalized).ToList();
         }
-        return Ok(rows.OrderByDescending(x => x.ScheduledAt).Select(x => DtoMapper.ToDto(x)).ToList());
+        var technicianId = CurrentRole == AppRoles.Technician ? (await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync())?.Id : null;
+        return Ok(rows.OrderByDescending(x => x.ScheduledAt).Select(x =>
+            technicianId is int techId && IsOpenOffer(x, techId) ? OpenJobView(DtoMapper.ToDto(x, techId), techId) : DtoMapper.ToDto(x)).ToList());
     }
 
     [Authorize, HttpGet("bookings/{id:int}")]
@@ -523,6 +525,11 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             .ToList();
         return Ok(nearby);
     }
+
+    /// <summary>A job this technician offered on that the customer has not decided yet.</summary>
+    private static bool IsOpenOffer(Booking booking, int technicianId) =>
+        booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection
+        && (booking.Applicants ?? []).Any(x => x.TechnicianId == technicianId);
 
     /// <summary>What a technician may see of a job that has not been assigned to them yet:
     /// no customer identity, exact address or coordinates, and no competing technicians' quotes.</summary>
@@ -734,25 +741,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             booking.Status = BookingStates.Completed;
             booking.TravelStatus = "Completed";
             var existingReportService = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
-            if (booking.AirConditionerId.HasValue) {
-                var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
-                if (unit is not null && !unit.Services.Any(x => x.BookingId == booking.Id)) {
-                    unit.LastServiceDate = DateTime.UtcNow.Date;
-                    unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6);
-                    unit.Health = "good";
-                    unit.Services.Add(new ServiceRecord {
-                        Id = await store.NextIdAsync("serviceRecords"),
-                        BookingId = booking.Id,
-                        Date = DateTime.UtcNow.Date,
-                        TechnicianName = booking.TechnicianName,
-                        Service = booking.Service,
-                        Price = booking.Price,
-                        Summary = existingReportService?.Summary ?? "ยืนยันงานเสร็จและรับชำระเงินหน้างานแล้ว",
-                        Status = BookingStates.Completed
-                    });
-                    await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);
-                }
-            }
+            await RecordPassportServiceAsync(booking, existingReportService?.Summary ?? "ยืนยันงานเสร็จและรับชำระเงินหน้างานแล้ว");
         }
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent {
@@ -767,6 +756,68 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             NotifyStatusChange(booking, previousStatus);
         }
         return Ok(DtoMapper.ToDto(booking));
+    }
+
+    /// <summary>
+    /// The technician's one step at the end: the job is done and the customer has paid on site. Records the
+    /// service report, the payment and the Aircon Passport history in one go, from any active state.
+    /// </summary>
+    [Authorize(Roles = "Technician,Admin"), HttpPost("bookings/{id:int}/complete")]
+    public async Task<IActionResult> CompleteJob(int id, CompleteJobRequest request)
+    {
+        var method = request.Method.Trim();
+        if (method is not ("Cash" or "PromptPay")) return BadRequest(new { message = "เลือกเงินสดหรือโอนเท่านั้น" });
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        var version = booking.UpdatedAt;
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        }
+        if (booking.Status is not (BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived or BookingStates.InProgress or BookingStates.AwaitingPayment))
+            return Conflict(new { message = booking.Status == BookingStates.Completed ? "งานนี้ปิดไปแล้ว" : "ปิดงานนี้ไม่ได้จากสถานะปัจจุบัน" });
+
+        var summary = string.IsNullOrWhiteSpace(request.Summary) ? $"{booking.Service} {booking.UnitCount} เครื่อง เรียบร้อย" : request.Summary.Trim();
+        var report = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
+        var previous = booking.Status;
+        booking.Status = BookingStates.Completed;
+        booking.TravelStatus = "Completed";
+        booking.PaymentMethod = method;
+        booking.PaymentStatus = "Paid";
+        booking.TechnicianConfirmedPayment = true;
+        booking.UpdatedAt = DateTime.UtcNow;
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status,
+            Notes = $"ช่างปิดงานและได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0}", CreatedAt = DateTime.UtcNow });
+        var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
+        if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+
+        if (report is null) {
+            report = new ServiceReport { Id = await store.NextIdAsync("serviceReports"), BookingId = booking.Id, BookingCode = booking.Code,
+                CustomerId = booking.CustomerId, TechnicianId = booking.TechnicianId, Summary = summary,
+                CleanedFilter = request.CleanedFilter, CleanedCoil = request.CleanedCoil, CheckedDrain = request.CheckedDrain, CheckedCooling = request.CheckedCooling,
+                CreatedAt = DateTime.UtcNow };
+            await store.ServiceReports.InsertOneAsync(report);
+        }
+        await RecordPassportServiceAsync(booking, report.Summary);
+        await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
+        notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว {booking.Code}",
+            $"{booking.TechnicianName} ปิดงาน{booking.Service} {booking.UnitCount} เครื่อง และได้รับเงิน ฿{booking.Price:N0} แล้ว\nให้คะแนนช่างได้ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));
+        return Ok(DtoMapper.ToDto(booking));
+    }
+
+    /// <summary>After a completed job the customer can flag a problem (payment, quality) for an admin to follow up.</summary>
+    [Authorize(Roles = "Customer,Manager"), HttpPost("bookings/{id:int}/report-problem")]
+    public async Task<IActionResult> ReportProblem(int id, ReportProblemRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id && x.CustomerId == CurrentUserId).FirstOrDefaultAsync();
+        if (booking is null) return NotFound(new { message = "ไม่พบงานของคุณ" });
+        if (booking.Status != BookingStates.Completed) return Conflict(new { message = "แจ้งปัญหาได้หลังงานเสร็จแล้ว" });
+        if (booking.UpdatedAt < DateTime.UtcNow.AddDays(-14)) return Conflict(new { message = "แจ้งปัญหาได้ภายใน 14 วันหลังงานเสร็จ" });
+        var reason = request.Reason.Trim();
+        await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update.Push(x => x.Events,
+            new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status, Notes = "ลูกค้าแจ้งปัญหา: " + reason, CreatedAt = DateTime.UtcNow }));
+        notify.ToAdmins($"ลูกค้าแจ้งปัญหางาน {booking.Code}", $"{booking.CustomerName} แจ้งปัญหางานของ {booking.TechnicianName}: {reason}", NotificationLink.Job(booking.Id));
+        return NoContent();
     }
 
     [Authorize(Roles = "Customer,Technician"), HttpPost("bookings/{id:int}/payment-issue")]
@@ -975,6 +1026,22 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     private static bool IsPhone(string? value) => value is not null && value.Count(char.IsAsciiDigit) is >= 9 and <= 15
         && value.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or ' ');
 
+    /// <summary>Adds the finished job to the linked Aircon Passport unit once, and sets the next service in 6 months.</summary>
+    private async Task RecordPassportServiceAsync(Booking booking, string summary)
+    {
+        if (!booking.AirConditionerId.HasValue) return;
+        var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
+        if (unit is null || unit.Services.Any(x => x.BookingId == booking.Id)) return;
+        unit.LastServiceDate = DateTime.UtcNow.Date;
+        unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6);
+        unit.Health = "good";
+        unit.Services.Add(new ServiceRecord {
+            Id = await store.NextIdAsync("serviceRecords"), BookingId = booking.Id, Date = DateTime.UtcNow.Date,
+            TechnicianName = booking.TechnicianName, Service = booking.Service, Price = booking.Price, Summary = summary, Status = BookingStates.Completed
+        });
+        await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);
+    }
+
     private static string ThaiDate(DateTime value) => value.ToString("d MMM yyyy HH:mm", new System.Globalization.CultureInfo("th-TH")) + " น.";
 
     /// <summary>One place for the emails that follow a job's status, whichever endpoint moved it.</summary>
@@ -984,6 +1051,9 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         switch (booking.Status) {
             case BookingStates.Traveling:
                 notify.ToUser(booking.CustomerId, $"ช่างกำลังเดินทางไปหาคุณ {booking.Code}", $"{booking.TechnicianName} เริ่มเดินทางไปทำงาน{job}แล้ว ดูตำแหน่งช่างได้ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));
+                break;
+            case BookingStates.Arrived:
+                notify.ToUser(booking.CustomerId, $"ช่างมาถึงแล้ว {booking.Code}", $"{booking.TechnicianName} มาถึงสถานที่ของคุณแล้ว และจะเริ่มล้างแอร์", NotificationLink.Job(booking.Id));
                 break;
             case BookingStates.AwaitingPayment when previous != BookingStates.AwaitingPayment:
                 notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว {booking.Code}", $"{booking.TechnicianName} แจ้งว่างาน{job}เสร็จแล้ว\nเก็บเงินปลายทาง ฿{booking.Price:N0} จ่ายให้ช่างโดยตรง แล้วกด “ฉันชำระเงินแล้ว” ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));

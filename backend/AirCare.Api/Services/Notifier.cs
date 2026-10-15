@@ -13,11 +13,11 @@ public record NotificationLink(string Target, int? BookingId = null)
 }
 
 /// <summary>
-/// Tells people when something on their job changes, through three channels: an in-app notification under
-/// the bell (always), a push notification on each device they enabled, and an email unless they turned
-/// emails off. Everything runs in the background so a slow channel never delays or breaks the request.
+/// Tells people when something on their job changes: an in-app notification under the bell and a push
+/// notification on each device they enabled. Job events are not emailed (customers found it noisy); email is
+/// kept for password resets. Everything runs in the background so a slow channel never delays the request.
 /// </summary>
-public class Notifier(MongoStore store, EmailSender email, WebPushSender push, IConfiguration configuration, ILogger<Notifier> logger)
+public class Notifier(MongoStore store, WebPushSender push, IConfiguration configuration, ILogger<Notifier> logger)
 {
     /// <summary>The public site address used in links: PASSWORD_RESET_URL, else the first FRONTEND_ORIGIN.</summary>
     public string SiteUrl =>
@@ -52,9 +52,6 @@ public class Notifier(MongoStore store, EmailSender email, WebPushSender push, I
         });
         // Push shows a short body on the lock screen: the first line of the message.
         await Try(() => push.SendToUserAsync(user.Id, subject, message.Split('\n')[0], LinkUrl(link)), "push");
-        if (user.EmailNotifications && email.IsConfigured && !string.IsNullOrWhiteSpace(user.Email))
-            await Try(() => email.SendAsync(user.Email, "AirClean · " + subject,
-                $"สวัสดีคุณ {user.FullName}\n\n{message}\n\nเปิด AirClean: {LinkUrl(link)}\n\n— AirClean\nปิดการแจ้งเตือนทางอีเมลได้ที่หน้าโปรไฟล์ของคุณ"), "email");
     }
 
     private async Task Try(Func<Task> work, string channel)
