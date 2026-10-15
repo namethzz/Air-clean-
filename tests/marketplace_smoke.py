@@ -266,4 +266,35 @@ if idp_port:
                                                'fullName': 'ช่าง แอปเปิล', 'phone': '0899999999', 'serviceArea': 'บางนา', 'experienceYears': 2}, expected=201)
     assert applied['user']['fullName'] == 'ช่าง แอปเปิล'
     assert call('/technicians/me', token=applied['token'])['verificationStatus'] == 'Pending'
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, Google/Apple sign-in and cancellation.')
+# Email through Brevo's HTTPS API, against a local stand-in (BREVO_API_URL), as used on hosts that block SMTP.
+brevo_port = os.environ.get('TEST_BREVO_PORT')
+if brevo_port:
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    sent = []
+    class Brevo(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+            ok = self.path == '/v3/smtp/email' and self.headers.get('api-key') == os.environ['BREVO_API_KEY'] and 'reject' not in body['to'][0]['email']
+            if ok:
+                sent.append(body)
+            self.send_response(201 if ok else 400)
+            self.send_header('Content-Type', 'application/json'); self.end_headers()
+            self.wfile.write(b'{"messageId":"ci"}' if ok else b'{"code":"invalid_parameter","message":"recipient rejected"}')
+        def log_message(self, *args):
+            pass
+    threading.Thread(target=ThreadingHTTPServer(('127.0.0.1', int(brevo_port)), Brevo).serve_forever, daemon=True).start()
+    call('/admin/test-email', 'POST', {'email': 'ops@example.test'}, customer, 403)
+    ok = call('/admin/test-email', 'POST', {'email': 'ops@example.test'}, admin)
+    assert ok['transport'] == 'Brevo API' and sent[-1]['to'] == [{'email': 'ops@example.test'}] and sent[-1]['sender']['email'] == os.environ['SMTP_FROM']
+    failed = call('/admin/test-email', 'POST', {'email': 'reject@example.test'}, admin, 502)
+    assert 'recipient rejected' in failed['message']
+    mail_token, mail_email = register('Customer')
+    call('/auth/forgot-password', 'POST', {'email': mail_email})
+    for _ in range(50):
+        if any(item['to'][0]['email'] == mail_email for item in sent):
+            break
+        time.sleep(0.1)
+    reset_mail = next(item for item in sent if item['to'][0]['email'] == mail_email)
+    assert '?reset=' in reset_mail['textContent']
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email delivery, Google/Apple sign-in and cancellation.')

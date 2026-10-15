@@ -170,6 +170,17 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(CreateLoginResponse(user));
     }
 
+    /// <summary>Sends one message now and reports the mail server's answer, so delivery problems are visible to the admin.</summary>
+    [Authorize(Roles = "Admin"), HttpPost("admin/test-email")]
+    public async Task<IActionResult> SendTestEmail(TestEmailRequest request)
+    {
+        var error = await email.TrySendAsync(request.Email.Trim(), "ทดสอบการส่งอีเมลจาก AirClean",
+            "อีเมลนี้ส่งจากปุ่มทดสอบในหน้าผู้ดูแลระบบ AirClean ถ้าคุณได้รับ แปลว่าระบบส่งอีเมล (เช่น ลืมรหัสผ่าน) ใช้งานได้แล้ว");
+        return error is null
+            ? Ok(new { message = $"ส่งอีเมลทดสอบผ่าน {email.Transport} แล้ว ตรวจกล่องจดหมายและโฟลเดอร์สแปม", transport = email.Transport })
+            : StatusCode(StatusCodes.Status502BadGateway, new { message = $"ส่งไม่สำเร็จ ({email.Transport}): {error}", transport = email.Transport });
+    }
+
     [Authorize(Roles = "Admin"), HttpPost("admin/password-reset-links")]
     public async Task<IActionResult> CreatePasswordResetLink(AdminResetLinkRequest request)
     {

@@ -104,6 +104,9 @@ export async function externalLogin(provider: 'google'|'apple', idToken: string,
   saveToken(result.token);
   return fromApiUser(result.user);
 }
+export async function sendTestEmail(email: string): Promise<string> {
+  return (await request<{ message: string }>('/admin/test-email', { method:'POST', body:JSON.stringify({ email:email.trim() }) })).message;
+}
 export async function createPasswordResetLink(email: string): Promise<{ link: string; expiresAt: string; fullName: string }> {
   return request('/admin/password-reset-links', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
 }

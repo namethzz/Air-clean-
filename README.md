@@ -40,7 +40,8 @@ Configure these on the Render API service:
 - FRONTEND_ORIGIN: exact HTTPS origin of the frontend, without a trailing slash
 - INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD: optional first-admin credentials; set both together. Password must be at least 12 characters and use a new email.
 - INITIAL_ADMIN_NAME: optional administrator display name
-- SMTP_HOST, SMTP_PORT (default 587), SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM: mail server for password reset emails. SMTP_ENABLE_SSL=false only for a local test server. Without SMTP, users are told a link was sent but nothing is delivered; an admin can create the link instead.
+- BREVO_API_KEY and SMTP_FROM: send password reset emails through Brevo's HTTPS API. Use this on Render's free plan, which blocks outbound SMTP connections. Admins can check delivery with **ส่งอีเมลทดสอบ** on the ตรวจสอบช่าง page.
+- SMTP_HOST, SMTP_PORT (default 587), SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM: alternative SMTP mail server, used only when BREVO_API_KEY is empty. SMTP_ENABLE_SSL=false only for a local test server. Without SMTP, users are told a link was sent but nothing is delivered; an admin can create the link instead.
 - PASSWORD_RESET_URL: optional site address used in reset links; defaults to the first FRONTEND_ORIGIN
 - GOOGLE_CLIENT_ID: OAuth client ID (Web application) from Google Cloud Console; enables Sign in with Google
 - APPLE_CLIENT_ID: Services ID from the Apple Developer account; enables Sign in with Apple

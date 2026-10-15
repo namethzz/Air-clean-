@@ -31,6 +31,7 @@ public record ExternalLoginRequest([Required,MaxLength(20)] string Provider,[Req
 public record ForgotPasswordRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record ResetPasswordRequest([Required,MinLength(20),MaxLength(200)] string Token,[Required,MinLength(8),MaxLength(128)] string NewPassword);
 public record ChangePasswordRequest([MaxLength(128)] string? CurrentPassword,[Required,MinLength(8),MaxLength(128)] string NewPassword);
+public record TestEmailRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record AdminResetLinkRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record SavedAddressDto(int Id,string Label,string PlaceType,string Address,string? Building,string? Floor,string? Room,string? Note,double Latitude,double Longitude);
 public record SaveAddressRequest([Required,MaxLength(60)] string Label,[Required,MaxLength(20)] string PlaceType,[Required,MaxLength(300)] string Address,[MaxLength(120)] string? Building,[MaxLength(20)] string? Floor,[MaxLength(20)] string? Room,[MaxLength(300)] string? Note,[Range(-90,90)] double Latitude,[Range(-180,180)] double Longitude);

@@ -42,6 +42,10 @@ jobs:
           GOOGLE_OIDC_AUTHORITY: http://localhost:5099/google
           APPLE_OIDC_AUTHORITY: http://localhost:5099/apple
           TEST_OIDC_PORT: 5099
+          BREVO_API_KEY: ci-brevo-key
+          BREVO_API_URL: http://localhost:5098/v3
+          SMTP_FROM: no-reply@airclean.test
+          TEST_BREVO_PORT: 5098
         run: |
           dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!

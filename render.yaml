@@ -20,7 +20,10 @@ services:
         value: false
       - key: FRONTEND_ORIGIN
         value: https://aircare-connect-web.onrender.com
-      # Password reset email. Without SMTP, an admin creates reset links on the "ตรวจสอบช่าง" page.
+      # Password reset email. Render's free plan blocks outbound SMTP, so set BREVO_API_KEY (sent over HTTPS)
+      # and SMTP_FROM; the SMTP_* server settings are only used when BREVO_API_KEY is empty.
+      - key: BREVO_API_KEY
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

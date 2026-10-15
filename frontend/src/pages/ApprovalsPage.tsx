@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import type { TechnicianApplication, VerificationStatus } from '../types';
-import { createPasswordResetLink, fetchTechnicianApplications, setTechnicianVerification } from '../lib/api';
+import { createPasswordResetLink, fetchTechnicianApplications, sendTestEmail, setTechnicianVerification } from '../lib/api';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
 const tabs: { key: VerificationStatus; label: string }[] = [
@@ -41,6 +41,7 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
     {!loading && !error && shown.length === 0 && <section className="panel nearby-empty"><ShieldCheck size={24}/><strong>{tab === 'Pending' ? 'ไม่มีช่างรอตรวจสอบ' : 'ไม่มีรายการ'}</strong></section>}
     <div className="approval-grid">{shown.map(row => <ApplicationCard key={row.id} row={row} onSaved={replace} onNotice={onNotice}/>)}</div>
     <ResetLinkPanel/>
+    <TestEmailPanel/>
   </div>;
 }
 
@@ -105,6 +106,29 @@ function ResetLinkPanel() {
       {error && <div className="auth-error" role="alert">{error}</div>}
       {result && <div className="reset-link-result" role="status"><span>ลิงก์สำหรับ {result.fullName} (หมดอายุ {when(result.expiresAt)})</span><code>{result.link}</code><button type="button" className="outline-button" onClick={() => void copy()}><Copy size={15}/> {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}</button></div>}
       <button type="submit" className="primary-button" disabled={busy}><KeyRound size={16}/> {busy ? 'กำลังสร้าง...' : 'สร้างลิงก์'}</button>
+    </form>
+  </section>;
+}
+
+/** Sends one email now and shows the mail service's answer, so delivery problems don't need the server logs. */
+function TestEmailPanel() {
+  const [email, setEmail] = useState('');
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setResult(null);
+    try { setResult({ ok: true, message: await sendTestEmail(email) }); }
+    catch (reason) { setResult({ ok: false, message: errorText(reason, 'ส่งอีเมลทดสอบไม่สำเร็จ') }); }
+    finally { setBusy(false); }
+  }
+  return <section className="panel profile-form-panel">
+    <div className="panel-heading"><div><h2>ทดสอบการส่งอีเมล</h2><p>ส่งอีเมลทดสอบหนึ่งฉบับเพื่อตรวจว่าระบบลืมรหัสผ่านส่งอีเมลออกได้ ถ้าไม่สำเร็จจะแสดงสาเหตุจากผู้ให้บริการอีเมล</p></div></div>
+    <form className="profile-form" onSubmit={submit}>
+      <label className="form-field"><span>ส่งไปที่อีเมล</span><div className="profile-input-wrap"><Mail size={17}/><input type="email" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required/></div></label>
+      {result && (result.ok
+        ? <div className="profile-saved" role="status"><CheckCircle2 size={17}/>{result.message}</div>
+        : <div className="auth-error" role="alert">{result.message}</div>)}
+      <button type="submit" className="primary-button" disabled={busy}><Send size={16}/> {busy ? 'กำลังส่ง...' : 'ส่งอีเมลทดสอบ'}</button>
     </form>
   </section>;
 }
