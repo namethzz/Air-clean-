@@ -167,7 +167,7 @@ export async function fetchBatchBookings(): Promise<BatchBooking[]> { return req
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
-  price:number; notes?:string; latitude?:number; longitude?:number; airConditionerId?:number;
+  price:number; notes?:string; timeWindow?:string; latitude?:number; longitude?:number; airConditionerId?:number;
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
 }

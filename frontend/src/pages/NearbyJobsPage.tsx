@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/time';
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, UserCog, Wind, Wrench } from 'lucide-react';
 import type { Booking, TechnicianApplication } from '../types';
@@ -88,7 +89,7 @@ function NearbyJobs({onApply}:{onApply:Props['onApply']}) {
           <div className="nearby-job-facts">
             <div><span>ประเภทที่พัก</span><strong>{job.propertyType||'ไม่ระบุ'}</strong></div>
             <div><span>จำนวนแอร์</span><strong>{job.unitCount||1} เครื่อง</strong></div>
-            <div><span>วันและเวลา</span><strong>{prettyDate(job.date)} · {job.time} น.</strong></div>
+            <div><span>วันและเวลา</span><strong>{prettyDate(job.date)} · {timeLabel(job)}</strong></div>
           </div>
           <div className="nearby-job-description"><Wrench size={15}/><span>{job.unitLabel}</span></div>
           <div className="nearby-job-privacy"><ShieldCheck size={14}/><span>แสดงเฉพาะพื้นที่โดยประมาณ ที่อยู่เต็มจะแสดงหลังลูกค้ายืนยันช่าง</span></div>

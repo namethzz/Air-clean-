@@ -510,4 +510,13 @@ assert detail['profile']['phone'] and detail['profile']['email'] and detail['sta
 assert detail['stats']['revenueTotal'] > 0 and detail['reviews'] and detail['reviews'][0]['rating'] in range(1, 6)
 assert next(job for job in detail['jobs'] if job['id'] == photo_job)['photos'] == 8
 call('/admin/technicians/999999', token=admin, expected=404)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details and cancellation.')
+# A time window instead of one time: it starts at the scheduled time and is shown to the technician.
+visit_day = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')
+windowed = call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T12:00:00', 'timeWindow': '12:00-17:00'}, customer, 201)
+assert windowed['timeWindow'] == '12:00-17:00' and windowed['time'] == '12:00'
+call(f"/bookings/{windowed['id']}/applications", 'POST', {}, tech)
+assert next(row for row in call('/bookings', token=tech) if row['id'] == windowed['id'])['timeWindow'] == '12:00-17:00'
+for bad in ['13:00-17:00', '17:00-12:00', 'afternoon']:
+    call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T12:00:00', 'timeWindow': bad}, customer, 400)
+assert call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T14:30:00'}, customer, 201)['timeWindow'] is None
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows and cancellation.')

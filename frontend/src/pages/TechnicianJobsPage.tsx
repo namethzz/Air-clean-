@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
@@ -164,7 +165,7 @@ export default function TechnicianJobsPage(props: Props) {
               <span className="cj-row-main">
                 <strong>{item.service} · {item.unitCount || 1} เครื่อง</strong>
                 <span className={techNeedsAction(item) ? 'cj-row-urgent' : ''}>{techGuide(item).short}</span>
-                <small>{offer ? `ข้อเสนอ ฿${(quote ?? item.price).toLocaleString()} · ${item.time} น.` : active.includes(item.status) ? item.address : `${shortDate(item.date)} · ${item.time} น.`}</small>
+                <small>{offer ? `ข้อเสนอ ฿${(quote ?? item.price).toLocaleString()} · ${timeLabel(item)}` : active.includes(item.status) ? item.address : `${shortDate(item.date)} · ${timeLabel(item)}`}</small>
               </span>
               <ChevronRight size={18} aria-hidden="true"/>
             </button>
@@ -193,7 +194,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
   return <article className="cj-article">
     <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
     <header className="cj-head">
-      <div><span className="cj-code">{booking.code}</span><h2>{booking.service} · {booking.unitCount || 1} เครื่อง</h2><p>{shortDate(booking.date)} · {booking.time} น.</p></div>
+      <div><span className="cj-code">{booking.code}</span><h2>{booking.service} · {booking.unitCount || 1} เครื่อง</h2><p>{shortDate(booking.date)} · {timeLabel(booking)}</p></div>
       <StatusBadge status={booking.status}/>
     </header>
 
@@ -282,7 +283,7 @@ function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking:
     </dl>
     {next
       ? <section className="tj-done-next">
-        <h2>งานถัดไป · {nextWhen} {next.time} น.</h2>
+        <h2>งานถัดไป · {nextWhen} {timeLabel(next)}</h2>
         <p className="tj-address">{next.address}</p>
         <p className="cj-note">{next.customer} · {next.unitCount || 1} เครื่อง · ฿{next.price.toLocaleString()}</p>
         <button type="button" className="cj-primary full" onClick={() => onOpen(next.id)}>ไปงานถัดไป <ArrowRight size={18}/></button>

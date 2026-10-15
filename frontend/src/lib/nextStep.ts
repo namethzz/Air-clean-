@@ -1,3 +1,4 @@
+import { timeLabel } from './time';
 import type { Booking, PageKey, ServiceReportRecord } from '../types';
 import { isClosedForCustomer } from './jobFlow';
 
@@ -57,7 +58,7 @@ export function pickNextStep(bookings: Booking[], _reports: ServiceReportRecord[
   }
 
   const upcoming = open.find(b => b.status === 'ยืนยันแล้ว' || b.status === 'รอยืนยัน');
-  if (upcoming) return { tone: 'wait', eyebrow: 'นัดหมายถัดไป', title: `${formatThaiDate(upcoming.date)} เวลา ${upcoming.time} น.`, text: `${upcoming.service} · ${who(upcoming)}`, cta: 'ดูรายละเอียด', to: 'bookings', bookingId: upcoming.id };
+  if (upcoming) return { tone: 'wait', eyebrow: 'นัดหมายถัดไป', title: `${formatThaiDate(upcoming.date)} เวลา ${timeLabel(upcoming)}`, text: `${upcoming.service} · ${who(upcoming)}`, cta: 'ดูรายละเอียด', to: 'bookings', bookingId: upcoming.id };
 
   const waiting = open.find(b => b.status === 'เปิดรับช่าง');
   if (waiting) return { tone: 'wait', eyebrow: 'งานของคุณ', title: 'กำลังรอช่างเสนอราคา', text: 'ช่างใกล้บ้านจะเห็นคำขอของคุณ และส่งข้อเสนอมาที่รายการจอง', cta: 'ดูคำขอของฉัน', to: 'bookings', bookingId: waiting.id };
