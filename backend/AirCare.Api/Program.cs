@@ -50,8 +50,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             if (!int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)) { context.Fail("Invalid account."); return; }
             var tokenVersion = int.TryParse(principal.FindFirstValue("sv"), out var parsed) ? parsed : 0;
             var store = context.HttpContext.RequestServices.GetRequiredService<MongoStore>();
-            var current = await store.Users.Find(x => x.Id == userId).Project(x => (int?)x.SessionVersion).FirstOrDefaultAsync();
-            if (current != tokenVersion) context.Fail("Session expired.");
+            // Deserialize through AppUser so records saved before SessionVersion existed read as version 0.
+            var account = await store.Users.Find(x => x.Id == userId)
+                .Project<AppUser>(Builders<AppUser>.Projection.Include(x => x.SessionVersion)).FirstOrDefaultAsync();
+            if (account is null || account.SessionVersion != tokenVersion) context.Fail("Session expired.");
         }
     };
     });
