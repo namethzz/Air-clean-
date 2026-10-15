@@ -8,6 +8,14 @@ export type RescheduleSide = 'customer' | 'technician';
 const visitDay = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
 export const telLink = (phone: string) => 'tel:' + phone.replace(/[^\d+]/g, '');
 
+/** A Thai number grouped the way people read it aloud: 065-154-5249, 02-123-4567. Anything else stays as typed. */
+export function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (/^0[689]\d{8}$/.test(digits)) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (/^0\d{8}$/.test(digits)) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+  return phone.trim();
+}
+
 /** Who can move the visit now: the customer before a technician is chosen; either side before the technician leaves. */
 export function canReschedule(booking: Booking, side: RescheduleSide) {
   if (side === 'customer') return ['เปิดรับช่าง', 'รอเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status);
@@ -43,7 +51,7 @@ export function RescheduleSheet({ booking, side, onSend, onClose }: { booking: B
         {chosen(booking)
           ? <div className="rs-call">
             <p>โทรตกลงวันเวลาใหม่กับ{other}ก่อน แล้วเลือกวันที่ตกลงกันด้านล่าง {other}จะได้รับแจ้งทันที</p>
-            {phone && <a className="cj-primary" href={telLink(phone)}><Phone size={17}/> โทรหา{other} {phone}</a>}
+            {phone && <a className="cj-primary" href={telLink(phone)}><Phone size={17}/> โทรหา{other} {formatPhone(phone)}</a>}
           </div>
           : <p className="rs-note">ช่างที่เสนอราคาไว้จะได้รับแจ้งวันนัดใหม่</p>}
         <VisitTimePicker value={visit} onChange={setVisit}/>

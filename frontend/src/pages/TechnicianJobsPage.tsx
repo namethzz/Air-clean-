@@ -1,7 +1,7 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
-import { RescheduleSheet, canReschedule, telLink } from '../components/Reschedule';
+import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
@@ -224,7 +224,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     {going && <section className="cj-block tj-destination">
       <h3><MapPin size={18}/> ที่ต้องไป</h3>
       <p className="tj-address">{booking.address}</p>
-      {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {booking.customerPhone}</a></div>}
+      {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {formatPhone(booking.customerPhone)}</a></div>}
       <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
       {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
         destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}

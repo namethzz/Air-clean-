@@ -3,7 +3,15 @@ using AirCare.Api.Models;
 using System.Globalization;
 namespace AirCare.Api.Services;
 public static class DtoMapper {
- public static string Initials(string name) { var parts=name.Split(' ',StringSplitOptions.RemoveEmptyEntries); return parts.Length==0?"ชง":parts[0][..Math.Min(2,parts[0].Length)]; }
+ public static string Initials(string name)
+ {
+  // Latin names: first letters of first and last name ("Nameth Wongmongkol" -> "NW"). Thai: start of the first name, without a leading vowel sign.
+  var parts=name.Split(' ',StringSplitOptions.RemoveEmptyEntries); if(parts.Length==0) return "ช";
+  var first=parts[0];
+  if(char.IsAsciiLetter(first[0])) return (parts.Length>1?$"{first[0]}{parts[^1][0]}":first[..Math.Min(2,first.Length)]).ToUpperInvariant();
+  var core=first.TrimStart('\u0E40','\u0E41','\u0E42','\u0E43','\u0E44'); if(core.Length==0) core=first;
+  return core[..Math.Min(2,core.Length)];
+ }
  public static TechnicianDto ToDto(TechnicianProfile p,string? area=null) {
   var inArea=!string.IsNullOrWhiteSpace(area)&&p.Area.Contains(area,StringComparison.OrdinalIgnoreCase);
   var score=inArea?96:p.Rating>=4.8m?91:p.BasePrice<=500?86:82;

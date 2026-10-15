@@ -4,7 +4,8 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History, Phone,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
-import { RescheduleSheet, canReschedule, telLink } from '../components/Reschedule';
+import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
+import { initialsOf } from '../lib/initials';
 import ReceiptSheet from '../components/ReceiptSheet';
 import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
@@ -151,11 +152,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
 
     {booking.status === 'เสร็จสิ้น' && <AfterService booking={booking} onNewBooking={onNewBooking} onOpenPassport={onOpenPassport} onReportProblem={onReportProblem}/>}
 
-    {hasTech && <section className="cj-block">
-      <h3>ช่างของคุณ</h3>
-      {booking.technicianPhone && !['เสร็จสิ้น', 'ยกเลิก'].includes(booking.status) && <div className="cj-call"><a className="cj-primary" href={telLink(booking.technicianPhone)}><Phone size={17}/> โทรหาช่าง {booking.technicianPhone}</a></div>}
-      <div className="cj-person"><span className="cj-avatar">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong>{booking.applicants?.find(item => item.selected) && <small>{booking.applicants.find(item => item.selected)!.title}</small>}</div></div>
-    </section>}
+    {hasTech && <TechnicianCard booking={booking}/>}
 
     {report && <ReportBlock report={report}/>}
     {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง"/></section>}
@@ -174,6 +171,25 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
     </section>
   </article>;
+}
+
+/** Who is coming: the person first, then the one thing to do with them while the job is open — call. */
+function TechnicianCard({ booking }: { booking: Booking }) {
+  const chosen = booking.applicants?.find(item => item.selected);
+  const open = !['เสร็จสิ้น', 'ยกเลิก'].includes(booking.status);
+  return <section className="cj-block cj-tech">
+    <h3>ช่างของคุณ</h3>
+    <div className="cj-person">
+      <span className="cj-avatar" aria-hidden="true">{initialsOf(booking.technician)}</span>
+      <div>
+        <strong>{booking.technician}{chosen?.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong>
+        {chosen && <small>{chosen.title}{chosen.rating ? <> · <Star size={13} fill="currentColor" aria-hidden="true"/> {chosen.rating.toFixed(1)}</> : null}</small>}
+      </div>
+    </div>
+    {booking.technicianPhone && open && <a className="cj-primary full cj-call-btn" href={telLink(booking.technicianPhone)} aria-label={`โทรหาช่าง ${formatPhone(booking.technicianPhone)}`}>
+      <Phone size={18}/><span>โทรหาช่าง</span><span className="cj-call-number">{formatPhone(booking.technicianPhone)}</span>
+    </a>}
+  </section>;
 }
 
 function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: Props['onSelectTechnician']; onRefresh: () => void }) {
@@ -201,7 +217,7 @@ function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: 
     </div>}
     <ul>{offers.map(offer => <li key={offer.technicianId} className="cj-offer">
       <div className="cj-offer-top">
-        <span className="cj-avatar">{offer.initials}</span>
+        <span className="cj-avatar">{initialsOf(offer.name)}</span>
         <div className="cj-offer-who"><strong>{offer.name}{offer.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong><small>{offer.title}</small></div>
         <div className="cj-offer-price"><strong>฿{offer.quote.toLocaleString()}</strong>{cheapest === offer.quote && <span>ต่ำสุด</span>}</div>
       </div>

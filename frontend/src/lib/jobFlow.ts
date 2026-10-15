@@ -42,7 +42,14 @@ export interface JobGuide {
 }
 
 export function guideFor(booking: Booking): JobGuide {
-  const tech = booking.technician && booking.technician !== '-' ? booking.technician : 'ช่าง';
+  const guide = rawGuide(booking);
+  const tidy = (text: string) => text.replace(/\s+/g, ' ').trim();
+  return { short: tidy(guide.short), title: tidy(guide.title), hint: tidy(guide.hint) };
+}
+
+function rawGuide(booking: Booking): JobGuide {
+  // A real name is set off by spaces ("รอ Nameth ตอบรับ"); the generic word joins the Thai ("รอช่างตอบรับ").
+  const tech = booking.technician && booking.technician !== '-' ? ` ${booking.technician.trim()} ` : 'ช่าง';
   const offers = booking.applicants?.length ?? 0;
   switch (booking.status) {
     case 'เปิดรับช่าง':
