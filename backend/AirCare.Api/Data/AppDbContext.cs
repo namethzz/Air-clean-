@@ -13,6 +13,9 @@ public class MongoStore {
  public IMongoCollection<ServiceReport> ServiceReports {get;}
  public IMongoCollection<Review> Reviews {get;}
  public IMongoCollection<SavedAddressRecord> SavedAddresses {get;}
+ public IMongoCollection<AppNotification> Notifications {get;}
+ public IMongoCollection<PushSubscriptionRecord> PushSubscriptions {get;}
+ public IMongoCollection<VapidKeyRecord> VapidKeys {get;}
  private readonly IMongoCollection<SequenceCounter> _counters;
 
  public MongoStore(IConfiguration configuration) {
@@ -28,6 +31,9 @@ public class MongoStore {
   ServiceReports=_database.GetCollection<ServiceReport>("serviceReports");
   Reviews=_database.GetCollection<Review>("reviews");
   SavedAddresses=_database.GetCollection<SavedAddressRecord>("savedAddresses");
+  Notifications=_database.GetCollection<AppNotification>("notifications");
+  PushSubscriptions=_database.GetCollection<PushSubscriptionRecord>("pushSubscriptions");
+  VapidKeys=_database.GetCollection<VapidKeyRecord>("vapidKeys");
   _counters=_database.GetCollection<SequenceCounter>("counters");
  }
  public async Task<int> NextIdAsync(string collection) {
@@ -45,6 +51,9 @@ public class MongoStore {
   try { await SavedAddresses.Indexes.CreateOneAsync(new CreateIndexModel<SavedAddressRecord>(Builders<SavedAddressRecord>.IndexKeys.Ascending(x=>x.UserId).Ascending(x=>x.Label),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }
   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.PasswordResetTokenHash),new CreateIndexOptions{Sparse=true}));
+  await Notifications.Indexes.CreateOneAsync(new CreateIndexModel<AppNotification>(Builders<AppNotification>.IndexKeys.Ascending(x=>x.UserId).Descending(x=>x.CreatedAt)));
+  try { await PushSubscriptions.Indexes.CreateOneAsync(new CreateIndexModel<PushSubscriptionRecord>(Builders<PushSubscriptionRecord>.IndexKeys.Ascending(x=>x.Endpoint),new CreateIndexOptions{Unique=true})); }
+  catch (MongoCommandException) { }
   // One AirClean account per Google/Apple account. Users without linked logins are left out of the index.
   try {
    await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(

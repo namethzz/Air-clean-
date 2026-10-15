@@ -1,0 +1,16 @@
+{
+  "name": "AirClean — ช่างล้างแอร์ใกล้บ้าน",
+  "short_name": "AirClean",
+  "description": "ส่งคำขอล้างแอร์ เลือกช่างจากข้อเสนอ และติดตามงานได้ในที่เดียว",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2468d8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

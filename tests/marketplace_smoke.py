@@ -345,4 +345,61 @@ if brevo_port:
     mail_to(n_tech_email, 'ลูกค้ายกเลิกงาน')
     time.sleep(1)
     assert not [item for item in sent if item['to'][0]['email'] == n_customer_email and quiet['code'] in item['subject']]
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email delivery and job notifications, Google/Apple sign-in and cancellation.')
+# In-app notifications (the bell): every event is recorded, even for people who turned emails off.
+if brevo_port:
+    feed = call('/notifications', token=n_customer)
+    offer = next(item for item in feed['items'] if item['title'].startswith('มีช่างเสนอราคา') and item['bookingId'] == quiet['id'])
+    assert offer['target'] == 'bookings' and not offer['read'] and feed['unread'] >= 1
+    assert all(item['bookingId'] != quiet['id'] for item in call('/notifications', token=n_tech)['items'] if item['title'].startswith('มีช่างเสนอราคา'))
+    call('/notifications/read', 'POST', {'ids': [offer['id']]}, n_customer, 204)
+    after = call('/notifications', token=n_customer)
+    assert next(item for item in after['items'] if item['id'] == offer['id'])['read'] and after['unread'] == feed['unread'] - 1
+    call('/notifications/read', 'POST', {}, n_customer, 204)
+    assert call('/notifications', token=n_customer)['unread'] == 0
+    approvals = [item for item in call('/notifications', token=admin)['items'] if item['title'].startswith('มีช่างสมัครใหม่')]
+    assert approvals and approvals[0]['target'] == 'approvals'
+# Web Push: the server encrypts for the browser's key and signs with VAPID; gone devices are dropped.
+push_port = os.environ.get('TEST_PUSH_PORT')
+if push_port:
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from fake_push import FakePushService
+    pusher = FakePushService(int(push_port))
+    p_customer, _ = register('Customer')
+    p_tech, _ = register('Technician')
+    vapid_key = call('/push/public-key', token=p_customer)['publicKey']
+    call('/push/test', 'POST', {}, p_customer, 409)
+    phone = pusher.subscribe('phone')
+    call('/push/subscriptions', 'POST', {**phone, 'p256dh': 'bad'}, p_customer, 400)
+    call('/push/subscriptions', 'POST', {**phone, 'endpoint': 'ftp://example.test/x'}, p_customer, 400)
+    call('/push/subscriptions', 'POST', phone, p_customer, 204)
+    laptop = pusher.subscribe('laptop')
+    call('/push/subscriptions', 'POST', laptop, p_customer, 204)
+    p_profile = call('/technicians/me', token=p_tech)
+    call(f"/technicians/{p_profile['id']}/verification", 'PATCH', {'verified': True}, admin)
+    p_job = call('/bookings', 'POST', payload, p_customer, 201)
+    call(f"/bookings/{p_job['id']}/applications", 'POST', {}, p_tech)
+    for _ in range(50):
+        if len([m for m in pusher.received if 'payload' in m]) >= 2:
+            break
+        time.sleep(0.1)
+    errors = [m for m in pusher.received if 'error' in m]
+    assert not errors, errors
+    delivered = {m['path']: m for m in pusher.received}
+    assert set(delivered) == {'/push/phone', '/push/laptop'}, delivered.keys()
+    message = delivered['/push/phone']
+    assert message['payload']['title'].startswith('มีช่างเสนอราคา') and message['payload']['url'].endswith(f"/?job={p_job['id']}")
+    assert message['headers']['content-encoding'] == 'aes128gcm' and int(message['headers']['ttl']) > 0
+    FakePushService.verify_vapid(message['headers']['authorization'], vapid_key, phone['endpoint'])
+    # A device the push service reports as gone is removed; the other one still receives.
+    pusher.gone.add('/push/phone')
+    pusher.received.clear()
+    assert '2 อุปกรณ์' in call('/push/test', 'POST', {}, p_customer)['message']
+    for _ in range(50):
+        if any(m.get('path') == '/push/laptop' for m in pusher.received):
+            break
+        time.sleep(0.1)
+    assert call('/push/test', 'POST', {}, p_customer)['message'].count('1 อุปกรณ์') == 1
+    call('/push/subscriptions/remove', 'POST', {'endpoint': laptop['endpoint']}, p_customer, 204)
+    call('/push/test', 'POST', {}, p_customer, 409)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in and cancellation.')

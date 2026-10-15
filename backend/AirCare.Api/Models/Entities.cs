@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 namespace AirCare.Api.Models;
 
@@ -73,4 +74,21 @@ public class SavedAddressRecord {
  public string? Building {get;set;} public string? Floor {get;set;} public string? Room {get;set;} public string? Note {get;set;}
  public double Latitude {get;set;} public double Longitude {get;set;} public DateTime UpdatedAt {get;set;}=DateTime.UtcNow;
 }
+/// <summary>An in-app notification shown under the bell. Target says which page opens when it is tapped.</summary>
+[BsonIgnoreExtraElements]
+public class AppNotification {
+ [BsonId,BsonRepresentation(BsonType.ObjectId)] public string Id {get;set;}=ObjectId.GenerateNewId().ToString();
+ public int UserId {get;set;} public string Title {get;set;}=""; public string Body {get;set;}="";
+ public string Target {get;set;}="bookings"; public int? BookingId {get;set;}
+ public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime? ReadAt {get;set;}
+}
+/// <summary>A browser's Web Push subscription (one per device/browser that allowed notifications).</summary>
+[BsonIgnoreExtraElements]
+public class PushSubscriptionRecord {
+ [BsonId,BsonRepresentation(BsonType.ObjectId)] public string Id {get;set;}=ObjectId.GenerateNewId().ToString();
+ public int UserId {get;set;} public string Endpoint {get;set;}=""; public string P256dh {get;set;}=""; public string Auth {get;set;}="";
+ public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+}
+/// <summary>The server's VAPID key pair for Web Push, created on first use unless set in the environment.</summary>
+public class VapidKeyRecord { [BsonId] public string Id {get;set;}="vapid"; public string PublicKey {get;set;}=""; public string PrivateKey {get;set;}=""; }
 public class SequenceCounter { [BsonId] public string Id {get;set;}=""; public long Value {get;set;} }

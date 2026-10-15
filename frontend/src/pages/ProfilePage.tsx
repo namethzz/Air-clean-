@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, KeyRound, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
 import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
+import PushSettings from '../components/PushSettings';
 import { changePassword, updateMyProfile } from '../lib/api';
 
 interface Props {
@@ -60,6 +61,7 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
       </section>
     </div>
     {user.role === 'technician' && <TechnicianProfileSettings/>}
+    <PushSettings/>
     <ChangePasswordPanel hasPassword={user.hasPassword !== false} onChanged={updated => onUpdated(updated)}/>
     {onLogout && <button type="button" className="outline-button profile-logout-mobile" onClick={onLogout}><LogOut size={17}/> ออกจากระบบ</button>}
   </div>;

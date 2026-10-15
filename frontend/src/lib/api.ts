@@ -1,4 +1,4 @@
-import type { AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -104,6 +104,21 @@ export async function externalLogin(provider: 'google'|'apple', idToken: string,
   saveToken(result.token);
   return fromApiUser(result.user);
 }
+export async function fetchNotifications(limit = 30): Promise<{ unread: number; items: AppNotification[] }> {
+  return request('/notifications?limit=' + limit);
+}
+/** Marks the given notifications read, or every notification when no ids are given. */
+export async function markNotificationsRead(ids?: string[]): Promise<void> {
+  return request<void>('/notifications/read', { method:'POST', body:JSON.stringify({ ids }) });
+}
+export async function fetchPushPublicKey(): Promise<string> { return (await request<{ publicKey: string }>('/push/public-key')).publicKey; }
+export async function savePushSubscription(subscription: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+  return request<void>('/push/subscriptions', { method:'POST', body:JSON.stringify(subscription) });
+}
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  return request<void>('/push/subscriptions/remove', { method:'POST', body:JSON.stringify({ endpoint }) });
+}
+export async function sendTestPush(): Promise<string> { return (await request<{ message: string }>('/push/test', { method:'POST' })).message; }
 export async function sendTestEmail(email: string): Promise<string> {
   return (await request<{ message: string }>('/admin/test-email', { method:'POST', body:JSON.stringify({ email:email.trim() }) })).message;
 }

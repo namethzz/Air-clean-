@@ -31,6 +31,10 @@ public record ExternalLoginRequest([Required,MaxLength(20)] string Provider,[Req
 public record ForgotPasswordRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record ResetPasswordRequest([Required,MinLength(20),MaxLength(200)] string Token,[Required,MinLength(8),MaxLength(128)] string NewPassword);
 public record ChangePasswordRequest([MaxLength(128)] string? CurrentPassword,[Required,MinLength(8),MaxLength(128)] string NewPassword);
+public record NotificationDto(string Id,string Title,string Body,string Target,int? BookingId,string CreatedAt,bool Read);
+public record MarkNotificationsReadRequest(string[]? Ids);
+public record PushSubscriptionRequest([Required,MaxLength(1000)] string Endpoint,[Required,MaxLength(200)] string P256dh,[Required,MaxLength(100)] string Auth);
+public record PushUnsubscribeRequest([Required,MaxLength(1000)] string Endpoint);
 public record TestEmailRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record AdminResetLinkRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record SavedAddressDto(int Id,string Label,string PlaceType,string Address,string? Building,string? Floor,string? Room,string? Note,double Latitude,double Longitude);
