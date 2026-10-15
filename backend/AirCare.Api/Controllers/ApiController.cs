@@ -366,7 +366,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (request.Verified) saved = await Membership.EnsureTrialAsync(store, saved);
         var account = await store.Users.Find(x => x.Id == saved.UserId).FirstOrDefaultAsync();
         if (request.Verified)
-            notify.ToUser(saved.UserId, "บัญชีช่างของคุณได้รับการอนุมัติแล้ว", $"ตอนนี้คุณดูงานใกล้ตัวและส่งข้อเสนอราคาได้แล้วที่เมนู “งานใกล้ฉัน”{(saved.MemberUntil is { } trial ? $"\nทดลองใช้ฟรีถึง {MembershipController.ThaiDay(trial)}" : "")}", NotificationLink.NearbyJobs);
+            notify.ToUser(saved.UserId, "บัญชีช่างของคุณได้รับการอนุมัติแล้ว", $"ตอนนี้คุณดูงานใกล้ตัวและส่งข้อเสนอราคาได้แล้วที่เมนู “งานใกล้ฉัน”{(saved.MemberUntil is { } trial ? $"\nทดลองใช้ฟรีถึง {Membership.ThaiDay(trial)}" : "")}", NotificationLink.NearbyJobs);
         else
             notify.ToUser(saved.UserId, "บัญชีช่างของคุณยังไม่ผ่านการตรวจสอบ", $"เหตุผล: {note}\nแก้ไขข้อมูลที่หน้า “โปรไฟล์และราคา” แล้วบันทึก ระบบจะส่งให้ผู้ดูแลตรวจอีกครั้ง", NotificationLink.Profile);
         return Ok(DtoMapper.ToApplicationDto(saved, account?.Email ?? ""));
@@ -531,7 +531,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         // Times are the customer's local time (the app keeps them at least an hour ahead); the server only checks the day.
         if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "เลือกวันตั้งแต่วันนี้เป็นต้นไป" });
         if (!ValidWindow(request.TimeWindow, request.ScheduledAt, out var window)) return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
-        var open = booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection;
+        var open = booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection or BookingStates.OffersExpired;
         if (!open && booking.Status is not (BookingStates.Pending or BookingStates.Confirmed))
             return Conflict(new { message = "เปลี่ยนวันนัดได้ก่อนช่างออกเดินทางเท่านั้น" });
         if (open && technician) return Conflict(new { message = "ลูกค้ายังไม่ได้เลือกช่าง" });
@@ -556,6 +556,31 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     private const int MaxPhotoBytes = 2_000_000;
 
     /// <summary>The technician adds a photo of the work (before or after). Phones resize it before sending.</summary>
+    /// <summary>After the offers lapsed: open the request to technicians again, with a fresh hour once someone offers.</summary>
+    [Authorize(Roles = "Customer,Manager"), HttpPost("bookings/{id:int}/reopen")]
+    public async Task<IActionResult> ReopenBooking(int id)
+    {
+        await OfferTimer.ExpireDueAsync(store, notify);
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (booking.CustomerId != CurrentUserId) return Forbid();
+        if (booking.Status != BookingStates.OffersExpired) return Conflict(new { message = "งานนี้ไม่ได้อยู่ในสถานะหมดเวลาเลือกช่าง" });
+        if (booking.ScheduledAt.Date < Membership.ThaiNow.Date) return Conflict(new { message = "วันนัดผ่านไปแล้ว เลือกวันใหม่ก่อนเปิดรับข้อเสนอ", code = "date_passed" });
+        var previous = booking.Applicants ?? [];
+        var saved = await store.Bookings.FindOneAndUpdateAsync(
+            Builders<Booking>.Filter.Where(x => x.Id == id && x.Status == BookingStates.OffersExpired),
+            Builders<Booking>.Update.Set(x => x.Status, BookingStates.OpenForTechnicians).Set(x => x.Applicants, new List<BookingApplicant>())
+                .Set(x => x.OfferDeadline, null).Set(x => x.OfferWarned, false).Set(x => x.UpdatedAt, DateTime.UtcNow)
+                .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = BookingStates.OffersExpired, ToStatus = BookingStates.OpenForTechnicians,
+                    Notes = "ลูกค้าเปิดรับข้อเสนออีกครั้ง", CreatedAt = DateTime.UtcNow }),
+            new FindOneAndUpdateOptions<Booking, Booking> { ReturnDocument = ReturnDocument.After });
+        if (saved is null) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่" });
+        foreach (var applicant in previous)
+            notify.ToTechnician(applicant.TechnicianId, $"ลูกค้าเปิดรับข้อเสนออีกครั้ง {booking.Code}",
+                $"{booking.Service} {booking.UnitCount} เครื่อง นัด {VisitText(booking.ScheduledAt, booking.TimeWindow)}\nถ้ายังว่าง ส่งข้อเสนอใหม่ได้ที่ “งานใกล้ฉัน”", NotificationLink.NearbyJobs);
+        return Ok(DtoMapper.ToDto(saved));
+    }
+
     [Authorize(Roles = "Technician"), HttpPost("bookings/{id:int}/photos"), RequestSizeLimit(3_200_000)]
     public async Task<IActionResult> UploadJobPhoto(int id, UploadPhotoRequest request)
     {
@@ -696,6 +721,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     [Authorize, HttpGet("bookings")]
     public async Task<IActionResult> Bookings([FromQuery] string? status)
     {
+        await OfferTimer.ExpireDueAsync(store, notify);
         var rows = await store.Bookings.Find(FilterDefinition<Booking>.Empty).ToListAsync();
         if (CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager)
             rows = rows.Where(x => x.CustomerId == CurrentUserId).ToList();
@@ -717,6 +743,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     [Authorize, HttpGet("bookings/{id:int}")]
     public async Task<IActionResult> BookingById(int id)
     {
+        await OfferTimer.ExpireDueAsync(store, notify);
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
         if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
@@ -859,12 +886,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var previous = booking.Status;
         booking.Applicants.Add(applicant);
         booking.Status = BookingStates.AwaitingCustomerSelection;
+        if (booking.OfferDeadline is null) { booking.OfferDeadline = DateTime.UtcNow + OfferTimer.Window; booking.OfferWarned = false; }
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างส่งความสนใจรับงาน: " + technician.Name, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
         notify.ToUser(booking.CustomerId, $"มีช่างเสนอราคางาน {booking.Code}",
-            $"{technician.Name} เสนอราคา ฿{applicant.Quote:N0} สำหรับ{booking.Service} {booking.UnitCount} เครื่อง นัด {ThaiDate(booking.ScheduledAt)}\nเปรียบเทียบข้อเสนอและเลือกช่างได้ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));
+            $"{technician.Name} เสนอราคา ฿{applicant.Quote:N0} สำหรับ{booking.Service} {booking.UnitCount} เครื่อง นัด {ThaiDate(booking.ScheduledAt)}\nเลือกช่างภายใน {OfferTimer.Clock(booking.OfferDeadline!.Value)} ที่ “งานของฉัน” หลังจากนั้นข้อเสนอจะหมดอายุ", NotificationLink.Job(booking.Id));
         return Ok(OpenJobView(DtoMapper.ToDto(booking, technician.Id), technician.Id));
     }
 
@@ -875,6 +903,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (booking is null) return NotFound();
         var version = booking.UpdatedAt;
         if ((CurrentRole is AppRoles.Customer or AppRoles.Manager) && booking.CustomerId != CurrentUserId) return Forbid();
+        if (booking.Status == BookingStates.AwaitingCustomerSelection && booking.OfferDeadline <= DateTime.UtcNow) {
+            await OfferTimer.ExpireDueAsync(store, notify);
+            return Conflict(new { message = "หมดเวลาเลือกช่างแล้ว กด “เปิดรับข้อเสนออีกครั้ง” เพื่อให้ช่างเสนอราคาใหม่", code = "offers_expired" });
+        }
+        if (booking.Status == BookingStates.OffersExpired)
+            return Conflict(new { message = "หมดเวลาเลือกช่างแล้ว กด “เปิดรับข้อเสนออีกครั้ง” เพื่อให้ช่างเสนอราคาใหม่", code = "offers_expired" });
         if (booking.Status is not (BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection))
             return Conflict(new { message = "งานนี้ถูกยืนยันหรือปิดไปแล้ว" });
         booking.Applicants ??= [];
@@ -913,12 +947,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
         if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) &&
-            (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed or BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection)))
+            (target != BookingStates.Cancelled || booking.Status is not (BookingStates.Pending or BookingStates.Confirmed or BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection or BookingStates.OffersExpired)))
             return Forbid();
 
         if (CurrentRole != AppRoles.Admin) {
             var allowed = booking.Status switch {
-                BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection => target == BookingStates.Cancelled,
+                BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection or BookingStates.OffersExpired => target == BookingStates.Cancelled,
                 BookingStates.Pending => target is BookingStates.Confirmed or BookingStates.Cancelled,
                 BookingStates.Confirmed => target is BookingStates.Traveling or BookingStates.Cancelled,
                 BookingStates.Traveling => target == BookingStates.Arrived,

@@ -265,6 +265,10 @@ export async function fetchReceipt(bookingId:number):Promise<Receipt> {
 export async function issueReceipt(bookingId:number,payer:Billing,remember:boolean):Promise<Receipt> {
   return request<Receipt>('/bookings/'+bookingId+'/receipt',{method:'POST',body:JSON.stringify({payer,remember})});
 }
+/** After the hour to pick a technician ran out: open the request to technicians again. */
+export async function reopenBooking(bookingId:number):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/reopen',{method:'POST'});
+}
 export async function requestReschedule(bookingId:number,scheduledAt:string,timeWindow?:string,reason?:string):Promise<Booking> {
   return request<Booking>('/bookings/'+bookingId+'/reschedule',{method:'POST',body:JSON.stringify({scheduledAt,timeWindow,reason})});
 }

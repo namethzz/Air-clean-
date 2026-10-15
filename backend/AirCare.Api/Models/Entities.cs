@@ -9,6 +9,8 @@ public static class BookingStates {
  public const string Pending="Pending"; public const string Confirmed="Confirmed"; public const string Traveling="Traveling";
  public const string Arrived="Arrived"; public const string InProgress="InProgress"; public const string AwaitingPayment="AwaitingPayment";
  public const string PaymentIssue="PaymentIssue"; public const string Completed="Completed"; public const string Cancelled="Cancelled";
+ /// <summary>The customer did not pick a technician within the hour after the first offer; offers are released.</summary>
+ public const string OffersExpired="OffersExpired";
 }
 
 [BsonIgnoreExtraElements]
@@ -58,6 +60,12 @@ public class MembershipPayment {
  public string SlipContentType {get;set;}="image/jpeg"; public byte[] SlipData {get;set;}=[];
  public string Status {get;set;}=PaymentStates.Pending; public string? Note {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
  public DateTime? ReviewedAt {get;set;} public int? ReviewedByUserId {get;set;} public DateTime? CoveredUntil {get;set;}
+ /// <summary>"auto" when the slip service confirmed it, "admin" when an admin decided.</summary>
+ public string? CheckedBy {get;set;}
+ /// <summary>The bank's transaction reference from the slip; one slip pays once.</summary>
+ public string? TransRef {get;set;}
+ /// <summary>Automatic checks that could not decide yet (bank not ready, service down), retried in the background.</summary>
+ public int CheckAttempts {get;set;} public DateTime? LastCheckAt {get;set;} public string? LastCheckError {get;set;}
 }
 /// <summary>Membership price and where technicians pay, set by an admin. One document with Id "membership".</summary>
 [BsonIgnoreExtraElements]
@@ -105,6 +113,10 @@ public class Booking {
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
  /// <summary>Set once the "your visit is tomorrow / today" reminder went out.</summary>
  public bool VisitReminded {get;set;}
+ /// <summary>Starts with the first offer: the customer picks a technician before this time (UTC), or the offers lapse.</summary>
+ public DateTime? OfferDeadline {get;set;}
+ /// <summary>Set once the "only a few minutes left to pick" reminder went out.</summary>
+ public bool OfferWarned {get;set;}
 }
 public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }
 public class RoomEntry { public string Name {get;set;}=""; public int Units {get;set;}=1; }

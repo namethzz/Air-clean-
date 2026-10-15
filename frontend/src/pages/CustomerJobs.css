@@ -490,3 +490,18 @@ span.rm-chip{cursor:default}
 .tj-visit-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:2px}
 .tj-visit-tags .tj-visit-state{margin-top:0}
 .tj-clash{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:999px;background:#fdeceb;color:var(--ac-red);font-size:12.5px;font-weight:700}
+
+/* ── The hour to pick a technician ── */
+.cj-clock{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:14px;background:var(--ac-blue-tint);color:var(--ac-blue-deep)}
+.cj-clock>svg{flex-shrink:0;margin-top:2px}
+.cj-clock>div{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.cj-clock strong{font-size:15.5px;line-height:1.45;color:var(--ac-ink)}
+.cj-clock b{font:700 20px/1 var(--ac-display);font-variant-numeric:tabular-nums;color:var(--ac-blue-deep)}
+.cj-clock span{font-size:13.5px;line-height:1.55;color:var(--ac-ink-2)}
+.cj-clock .cj-progress{margin-top:4px}
+.cj-clock.low{background:#fdeceb;color:var(--ac-red)}
+.cj-clock.low b{color:var(--ac-red)}
+.cj-clock.low .cj-progress span{background:var(--ac-red)}
+.cj-reopen{display:flex;flex-direction:column;gap:10px}
+.cj-clock .cj-progress{background:#fff}
+.cj-clock .cj-progress span{background:var(--ac-blue)}

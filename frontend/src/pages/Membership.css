@@ -132,3 +132,12 @@
   .ms-slip-card .pi-thumb{width:100%;height:220px}
   .ms-qr{width:200px;height:200px;margin:0 auto}
 }
+.ms-turned-down{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;background:#fdeceb;color:var(--ac-red)}
+.ms-turned-down svg{flex-shrink:0;margin-top:2px}
+.ms-turned-down div{display:flex;flex-direction:column;gap:2px}
+.ms-turned-down span{font-size:14px;line-height:1.55;color:var(--ac-ink-2)}
+.ms-fine svg{vertical-align:-2px;margin-right:4px;color:var(--ac-coolant)}
+.ms-auto{align-self:stretch;width:100%;box-sizing:border-box;display:flex;align-items:flex-start;gap:8px;margin:0;padding:12px 14px;border-radius:12px;background:#fff6e6;color:var(--ac-amber);font-size:14px;line-height:1.55}
+.ms-auto.on{background:#e8f6f3;color:var(--ac-coolant)}
+.ms-auto svg{flex-shrink:0;margin-top:2px}
+.ms-check-error{color:var(--ac-amber)!important;font-weight:600}

@@ -6,12 +6,12 @@ namespace AirCare.Api.Services;
 
 /// <summary>
 /// Reminders nobody presses a button for: the visit tomorrow (or today), the six-month cleaning round, and a
-/// technician's membership running out. Runs every 10 minutes while the server is awake; an outside scheduler can
+/// technician's membership running out, and the hour to pick a technician. Runs every 5 minutes while the server is awake; an outside scheduler can
 /// also call it (POST /api/cron/reminders) so nothing is missed while a free server sleeps. Each reminder is
 /// claimed in the database before it is sent, so it goes out once even if two runs overlap.
 /// Pushes go out only between 07:00 and 21:00 Thai time.
 /// </summary>
-public class ReminderService(MongoStore store, Notifier notify, ILogger<ReminderService> logger) : BackgroundService
+public class ReminderService(MongoStore store, Notifier notify, SlipVerifier slips, ILogger<ReminderService> logger) : BackgroundService
 {
     private static readonly CultureInfo Thai = new("th-TH");
     private readonly SemaphoreSlim running = new(1, 1);
@@ -20,23 +20,29 @@ public class ReminderService(MongoStore store, Notifier notify, ILogger<Reminder
     {
         // Let the app finish starting before the first run.
         try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); } catch (OperationCanceledException) { return; }
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(10));
+        // Every 5 minutes, so the "minutes left to pick a technician" reminder lands on time.
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
         do {
             try { await RunOnceAsync(stoppingToken); }
             catch (Exception error) when (error is not OperationCanceledException) { logger.LogWarning(error, "Reminder run failed."); }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    public record RunResult(int Visits, int CleaningDue, int Membership, bool Quiet);
+    public record RunResult(int Visits, int CleaningDue, int Membership, bool Quiet, int OffersExpired = 0, int OfferWarnings = 0);
 
     /// <param name="thaiNow">Only for tests: run as if it were this Thai local time.</param>
     public async Task<RunResult> RunOnceAsync(CancellationToken cancel = default, DateTime? thaiNow = null)
     {
         var now = thaiNow ?? Membership.ThaiNow;
-        if (now.Hour is < 7 or >= 21) return new(0, 0, 0, true);
+        var utc = now.AddHours(-7);
         if (!await running.WaitAsync(0, cancel)) return new(0, 0, 0, false);
         try {
-            return new(await VisitsAsync(now), await CleaningDueAsync(now), await MembershipAsync(now.AddHours(-7)), false);
+            // The pick-a-technician hour is something the customer started, so it runs at any time of day.
+            var expired = await OfferTimer.ExpireDueAsync(store, notify, utc);
+            var warned = await OfferTimer.WarnAsync(store, notify, utc);
+            await Membership.RetrySlipsAsync(store, notify, slips, utc, cancel);
+            if (now.Hour is < 7 or >= 21) return new(0, 0, 0, true, expired, warned);
+            return new(await VisitsAsync(now), await CleaningDueAsync(now), await MembershipAsync(utc), false, expired, warned);
         } finally { running.Release(); }
     }
 
