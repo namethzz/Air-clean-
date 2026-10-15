@@ -1,4 +1,4 @@
-import type { RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -258,4 +258,10 @@ export async function fetchTechnicianDetail(id:number):Promise<TechnicianDetail>
 }
 export async function updateJobProgress(bookingId:number,unitsDone:number,roomsDone?:string[]):Promise<Booking> {
   return request<Booking>('/bookings/'+bookingId+'/progress',{method:'POST',body:JSON.stringify({unitsDone,roomsDone})});
+}
+export async function fetchReceipt(bookingId:number):Promise<Receipt> {
+  return request<Receipt>('/bookings/'+bookingId+'/receipt');
+}
+export async function issueReceipt(bookingId:number,payer:Billing,remember:boolean):Promise<Receipt> {
+  return request<Receipt>('/bookings/'+bookingId+'/receipt',{method:'POST',body:JSON.stringify({payer,remember})});
 }

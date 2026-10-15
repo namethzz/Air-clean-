@@ -564,4 +564,20 @@ assert ticked['unitsDone'] == 3 and [r['done'] for r in ticked['rooms']] == [Fal
 assert call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': []}, tech)['unitsDone'] == 0
 closed_rooms = call(f"/bookings/{by_room['id']}/complete", 'POST', {'method': 'Cash'}, tech)
 assert all(r['done'] for r in closed_rooms['rooms']) and closed_rooms['unitsDone'] == 5
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms and cancellation.')
+# Receipts: issued once by the customer for a paid job, in their name or a company's, with a running number.
+call(f"/bookings/{whole['id']}/receipt", token=other_customer, expected=403)
+draft = call(f"/bookings/{whole['id']}/receipt", token=manager)
+assert not draft['issued'] and draft['number'] is None and draft['total'] == finished_whole['price'] and draft['lines'][0]['quantity'] == 48
+call(f"/bookings/{whole['id']}/receipt", 'POST', {'payer': {'name': 'บริษัท ทดสอบ จำกัด', 'taxId': '123'}}, manager, 400)
+call(f"/bookings/{whole['id']}/receipt", 'POST', {'payer': {'name': 'x'}}, tech, 403)
+issued = call(f"/bookings/{whole['id']}/receipt", 'POST', {'payer': {'name': 'นิติบุคคลอาคารชุด เอ', 'taxId': '0105561234567', 'branch': 'สำนักงานใหญ่', 'address': 'กรุงเทพฯ'}}, manager, 201)
+assert issued['issued'] and issued['number'].startswith('RC') and issued['payer']['taxId'] == '0105561234567'
+again = call(f"/bookings/{whole['id']}/receipt", 'POST', {'payer': {'name': 'อื่น'}}, manager)
+assert again['number'] == issued['number'] and again['payer']['name'] == 'นิติบุคคลอาคารชุด เอ'
+assert call(f"/bookings/{whole['id']}/receipt", token=tech)['number'] == issued['number']
+assert call(f"/bookings/{by_room['id']}/receipt", token=manager)['payer']['name'] == 'นิติบุคคลอาคารชุด เอ'
+second = call(f"/bookings/{by_room['id']}/receipt", 'POST', {'payer': {'name': 'นิติบุคคลอาคารชุด เอ', 'taxId': '0105561234567'}}, manager, 201)
+assert second['number'] != issued['number'] and second['rooms'] == ['202', 'ล็อบบี้']
+unpaid = call('/bookings', 'POST', payload, customer, 201)
+call(f"/bookings/{unpaid['id']}/receipt", token=customer, expected=409)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts and cancellation.')

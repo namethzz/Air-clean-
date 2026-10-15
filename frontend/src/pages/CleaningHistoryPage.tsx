@@ -1,4 +1,6 @@
-import { CalendarClock, Check, ChevronRight, History, Plus, Star } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarClock, Check, ChevronRight, FileText, History, Plus, Star } from 'lucide-react';
+import ReceiptSheet from '../components/ReceiptSheet';
 import type { Booking, ServiceReportRecord } from '../types';
 import './CustomerJobs.css';
 
@@ -29,6 +31,7 @@ export default function CleaningHistoryPage({ bookings, reports, onOpenJob, onNe
   const units = done.reduce((total, item) => total + (item.unitCount || 1), 0);
   const spent = done.reduce((total, item) => total + item.price, 0);
   const years = [...new Set(done.map(item => item.date.slice(0, 4)))];
+  const [receiptFor, setReceiptFor] = useState<number | null>(null);
 
   if (!done.length) {
     return <div className="cj-empty">
@@ -73,8 +76,10 @@ export default function CleaningHistoryPage({ bookings, reports, onOpenJob, onNe
             </span>
             <ChevronRight size={18} aria-hidden="true"/>
           </button>
+          {item.paymentStatus === 'Paid' && <button type="button" className="ch-receipt" onClick={() => setReceiptFor(item.id)}><FileText size={14}/> ใบเสร็จ</button>}
         </li>;
       })}</ol>
     </section>)}
+    {receiptFor != null && <ReceiptSheet bookingId={receiptFor} canIssue companyFirst={done.find(item => item.id === receiptFor)?.placeId != null} onClose={() => setReceiptFor(null)}/>}
   </div>;
 }

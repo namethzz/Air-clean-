@@ -1,6 +1,7 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { ArrowRight, FileText, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
@@ -192,6 +193,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
   const hasDestination = booking.latitude != null && booking.longitude != null;
   const hasOwn = booking.technicianLatitude != null && booking.technicianLongitude != null;
   const myQuote = booking.applicants?.[0]?.quote;
+  const [receipt, setReceipt] = useState(false);
 
   return <article className="cj-article">
     <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
@@ -232,6 +234,8 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     {going && <FinishJob booking={booking} onComplete={onComplete}/>}
 
     {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id}/></section>}
+    {booking.status === 'เสร็จสิ้น' && booking.paymentStatus === 'Paid' && <button type="button" className="cj-ghost tj-receipt" onClick={() => setReceipt(true)}><FileText size={16}/> ใบเสร็จของงานนี้</button>}
+    {receipt && <ReceiptSheet bookingId={booking.id} canIssue={false} onClose={() => setReceipt(false)}/>}
     {report && booking.status === 'เสร็จสิ้น' && <section className="cj-block">
       <h3>สรุปงานที่บันทึกไว้</h3>
       <p className="cj-report-summary">{report.summary}</p>
