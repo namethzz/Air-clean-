@@ -116,12 +116,20 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
         if (await store.MembershipPayments.Find(x => x.TechnicianId == tech.Id && x.Status == PaymentStates.Pending).AnyAsync())
             return Conflict(new { message = "มีสลิปที่รอผู้ดูแลตรวจอยู่แล้ว รอผลก่อนส่งใหม่" });
         if (ReadImage(request.Slip, out var data, out var contentType) is { } invalid) return BadRequest(new { message = invalid });
+        // The same picture cannot pay for a second month (checked even when slips are approved by hand).
+        var slipHash = Convert.ToHexString(SHA256.HashData(data));
+        if (await store.MembershipPayments.Find(x => x.SlipHash == slipHash && x.Status != PaymentStates.Rejected).AnyAsync())
+            return Conflict(new { message = "สลิปนี้เคยส่งแล้ว ใช้สลิปของการโอนครั้งใหม่" });
         var settings = await Membership.SettingsAsync(store);
         var payment = new MembershipPayment {
             Id = await store.NextIdAsync("membershipPayments"), TechnicianId = tech.Id, TechnicianName = tech.Name, Months = request.Months,
-            Amount = settings.MonthlyFee * request.Months, SlipContentType = contentType, SlipData = data, CreatedAt = DateTime.UtcNow
+            Amount = settings.MonthlyFee * request.Months, SlipContentType = contentType, SlipData = data, SlipHash = slipHash, CreatedAt = DateTime.UtcNow
         };
-        await store.MembershipPayments.InsertOneAsync(payment);
+        // A unique index allows one waiting slip per technician, so two quick taps cannot both go in.
+        try { await store.MembershipPayments.InsertOneAsync(payment); }
+        catch (MongoWriteException error) when (error.WriteError?.Category == ServerErrorCategory.DuplicateKey) {
+            return Conflict(new { message = "มีสลิปที่รอผู้ดูแลตรวจอยู่แล้ว รอผลก่อนส่งใหม่" });
+        }
         // With the slip service set up the slip is checked with the bank right away; otherwise an admin checks it.
         if (slips.Enabled) {
             var checkedPayment = await Membership.CheckSlipAsync(store, notify, slips, payment.Id, cancel: HttpContext.RequestAborted) ?? payment;
@@ -187,7 +195,7 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
     public async Task<IActionResult> GrantDays(int id, GrantMembershipRequest request)
     {
         if (!await store.Technicians.Find(x => x.Id == id).AnyAsync()) return NotFound(new { message = "ไม่พบช่าง" });
-        var until = await Membership.ExtendAsync(store, id, from => from.AddDays(request.Days));
+        var until = await Membership.ExtendAsync(store, id, days: request.Days);
         notify.ToTechnician(id, "ได้รับวันสมาชิกเพิ่ม", $"ผู้ดูแลเพิ่มวันสมาชิกให้ {request.Days} วัน ใช้ได้ถึง {Membership.ThaiDay(until)}", NotificationLink.Membership);
         return Ok(new { memberUntil = Iso(until) });
     }

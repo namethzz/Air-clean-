@@ -9,6 +9,7 @@ using AirCare.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MongoDB.Driver;
 using Microsoft.IdentityModel.Tokens;
 
@@ -18,7 +19,7 @@ namespace AirCare.Api.Controllers;
 [Route("api")]
 public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity, Notifier notify, WebPushSender push) : ControllerBase
 {
-    [AllowAnonymous, HttpPost("auth/login")]
+    [AllowAnonymous, HttpPost("auth/login"), EnableRateLimiting("sign-in")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
@@ -29,7 +30,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(CreateLoginResponse(user));
     }
 
-    [AllowAnonymous, HttpPost("auth/register")]
+    [AllowAnonymous, HttpPost("auth/register"), EnableRateLimiting("sign-up")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
@@ -48,7 +49,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
     }
 
-    [AllowAnonymous, HttpPost("auth/external")]
+    [AllowAnonymous, HttpPost("auth/external"), EnableRateLimiting("sign-in")]
     public async Task<IActionResult> ExternalLogin(ExternalLoginRequest request)
     {
         var providerName = request.Provider.Trim().ToLowerInvariant();
@@ -118,7 +119,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(ToAuthUser(user));
     }
 
-    [AllowAnonymous, HttpPost("auth/forgot-password")]
+    [AllowAnonymous, HttpPost("auth/forgot-password"), EnableRateLimiting("password-reset")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
         var address = request.Email.Trim().ToLowerInvariant();
@@ -137,7 +138,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(new { message = "หากอีเมลนี้มีบัญชีในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ให้แล้ว ลิงก์ใช้ได้ 30 นาที" });
     }
 
-    [AllowAnonymous, HttpPost("auth/reset-password")]
+    [AllowAnonymous, HttpPost("auth/reset-password"), EnableRateLimiting("password-reset")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
     {
         var hash = HashToken(request.Token.Trim());
@@ -722,13 +723,20 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     public async Task<IActionResult> Bookings([FromQuery] string? status)
     {
         await OfferTimer.ExpireDueAsync(store, notify);
-        var rows = await store.Bookings.Find(FilterDefinition<Booking>.Empty).ToListAsync();
+        // Only the caller's jobs are read from the database (indexed), not the whole collection.
+        var filter = Builders<Booking>.Filter;
+        List<Booking> rows;
         if (CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager)
-            rows = rows.Where(x => x.CustomerId == CurrentUserId).ToList();
+            rows = await store.Bookings.Find(x => x.CustomerId == CurrentUserId).ToListAsync();
         else if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-            rows = tech is null ? [] : rows.Where(x => x.TechnicianId == tech.Id || IsOpenOffer(x, tech.Id)).ToList();
+            rows = tech is null ? [] : (await store.Bookings.Find(filter.Or(
+                filter.Eq(x => x.TechnicianId, tech.Id),
+                filter.And(filter.In(x => x.Status, new[] { BookingStates.OpenForTechnicians, BookingStates.AwaitingCustomerSelection }),
+                    filter.ElemMatch(x => x.Applicants, a => a.TechnicianId == tech.Id)))).ToListAsync())
+                .Where(x => x.TechnicianId == tech.Id || IsOpenOffer(x, tech.Id)).ToList();
         }
+        else rows = await store.Bookings.Find(FilterDefinition<Booking>.Empty).ToListAsync();
         if (!string.IsNullOrWhiteSpace(status)) {
             var normalized = DtoMapper.NormalizeStatus(status);
             if (normalized.Length == 0) return BadRequest(new { message = "สถานะไม่ถูกต้อง" });
@@ -837,12 +845,26 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var rows = await store.Bookings.Find(x => x.Status == BookingStates.OpenForTechnicians || x.Status == BookingStates.AwaitingCustomerSelection).ToListAsync();
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
-            .Select(x => new { Booking = x, DistanceKm = DistanceKm(latitude, longitude, x.Latitude!.Value, x.Longitude!.Value) })
+            .Select(x => new { Booking = x, DistanceKm = BlurredDistanceKm(latitude, longitude, x) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)), technician.Id))
+            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, Math.Max(1, Math.Round(x.DistanceKm))), technician.Id))
             .ToList();
         return Ok(nearby);
+    }
+
+    /// <summary>
+    /// Distance to a point up to about 600 m from the customer's pin (fixed per job), so repeated searches from different
+    /// places cannot pin down the home before the customer chooses a technician.
+    /// </summary>
+    private static double BlurredDistanceKm(double latitude, double longitude, Booking booking)
+    {
+        var seed = (uint)booking.Id * 2654435761u;
+        var angle = (seed % 3600) / 3600.0 * 2 * Math.PI;
+        var meters = 300 + (seed >> 12) % 300;
+        var lat = booking.Latitude!.Value + meters / 111_320.0 * Math.Cos(angle);
+        var lng = booking.Longitude!.Value + meters / (111_320.0 * Math.Cos(booking.Latitude.Value * Math.PI / 180)) * Math.Sin(angle);
+        return DistanceKm(latitude, longitude, lat, lng);
     }
 
     /// <summary>A job this technician offered on that the customer has not decided yet.</summary>
@@ -1364,7 +1386,9 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.PaymentStatus = "Unpaid";
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = BookingStates.AwaitingPayment, Notes = "ช่างส่งรายงานบริการ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
-        await store.Bookings.ReplaceOneAsync(x => x.Id == booking.Id, booking);
+        booking.UpdatedAt = DateTime.UtcNow;
+        await store.Bookings.UpdateOneAsync(x => x.Id == booking.Id && x.Status == oldStatus, Builders<Booking>.Update
+            .Set(x => x.Status, BookingStates.AwaitingPayment).Set(x => x.PaymentStatus, "Unpaid").Set(x => x.UpdatedAt, booking.UpdatedAt).Push(x => x.Events, booking.Events[^1]));
         NotifyStatusChange(booking, oldStatus);
         return Created($"/api/service-reports/{report.Id}", new { id = report.Id, bookingId = report.BookingId, report.Summary, report.CreatedAt });
     }
@@ -1393,7 +1417,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         await store.Bookings.UpdateOneAsync(x => x.Id == bookingId, Builders<Booking>.Update.Set(x => x.CustomerRating, request.Rating));
         var reviews = await store.Reviews.Find(x => x.TechnicianId == booking.TechnicianId).ToListAsync();
         var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
-        if (tech is not null && reviews.Count > 0) { tech.ReviewCount = reviews.Count; tech.Rating = Math.Round((decimal)reviews.Average(x => x.Rating), 2); await store.Technicians.ReplaceOneAsync(x => x.Id == tech.Id, tech); }
+        // Only the rating fields change, so a membership or profile update made at the same time is not overwritten.
+        if (tech is not null && reviews.Count > 0)
+            await store.Technicians.UpdateOneAsync(x => x.Id == tech.Id, Builders<TechnicianProfile>.Update
+                .Set(x => x.ReviewCount, reviews.Count).Set(x => x.Rating, Math.Round((decimal)reviews.Average(x => x.Rating), 2)));
         return Created($"/api/bookings/{bookingId}/reviews", new { id = review.Id, review.Rating, review.Comment, review.CreatedAt });
     }
 
@@ -1561,7 +1588,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var jwt = configuration.GetSection("Jwt");
         var key = configuration["JWT_KEY"] ?? jwt["Key"]!;
-        var expires = DateTime.UtcNow.AddHours(8);
+        // An installed app stays signed in for 30 days; changing or resetting the password signs out every device at once.
+        var expires = DateTime.UtcNow.AddDays(30);
         var claims = new[] {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.FullName),

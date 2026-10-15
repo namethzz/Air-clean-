@@ -1,5 +1,6 @@
 using AirCare.Api.Data;
 using AirCare.Api.Models;
+using MongoDB.Bson;
 using MongoDB.Driver;
 namespace AirCare.Api.Services;
 
@@ -33,13 +34,20 @@ public static class Membership
     public static DateTime ThaiNow => DateTime.UtcNow.AddHours(7);
 
     /// <summary>Extends from the later of now and the current end date; returns the new end.</summary>
-    public static async Task<DateTime> ExtendAsync(MongoStore store, int technicianId, Func<DateTime, DateTime> extend)
+    /// <summary>
+    /// Extends from the later of now and the current end date in one database update, so an approval and free days given
+    /// at the same moment both count. Returns the new end.
+    /// </summary>
+    public static async Task<DateTime> ExtendAsync(MongoStore store, int technicianId, int months = 0, int days = 0)
     {
-        var tech = await store.Technicians.Find(x => x.Id == technicianId).FirstAsync();
-        var from = tech.MemberUntil is { } current && current > DateTime.UtcNow ? current : DateTime.UtcNow;
-        var until = extend(from);
-        await store.Technicians.UpdateOneAsync(x => x.Id == technicianId, Builders<TechnicianProfile>.Update.Set(x => x.MemberUntil, until));
-        return until;
+        var start = new BsonDocument("$max", new BsonArray { new BsonDocument("$ifNull", new BsonArray { "$MemberUntil", DateTime.UtcNow }), DateTime.UtcNow });
+        var end = months > 0
+            ? new BsonDocument("$dateAdd", new BsonDocument { { "startDate", start }, { "unit", "month" }, { "amount", months } })
+            : new BsonDocument("$dateAdd", new BsonDocument { { "startDate", start }, { "unit", "day" }, { "amount", days } });
+        var update = new PipelineUpdateDefinition<TechnicianProfile>(new[] { new BsonDocument("$set", new BsonDocument("MemberUntil", end)) });
+        var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Eq(x => x.Id, technicianId), update,
+            new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
+        return saved?.MemberUntil ?? throw new InvalidOperationException("Technician not found");
     }
 
     /// <summary>Approves a pending payment once (by the slip check or an admin) and extends the membership.</summary>
@@ -51,7 +59,7 @@ public static class Membership
                 .Set(x => x.ReviewedByUserId, reviewerId).Set(x => x.CheckedBy, checkedBy).Set(x => x.TransRef, transRef).Set(x => x.LastCheckError, null),
             new FindOneAndUpdateOptions<MembershipPayment, MembershipPayment> { ReturnDocument = ReturnDocument.After, Projection = WithoutSlip });
         if (payment is null) return null;
-        var until = await ExtendAsync(store, payment.TechnicianId, from => from.AddMonths(payment.Months));
+        var until = await ExtendAsync(store, payment.TechnicianId, months: payment.Months);
         await store.MembershipPayments.UpdateOneAsync(x => x.Id == paymentId, Builders<MembershipPayment>.Update.Set(x => x.CoveredUntil, until));
         payment.CoveredUntil = until;
         notify.ToTechnician(payment.TechnicianId, "ต่ออายุสมาชิกแล้ว", $"{(checkedBy == "auto" ? "ตรวจสลิปผ่าน" : "ผู้ดูแลยืนยันการโอน")} ฿{payment.Amount:N0} แล้ว สมาชิกใช้ได้ถึง {ThaiDay(until)}", NotificationLink.Membership);
@@ -90,7 +98,11 @@ public static class Membership
                 if (check.TransRef is { Length: > 0 } reference
                     && await store.MembershipPayments.Find(x => x.Id != paymentId && x.TransRef == reference && x.Status == PaymentStates.Approved).AnyAsync(cancel))
                     return await RejectAsync(store, notify, paymentId, "auto", "สลิปนี้เคยใช้ต่ออายุไปแล้ว", tell: background);
-                return await ApproveAsync(store, notify, paymentId, "auto", transRef: check.TransRef);
+                // The unique index on the transaction settles a race between two checks of the same slip.
+                try { return await ApproveAsync(store, notify, paymentId, "auto", transRef: check.TransRef); }
+                catch (MongoException error) when (error is MongoCommandException { Code: 11000 } or MongoWriteException { WriteError.Category: ServerErrorCategory.DuplicateKey }) {
+                    return await RejectAsync(store, notify, paymentId, "auto", "สลิปนี้เคยใช้ต่ออายุไปแล้ว", tell: background);
+                }
             case SlipOutcome.Rejected:
                 return await RejectAsync(store, notify, paymentId, "auto", check.Message, tell: background);
             default:

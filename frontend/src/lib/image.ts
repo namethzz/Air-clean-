@@ -1,8 +1,8 @@
 /**
- * Shrinks a phone photo before upload: longest side 1600px, JPEG. A 4–8 MB camera photo becomes about
- * 200–400 KB, so uploads are quick on mobile data and the database stays small.
+ * Shrinks a phone photo before upload: longest side 1280px, JPEG. A 4–8 MB camera photo becomes about
+ * 120–250 KB, so uploads are quick on mobile data and the database stays small.
  */
-export async function resizeForUpload(file: File, maxSide = 1600, quality = 0.8): Promise<string> {
+export async function resizeForUpload(file: File, maxSide = 1280, quality = 0.75): Promise<string> {
   const source = await loadImage(file);
   const scale = Math.min(1, maxSide / Math.max(source.width, source.height));
   const canvas = document.createElement('canvas');

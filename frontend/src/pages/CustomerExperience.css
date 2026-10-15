@@ -460,6 +460,7 @@
 }
 @media(min-width:851px){.ac-shell .customer-bar{display:none}}
 .ac-shell .bottom-nav.bn-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ac-shell .bottom-nav.bn-hidden{visibility:hidden}
 .ac-shell .customer-bar .customer-bar-mark{color:#fff}
 /* The hidden drawer was casting its shadow onto the left edge of every phone screen */
 @media(max-width:850px){.ac-shell .sidebar-container:not(.mobile-open){box-shadow:none}}
@@ -621,3 +622,6 @@
 /* One focus ring on the search box (the box itself), not a second one on the input inside it. */
 .lp-search input:focus,.lp-search input:focus-visible,.at-search input:focus-visible{outline:none!important;box-shadow:none!important}
 .lp-attribution{padding:6px 10px 2px;text-align:right;font-size:11.5px;color:var(--ac-ink-3,#5d7089)}
+/* iPhones zoom into any field under 16px when it is tapped and can stay zoomed afterwards, which also throws off the
+   bottom bar; 16px fields keep the page at its normal size. */
+@media(max-width:850px){.ac-shell input:not([type=checkbox]):not([type=radio]):not([type=range]),.ac-shell select,.ac-shell textarea{font-size:16px!important}}

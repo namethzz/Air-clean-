@@ -64,6 +64,8 @@ public class MembershipPayment {
  public string? CheckedBy {get;set;}
  /// <summary>The bank's transaction reference from the slip; one slip pays once.</summary>
  public string? TransRef {get;set;}
+ /// <summary>SHA-256 of the slip image, so the same picture cannot be sent again for another month.</summary>
+ public string? SlipHash {get;set;}
  /// <summary>Automatic checks that could not decide yet (bank not ready, service down), retried in the background.</summary>
  public int CheckAttempts {get;set;} public DateTime? LastCheckAt {get;set;} public string? LastCheckError {get;set;}
 }
