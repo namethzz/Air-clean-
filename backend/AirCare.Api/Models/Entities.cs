@@ -59,6 +59,10 @@ public class Booking {
  public BookingIssue? Issue {get;set;}
  /// <summary>When the customer gave a window ("13:00-17:00") instead of one time; ScheduledAt holds its start.</summary>
  public string? TimeWindow {get;set;}
+ /// <summary>The saved place (building) the job is for, so a building's history can be listed.</summary>
+ public int? PlaceId {get;set;}
+ /// <summary>How many of the units the technician has finished so far on a large job.</summary>
+ public int UnitsDone {get;set;}
 }
 public static class IssueKinds { public const string Payment="Payment"; public const string Service="Service"; }
 public static class IssueResolutions { public const string Paid="Paid"; public const string Cancelled="Cancelled"; public const string Closed="Closed"; }
@@ -91,6 +95,8 @@ public class Review {
 public class SavedAddressRecord {
  [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Label {get;set;}=""; public string PlaceType {get;set;}="บ้าน"; public string Address {get;set;}="";
  public string? Building {get;set;} public string? Floor {get;set;} public string? Room {get;set;} public string? Note {get;set;}
+ /// <summary>For buildings: how many air conditioners, and who meets the technician on site.</summary>
+ public int? UnitCount {get;set;} public string? ContactName {get;set;} public string? ContactPhone {get;set;}
  public double Latitude {get;set;} public double Longitude {get;set;} public DateTime UpdatedAt {get;set;}=DateTime.UtcNow;
 }
 /// <summary>An in-app notification shown under the bell. Target says which page opens when it is tapped.</summary>

@@ -22,7 +22,7 @@ const sideCopy: Record<UserRole, { title: string; sub: string; note: string; cta
   admin: { title: 'ตรวจสอบภาพรวมระบบ', sub: 'รายการที่ต้องมีผู้ดูแลตรวจสอบ', note: 'ดูรายการจองและรายงานบริการ รวมถึงรายการที่ถูกแจ้งปัญหาการชำระเงินเพื่อให้ผู้ดูแลตรวจสอบ', cta: 'ดูรายการจอง', to: 'bookings' },
 };
 export default function DashboardPage({ state, role, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
-  if (role === 'customer') return <CustomerHome bookings={state.bookings} reports={state.serviceReports} userName={userName} onNavigate={onNavigate} onOpenJob={onOpenJob} onNewBooking={onNewBooking}/>;
+  if (role === 'customer' || role === 'manager') return <CustomerHome role={role} bookings={state.bookings} reports={state.serviceReports} userName={userName} onNavigate={onNavigate} onOpenJob={onOpenJob} onNewBooking={onNewBooking}/>;
   const technician = role === 'technician';
   const active = state.bookings.filter(b => !['เสร็จสิ้น', 'ยกเลิก'].includes(b.status));
   const completed = state.bookings.filter(b => b.status === 'เสร็จสิ้น');

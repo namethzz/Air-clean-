@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, BriefcaseBusiness, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, MapPin, Phone, UserRound, Wind } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Building2, CheckCircle2, Home, Wrench, Eye, EyeOff, LockKeyhole, Mail, MapPin, Phone, UserRound, Wind } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { ApiError, externalLogin, forgotPassword, isApiConfigured, login, register, resetPassword } from '../lib/api';
 import { appleEnabled, googleEnabled, renderGoogleButton, signInWithApple, type SocialProvider } from '../lib/socialAuth';
@@ -9,6 +9,12 @@ type Mode='login'|'register'|'forgot'|'reset';
 /** A Google/Apple sign-in that found no AirClean account yet; the person picks a role to finish. */
 interface PendingSocial { provider:SocialProvider; idToken:string; email?:string; }
 const providerLabel:Record<SocialProvider,string>={google:'Google',apple:'Apple'};
+type SignupRole='customer'|'technician'|'manager';
+const roleOptions:{key:SignupRole;title:string;text:string;icon:typeof Home}[]=[
+  {key:'customer',title:'ลูกค้า',text:'ล้างแอร์ที่บ้านหรือคอนโด',icon:Home},
+  {key:'technician',title:'ช่างแอร์',text:'รับงานล้างแอร์ใกล้ตัว',icon:Wrench},
+  {key:'manager',title:'เจ้าของ / ผู้ดูแลอาคาร',text:'ล้างแอร์ทั้งอาคาร หลายห้องพร้อมกัน',icon:Building2},
+];
 interface Props { onAuthenticated:(user:UserProfile)=>void; initialError?:string; initialMode?:'login'|'register'; initialRole?:'customer'|'technician'|'manager'; onBack?:()=>void; resetToken?:string; onResetFinished?:(message?:string)=>void; initialInfo?:string; }
 const headings:Record<Mode,[string,string]>={
   login:['เข้าสู่ระบบ','เข้าสู่ระบบเพื่อดูการจองและติดตามบริการของคุณ'],
@@ -102,15 +108,24 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
         <form className="auth-form" onSubmit={submit}>
           {mode==='register' && social && <div className="auth-social-pending"><span>สมัครด้วยบัญชี {providerLabel[social.provider]}</span><strong>{social.email}</strong><button type="button" className="auth-link-button" onClick={()=>{setSocial(null);setInfo('');}}>ใช้อีเมลและรหัสผ่านแทน</button></div>}
           {mode==='register' && <>
+            <fieldset className="auth-roles">
+              <legend>สมัครใช้งานเป็น</legend>
+              {roleOptions.map(option=>{const Icon=option.icon;return <label key={option.key} className={'auth-role'+(role===option.key?' active':'')}>
+                <input type="radio" name="signup-role" value={option.key} checked={role===option.key} onChange={()=>setRole(option.key)}/>
+                <span className="auth-role-icon"><Icon size={22}/></span>
+                <span className="auth-role-text"><strong>{option.title}</strong><small>{option.text}</small></span>
+              </label>;})}
+              <small className="auth-role-lock-note">เลือกได้ตอนสมัครเท่านั้น หลังสร้างบัญชีแล้วเปลี่ยนเองไม่ได้</small>
+            </fieldset>
             <label className="auth-field"><span>ชื่อที่ใช้ติดต่อ</span><div className="auth-input-wrap"><UserRound size={17}/><input autoComplete="name" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="ชื่อและนามสกุล" minLength={2} maxLength={120} required/></div></label>
-            <label className="auth-field"><span>เลือกบทบาทตอนสร้างบัญชี</span><select className="auth-role-select" value={role} onChange={e=>setRole(e.target.value as 'customer'|'technician'|'manager')}><option value="customer">ลูกค้า — จองและติดตามงาน</option><option value="technician">ช่างแอร์ — รับงานและบันทึกรายงาน</option><option value="manager">ผู้ดูแลอาคาร — จัดการงานหลายเครื่อง</option></select><small className="auth-role-lock-note">เลือกได้ตอนสมัครเท่านั้น หลังสร้างบัญชีแล้วจะเปลี่ยนบทบาทเองไม่ได้</small></label>
+
             {role==='technician' && <>
               <label className="auth-field"><span>เบอร์โทรศัพท์</span><div className="auth-input-wrap"><Phone size={17}/><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="เช่น 081-234-5678" maxLength={30} required/></div></label>
               <label className="auth-field"><span>พื้นที่ให้บริการ</span><div className="auth-input-wrap"><MapPin size={17}/><input value={serviceArea} onChange={e=>setServiceArea(e.target.value)} placeholder="เช่น ลาดพร้าว · จตุจักร" minLength={2} maxLength={200} required/></div></label>
               <label className="auth-field"><span>ประสบการณ์ล้างแอร์ (ปี)</span><div className="auth-input-wrap"><BriefcaseBusiness size={17}/><input type="number" min={0} max={60} value={experienceYears} onChange={e=>setExperienceYears(Math.max(0,Math.min(60,Number(e.target.value)||0)))} required/></div></label>
               <p className="auth-registration-note">ผู้ดูแลระบบจะตรวจสอบข้อมูลและอาจโทรยืนยันก่อน เมื่ออนุมัติแล้วคุณจึงเห็นงานใกล้ตัวและส่งข้อเสนอได้</p>
             </>}
-            {role==='manager' && <p className="auth-registration-note">บัญชีผู้ดูแลอาคารจะใช้งานบางส่วนได้หลังผู้ดูแลตั้งค่าข้อมูลและสิทธิ์ที่เกี่ยวข้องแล้ว</p>}
+            {role==='manager' && <p className="auth-registration-note">ใช้งานได้ทันที เพิ่มอาคารของคุณ แล้วขอช่างล้างแอร์ได้ครั้งละหลายสิบเครื่อง</p>}
           </>}
           {needsEmail && <label className="auth-field"><span>อีเมล</span><div className="auth-input-wrap"><Mail size={17}/><input type="email" inputMode="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" maxLength={254} required/></div></label>}
           {needsPassword && <label className="auth-field"><span>{mode==='reset'?'รหัสผ่านใหม่':'รหัสผ่าน'}</span><div className="auth-input-wrap"><LockKeyhole size={17}/><input type={showPassword?'text':'password'} autoComplete={mode==='login'?'current-password':'new-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='login'?'กรอกรหัสผ่าน':'อย่างน้อย 8 ตัวอักษร'} minLength={8} maxLength={128} required/><button type="button" className="auth-password-toggle" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button></div></label>}
@@ -123,7 +138,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
           {(mode==='forgot'||mode==='reset') && <button type="button" className="auth-link-button" onClick={()=>{ if(mode==='reset')onResetFinished?.(); switchMode('login'); }}>← กลับไปเข้าสู่ระบบ</button>}
           {mode==='forgot' && <p className="auth-registration-note">ไม่ได้รับอีเมล? ตรวจโฟลเดอร์สแปม หรือติดต่อผู้ดูแลระบบให้สร้างลิงก์ตั้งรหัสผ่านใหม่ให้</p>}
         </form>
-        {mode==='register' && <p className="auth-registration-note">สามารถสมัครเป็นลูกค้า ช่างแอร์ หรือผู้ดูแลอาคารได้ แต่บัญชีผู้ดูแลระบบ (Admin) สร้างหรือกำหนดสิทธิ์ผ่านหลังบ้านเท่านั้น</p>}
+        {mode==='register' && <p className="auth-registration-note">บัญชีผู้ดูแลระบบ (Admin) สร้างผ่านหลังบ้านเท่านั้น</p>}
         <div className="auth-security-note"><LockKeyhole size={15}/><span>ข้อมูลบัญชีจะถูกตรวจสอบกับระบบจริง ไม่มีบัญชีตัวอย่างให้เลือก</span></div>
         <p className="auth-copyright"><a href="/privacy.html">นโยบายความเป็นส่วนตัว</a> · <a href="/terms.html">ข้อกำหนดการใช้งาน</a> · © 2026 AirClean</p>
       </div>

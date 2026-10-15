@@ -1,13 +1,14 @@
 import { timeLabel } from '../lib/time';
-import { ChevronRight, History } from 'lucide-react';
+import { Building2, ChevronRight, History } from 'lucide-react';
 import HeroFinancial from '../components/ui/hero-financial';
 import StatusBadge from '../components/StatusBadge';
 import { formatThaiDate, openBookings, pickNextStep } from '../lib/nextStep';
 import { guideFor } from '../lib/jobFlow';
-import type { Booking, PageKey, ServiceReportRecord } from '../types';
+import type { Booking, PageKey, ServiceReportRecord, UserRole } from '../types';
 import './CustomerExperience.css';
 
 interface Props {
+  role?: UserRole;
   bookings: Booking[];
   reports: ServiceReportRecord[];
   userName: string;
@@ -23,6 +24,11 @@ function firstName(full: string): string {
   return parts[0] ?? full;
 }
 
+const managerSteps = [
+  { title: 'เพิ่มอาคาร', text: 'ปักหมุดอาคาร ใส่จำนวนแอร์และผู้ติดต่อหน้างานครั้งเดียว ใช้ซ้ำได้ทุกครั้ง' },
+  { title: 'ขอช่างล้างทั้งอาคาร', text: 'ระบุจำนวนเครื่องและวันที่ ช่างใกล้อาคารเสนอราคาให้เลือก' },
+  { title: 'ติดตามรายเครื่อง', text: 'ดูว่าช่างล้างไปแล้วกี่เครื่อง พร้อมรูปหลังล้างและประวัติแยกตามอาคาร' },
+];
 const firstSteps = [
   { title: 'ส่งคำขอ', text: 'บอกที่อยู่ จำนวนแอร์ และวันที่สะดวก ใช้เวลาไม่ถึงนาที' },
   { title: 'เลือกช่างจากข้อเสนอ', text: 'ช่างใกล้บ้านเสนอราคาและโปรไฟล์ให้คุณเปรียบเทียบ' },
@@ -30,7 +36,8 @@ const firstSteps = [
 ];
 
 /** Customer overview: one next step, then the rest of what is in progress. */
-export default function CustomerHome({ bookings, reports, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
+export default function CustomerHome({ role, bookings, reports, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
+  const manager = role === 'manager';
   const step = pickNextStep(bookings, reports);
   const others = openBookings(bookings).filter(item => item.id !== step.bookingId).slice(0, 5);
   const doneCount = bookings.filter(item => item.status === 'เสร็จสิ้น').length;
@@ -40,7 +47,7 @@ export default function CustomerHome({ bookings, reports, userName, onNavigate, 
     <p className="ac-home-hello">สวัสดี คุณ{firstName(userName)}</p>
     <HeroFinancial compact withPhoto={step.tone === 'start'} eyebrow={step.eyebrow} heading={step.title} description={step.text} primaryLabel={step.cta} onStart={go}/>
 
-    {bookings.length === 0 && <ol className="ac-home-steps" aria-label="ขั้นตอนการใช้งาน">{firstSteps.map(item => <li key={item.title}><strong>{item.title}</strong><span>{item.text}</span></li>)}</ol>}
+    {bookings.length === 0 && <ol className="ac-home-steps" aria-label="ขั้นตอนการใช้งาน">{(manager ? managerSteps : firstSteps).map(item => <li key={item.title}><strong>{item.title}</strong><span>{item.text}</span></li>)}</ol>}
 
     {others.length > 0 && <section aria-labelledby="ac-home-list-title">
       <div className="ac-home-list-head">
@@ -58,6 +65,12 @@ export default function CustomerHome({ bookings, reports, userName, onNavigate, 
     </section>}
 
     {bookings.length > 0 && others.length === 0 && <button type="button" className="text-button ac-home-all" onClick={() => onOpenJob()}>ดูงานทั้งหมด <ChevronRight size={16}/></button>}
+
+    {manager && <button type="button" className="ac-home-passport" onClick={() => onNavigate('buildings')}>
+      <span className="ac-home-passport-icon"><Building2 size={20}/></span>
+      <span><strong>อาคารของฉัน</strong><small>ข้อมูลอาคาร จำนวนแอร์ ผู้ติดต่อหน้างาน และรอบล้างของแต่ละอาคาร</small></span>
+      <ChevronRight size={18} aria-hidden="true"/>
+    </button>}
 
     <button type="button" className="ac-home-passport" onClick={() => onNavigate('history')}>
       <span className="ac-home-passport-icon"><History size={20}/></span>

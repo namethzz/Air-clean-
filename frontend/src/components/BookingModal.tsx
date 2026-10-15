@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, Minus, Plus, Wind, X } from 'lucide-react';
-import type { AirConditioner, SavedAddress, Technician } from '../types';
+import type { AirConditioner, SavedAddress, Technician, UserRole } from '../types';
 import LocationPicker, { type RememberChoice } from './LocationPicker';
 import VisitTimePicker, { defaultVisit, visitPayload, type Visit } from './VisitTimePicker';
 import { saveAddress } from '../lib/api';
@@ -8,8 +8,9 @@ import { saveAddress } from '../lib/api';
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
   date:string; time:string; timeWindow?:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
+  notes?:string; placeId?:number;
 }
-interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; role?:UserRole; initialPlaceId?:string; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
 function unitText(unit:AirConditioner):string { return [unit.label,unit.brand,unit.type].filter(Boolean).join(' · ').slice(0,180); }
 
 /** What a customer can tell by looking at the unit. Hanging and ceiling units take longer, so they cost more. */
@@ -31,7 +32,10 @@ function AcIcon({kind}:{kind:AcType}){
   </svg>;
 }
 
-export default function BookingModal({technicians,units=[],initialUnitId,onClose,onSubmit}:BookingModalProps) {
+export default function BookingModal({technicians,units=[],initialUnitId,role,initialPlaceId,onClose,onSubmit}:BookingModalProps) {
+  const manager=role==='manager';
+  // Homes book up to 30 units; building managers book whole buildings.
+  const maxUnits=manager?300:30;
   const initialUnit=units.find(unit=>unit.id===initialUnitId);
   const [unitId,setUnitId]=useState<number|undefined>(initialUnit?.id);
   const [acType,setAcType]=useState<AcType>('wall');
@@ -39,9 +43,10 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
   const [brand,setBrand]=useState('');
   const [checkUp,setCheckUp]=useState(false);
   const [unitNote,setUnitNote]=useState('');
-  // Held as text so the field can be emptied while typing; it becomes a number between 1 and 30 on leaving it.
+  // Held as text so the field can be emptied while typing; it becomes a number within the limit on leaving it.
   const [countText,setCountText]=useState('1');
-  const unitCount=Math.max(1,Math.min(30,Number.parseInt(countText,10)||1));
+  const unitCount=Math.max(1,Math.min(maxUnits,Number.parseInt(countText,10)||1));
+  const [details,setDetails]=useState('');
   const service=acTypes.find(item=>item.key===acType)!.service+(checkUp?' + ตรวจเช็ก':'');
   const chosenUnit=units.find(unit=>unit.id===unitId);
   // What the technician sees about the units, built from the choices above.
@@ -54,10 +59,12 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
     setUnitId(unit?.id);
   }
   const [place,setPlace]=useState<SavedAddress>({
-    id:'new',label:'สถานที่ให้บริการ',placeType:'บ้าน',address:'',
+    id:'new',label:'สถานที่ให้บริการ',placeType:manager?'คอนโด':'บ้าน',address:'',
     latitude:13.7563,longitude:100.5018,locationSelected:false,
   });
-  const [remember,setRemember]=useState<RememberChoice>({on:true,label:'บ้าน'});
+  const [remember,setRemember]=useState<RememberChoice>({on:true,label:manager?'':'บ้าน'});
+  // Picking a building fills in how many units it has; the manager can still change it.
+  useEffect(()=>{if(manager&&place.unitCount)setCountText(String(Math.min(place.unitCount,maxUnits)));},[place.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [visit,setVisit]=useState<Visit>(defaultVisit);
   const [submitted,setSubmitted]=useState(false);
   const [submitting,setSubmitting]=useState(false);
@@ -77,40 +84,46 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
     const when=visitPayload(visit);
     if(!when) { setFormError('กรุณาเลือกวันและเวลาที่ช่างมาได้'); return; }
     setSubmitting(true);
+    // Keep a new or edited place first, so the job is linked to it (a building's history); a failure here must not stop the request.
+    let placeId=place.id!=='new'?Number(place.id):undefined;
+    if(remember.on){
+      const saved=await saveAddress({...place,label:remember.label.trim()||(place.building?.trim()||place.placeType)}).catch(()=>null);
+      if(saved)placeId=Number(saved.id);
+    }
+    const contact=[place.contactName?.trim(),place.contactPhone?.trim()].filter(Boolean).join(' โทร ');
+    const notes=[contact?'ผู้ติดต่อหน้างาน: '+contact:'',details.trim()].filter(Boolean).join('\n')||undefined;
     const success=await onSubmit({
       service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
       date:visit.date,time:when.time,timeWindow:when.timeWindow,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
+      notes,placeId:Number.isFinite(placeId)?placeId:undefined,
     });
     setSubmitting(false);
-    if(success){
-      setSubmitted(true);
-      // Keep a new or edited place for next time; a failure here must not undo the request.
-      if(remember.on)void saveAddress({...place,label:remember.label.trim()||(place.building?.trim()||place.placeType)}).catch(()=>undefined);
-    }
+    if(success)setSubmitted(true);
   }
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
     <section className="modal-card booking-modal-wide" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title">
       <div className="modal-header">
-        <div><span className="eyebrow">NEW SERVICE REQUEST</span><h2 id="booking-modal-title">ขอช่างล้างแอร์</h2><p>ส่งรายละเอียดงาน แล้วเลือกช่างจากคนที่สนใจรับงานของคุณ</p></div>
+        <div><span className="eyebrow">NEW SERVICE REQUEST</span><h2 id="booking-modal-title">{manager?'ขอช่างล้างแอร์ในอาคาร':'ขอช่างล้างแอร์'}</h2><p>ส่งรายละเอียดงาน แล้วเลือกช่างจากคนที่สนใจรับงานของคุณ</p></div>
         <button className="icon-button" onClick={onClose} aria-label="ปิดหน้าต่าง"><X size={19}/></button>
       </div>
       {submitted ? <div className="success-state">
         <div className="success-icon"><Check size={26}/></div><h3>ส่งคำขอแล้ว</h3>
-        <p>เมื่อช่างใกล้เคียงเสนอราคา ข้อเสนอจะแสดงในหน้า “งานของฉัน” ให้คุณเปรียบเทียบก่อนเลือกช่าง</p>
-        <button className="primary-button" onClick={onClose}>ดูงานของฉัน <ArrowRight size={16}/></button>
+        <p>เมื่อช่างใกล้เคียงเสนอราคา ข้อเสนอจะแสดงในหน้า “{manager?'งานของอาคาร':'งานของฉัน'}” ให้คุณเปรียบเทียบก่อนเลือกช่าง</p>
+        <button className="primary-button" onClick={onClose}>{manager?'ดูงานของอาคาร':'ดูงานของฉัน'} <ArrowRight size={16}/></button>
       </div> : <form onSubmit={submit} className="booking-form">
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
-        <LocationPicker value={place} onChange={setPlace} remember={remember} onRememberChange={setRemember}/>
+        <LocationPicker value={place} onChange={setPlace} remember={remember} onRememberChange={setRemember} forBuilding={manager} preferId={initialPlaceId}/>
         <div className="form-section-label"><span>02</span> รายละเอียดงาน</div>
         <div className="bk-field">
           <span className="bk-label" id="bk-count-label">จำนวนแอร์ที่จะล้าง</span>
           <div className="bk-stepper" role="group" aria-labelledby="bk-count-label">
             <button type="button" aria-label="ลดจำนวน" disabled={unitCount<=1} onClick={()=>setCountText(String(unitCount-1))}><Minus size={20}/></button>
-            <input inputMode="numeric" pattern="[0-9]*" aria-label="จำนวนเครื่อง" value={countText} onChange={event=>setCountText(event.target.value.replace(/[^0-9]/g,'').slice(0,2))} onBlur={()=>setCountText(String(unitCount))} onFocus={event=>event.currentTarget.select()}/>
-            <button type="button" aria-label="เพิ่มจำนวน" disabled={unitCount>=30} onClick={()=>setCountText(String(unitCount+1))}><Plus size={20}/></button>
+            <input inputMode="numeric" pattern="[0-9]*" aria-label="จำนวนเครื่อง" value={countText} onChange={event=>setCountText(event.target.value.replace(/[^0-9]/g,'').slice(0,3))} onBlur={()=>setCountText(String(unitCount))} onFocus={event=>event.currentTarget.select()}/>
+            <button type="button" aria-label="เพิ่มจำนวน" disabled={unitCount>=maxUnits} onClick={()=>setCountText(String(unitCount+1))}><Plus size={20}/></button>
             <span className="bk-stepper-unit">เครื่อง</span>
           </div>
+          {manager&&<small className="bk-hint">จองได้สูงสุด {maxUnits} เครื่องต่อครั้ง ถ้ามีแอร์หลายแบบ เลือกแบบที่มีมากที่สุด แล้วบอกช่างในรายละเอียดด้านล่าง</small>}
         </div>
         <div className="bk-field">
           <span className="bk-label" id="bk-type-label">แอร์เป็นแบบไหน</span>
@@ -134,7 +147,9 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
         </div>
         <label className="bk-check"><input type="checkbox" checked={checkUp} onChange={event=>setCheckUp(event.target.checked)}/><span><strong>ตรวจเช็กระบบเพิ่ม</strong><small>วัดน้ำยาและตรวจการทำงาน +฿300/เครื่อง แนะนำถ้าแอร์ไม่ค่อยเย็น</small></span></label>
         {units.length>0&&<label className="form-field"><span>เครื่องจากสมุดประวัติ (ไม่บังคับ)</span><select value={unitId??''} onChange={event=>pickUnit(event.target.value)}><option value="">ไม่ระบุเครื่อง</option>{units.map(unit=><option key={unit.id} value={unit.id}>{unitText(unit)}</option>)}</select></label>}
-        <label className="form-field"><span>บอกช่างเพิ่มเติม (ไม่บังคับ)</span><input value={unitNote} onChange={event=>setUnitNote(event.target.value)} maxLength={80} placeholder="เช่น น้ำหยด มีกลิ่น ห้องนอน 2 ห้องนั่งเล่น 1"/></label>
+        {manager
+          ?<label className="form-field"><span>รายละเอียดสำหรับช่าง (ไม่บังคับ)</span><textarea rows={3} maxLength={800} value={details} onChange={event=>setDetails(event.target.value)} placeholder="เช่น ห้อง 101–120 และ 201–210, จอดรถชั้น B1, เข้าทำงานได้ 9:00–17:00"/></label>
+          :<label className="form-field"><span>บอกช่างเพิ่มเติม (ไม่บังคับ)</span><input value={unitNote} onChange={event=>setUnitNote(event.target.value)} maxLength={80} placeholder="เช่น น้ำหยด มีกลิ่น ห้องนอน 2 ห้องนั่งเล่น 1"/></label>}
         <VisitTimePicker value={visit} onChange={setVisit}/>
         <div className="marketplace-estimate">
           <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>

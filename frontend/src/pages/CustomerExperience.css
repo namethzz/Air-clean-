@@ -440,13 +440,13 @@
 .customer-bar-mark{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:10px;background:var(--ac-blue);color:#fff}
 
 @media(max-width:850px){
-  .ac-shell:is([data-role="customer"],[data-role="technician"]) .topbar{display:none}
-  .ac-shell:is([data-role="customer"],[data-role="technician"]) .main-shell{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  .ac-shell:is([data-role="customer"],[data-role="technician"],[data-role="manager"]) .topbar{display:none}
+  .ac-shell:is([data-role="customer"],[data-role="technician"],[data-role="manager"]) .main-shell{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   .ac-shell .customer-bar{gap:12px;padding:12px 16px}
   .ac-shell .customer-bar strong{font:600 18px/1.3 var(--ac-display)}
   .ac-shell .customer-bar span:not(.customer-bar-mark){font-size:13px}
-  .ac-shell:is([data-role="customer"],[data-role="technician"]) .loading-indicator{left:12px;bottom:calc(92px + env(safe-area-inset-bottom))}
-  .ac-shell:is([data-role="customer"],[data-role="technician"]) .toast-notice{bottom:calc(92px + env(safe-area-inset-bottom))}
+  .ac-shell:is([data-role="customer"],[data-role="technician"],[data-role="manager"]) .loading-indicator{left:12px;bottom:calc(92px + env(safe-area-inset-bottom))}
+  .ac-shell:is([data-role="customer"],[data-role="technician"],[data-role="manager"]) .toast-notice{bottom:calc(92px + env(safe-area-inset-bottom))}
   .ac-shell .profile-logout-mobile{display:inline-flex;width:100%;margin-top:4px}
   .ac-shell .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--ac-frame);background:var(--ac-white)}
   .ac-shell .bn-item,.ac-shell .bn-add{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-height:56px;padding:4px 2px;border:0;background:none;color:var(--ac-ink-3);font:500 12.5px/1.2 var(--ac-text);cursor:pointer}
@@ -600,3 +600,21 @@
 .vt-cell.today{box-shadow:inset 0 0 0 1px var(--ac-blue,#2468d8)}
 .vt-cell.active{background:var(--ac-blue,#2468d8);color:#fff;font-weight:700}
 .vt-cell:disabled{color:#c4cfdb;cursor:default}
+.place-type-picker.lp-types-wide{grid-template-columns:repeat(3,minmax(0,1fr))}
+.lp .form-field span svg{vertical-align:-2px;margin-right:4px;color:var(--ac-ink-3,#5d7089)}
+.bk-hint{font-size:13px;line-height:1.5;color:var(--ac-ink-3,#5d7089)}
+
+/* Sign-up: who are you */
+.auth-roles{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;border:0;min-width:0}
+.auth-roles legend{margin-bottom:8px;padding:0;font-size:15px;font-weight:700;color:var(--ac-ink,#13253b)}
+.auth-role{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid #cfd9e5;border-radius:14px;background:#fff;cursor:pointer;transition:border-color .15s,background-color .15s}
+.auth-role input{position:absolute;opacity:0;pointer-events:none}
+.auth-role:focus-within{outline:3px solid #2468d855;outline-offset:2px}
+.auth-role-icon{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--ac-mist,#f3f6fa);color:var(--ac-ink-2,#445870)}
+.auth-role-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.auth-role-text strong{font-size:16px;color:var(--ac-ink,#13253b)}
+.auth-role-text small{font-size:14px;line-height:1.45;color:var(--ac-ink-2,#445870)}
+.auth-role.active{border-color:var(--ac-blue,#2468d8);background:var(--ac-blue-tint,#e8f0fc);box-shadow:0 0 0 1px var(--ac-blue,#2468d8)}
+.auth-role.active .auth-role-icon{background:var(--ac-blue,#2468d8);color:#fff}
+.auth-role.active::after{content:"";position:absolute;right:14px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:var(--ac-blue,#2468d8) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/14px no-repeat}
+.auth-roles .auth-role-lock-note{margin-top:2px}
