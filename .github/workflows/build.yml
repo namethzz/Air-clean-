@@ -33,6 +33,10 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Development
           SEED_DEMO_DATA: false
           PORT: 5080
+          INITIAL_ADMIN_EMAIL: ci-admin@example.test
+          INITIAL_ADMIN_PASSWORD: isolated-ci-admin-password
+          TEST_ADMIN_EMAIL: ci-admin@example.test
+          TEST_ADMIN_PASSWORD: isolated-ci-admin-password
         run: |
           dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!

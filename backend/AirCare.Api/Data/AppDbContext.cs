@@ -37,6 +37,9 @@ public class MongoStore {
  public async Task EnsureIndexesAsync() {
   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.Email),new CreateIndexOptions{Unique=true}));
   await Reviews.Indexes.CreateOneAsync(new CreateIndexModel<Review>(Builders<Review>.IndexKeys.Ascending(x=>x.BookingId).Ascending(x=>x.CustomerId),new CreateIndexOptions{Unique=true}));
+  // One technician profile per account. An older database that already holds duplicates keeps running without the index.
+  try { await Technicians.Indexes.CreateOneAsync(new CreateIndexModel<TechnicianProfile>(Builders<TechnicianProfile>.IndexKeys.Ascending(x=>x.UserId),new CreateIndexOptions{Unique=true})); }
+  catch (MongoCommandException) { }
  }
  public async Task SeedAsync(IPasswordHasher<AppUser> hasher) {
   if(await Users.CountDocumentsAsync(FilterDefinition<AppUser>.Empty)>0) return;

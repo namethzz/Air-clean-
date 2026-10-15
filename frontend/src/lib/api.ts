@@ -95,7 +95,7 @@ export async function fetchBatchBookings(): Promise<BatchBooking[]> { return req
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
-  price:number; notes?:string; latitude?:number; longitude?:number;
+  price:number; notes?:string; latitude?:number; longitude?:number; airConditionerId?:number;
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
 }
@@ -108,6 +108,21 @@ export async function applyForBooking(id:number,note?:string):Promise<Booking> {
 }
 export async function confirmBookingTechnician(id:number,technicianId:number):Promise<Booking> {
   return request<Booking>('/bookings/'+id+'/confirm-technician',{method:'POST',body:JSON.stringify({technicianId})});
+}
+export interface AirConditionerPayload {
+  label:string; room?:string; brand?:string; model?:string; type?:string; serialNumber?:string; lastServiceDate?:string;
+}
+export async function createAirConditioner(payload:AirConditionerPayload):Promise<AirConditioner> {
+  return request<AirConditioner>('/air-conditioners',{method:'POST',body:JSON.stringify(payload)});
+}
+export async function deleteAirConditioner(id:number):Promise<void> {
+  return request<void>('/air-conditioners/'+id,{method:'DELETE'});
+}
+export async function createReview(bookingId:number,rating:number,comment:string):Promise<void> {
+  await request<unknown>('/bookings/'+bookingId+'/reviews',{method:'POST',body:JSON.stringify({rating,comment:comment.trim()})});
+}
+export async function setTechnicianVerification(id:number,verified:boolean):Promise<Technician> {
+  return request<Technician>('/technicians/'+id+'/verification',{method:'PATCH',body:JSON.stringify({verified})});
 }
 export async function createBatchBooking(payload: {
   buildingName:string; address:string; unitCount:number; scheduledDate:string; notes?:string;

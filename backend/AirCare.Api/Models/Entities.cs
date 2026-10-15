@@ -38,6 +38,7 @@ public class Booking {
  public DateTime? LocationUpdatedAt {get;set;} public string TravelStatus {get;set;}="NotStarted";
  public string? PaymentMethod {get;set;} public string PaymentStatus {get;set;}="Unpaid";
  public bool CustomerConfirmedPayment {get;set;} public bool TechnicianConfirmedPayment {get;set;}
+ public int? CustomerRating {get;set;}
  public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[]; public List<BookingApplicant> Applicants {get;set;}=[];
 }
 [BsonIgnoreExtraElements]

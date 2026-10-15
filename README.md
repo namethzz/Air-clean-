@@ -10,6 +10,9 @@ AirClean is a responsive air-conditioner service booking workspace built with Re
 - Nearby technicians can review open jobs by GPS distance and send interest with their proposed quote.
 - Customers compare interested technicians, ratings, job history and quotes, then confirm one technician before the booking becomes assigned.
 - Booking requests save through the API. Failed requests display an error and do not create local fake records.
+- After a job is completed the customer can rate the technician once (1–5 stars); the technician's rating, review count and completed-job count update automatically.
+- Customers can add air-conditioners to the optional Aircon Passport, link one to a request, and see the finished job recorded in that unit's history with the next service due in six months.
+- Administrators verify or un-verify technician profiles from the technician list.
 - Map-based service address selection, privacy-protected nearby job discovery, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
 - Responsive layouts for mobile phones, tablets and desktop browsers.
 - Empty states appear when the database contains no technicians, bookings, air-conditioners, batch jobs or reports.
@@ -73,4 +76,4 @@ Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, t
 
 ## Automated validation
 
-GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.
+GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.

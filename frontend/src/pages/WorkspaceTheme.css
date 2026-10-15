@@ -155,3 +155,10 @@
 .ac-shell .tracking-empty{color:#7d8896}
 .ac-shell .tracking-live-status{background:#f2f3f5;color:#64707f}
 .ac-shell .tracking-live-status>span{background:#a1a6ad}
+
+/* Aircon Passport: add and remove units */
+.passport-form{padding:20px;border:1px solid var(--line,#dce4ed);border-radius:16px;background:var(--surface,#fff)}
+.passport-delete{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;font-size:14px}
+.passport-delete span{flex:1 1 200px}
+.passport-delete .danger{color:#b3392f;border-color:#e3b4ae}
+.passport-delete-link{margin-top:12px;color:#b3392f}
