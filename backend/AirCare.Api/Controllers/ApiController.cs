@@ -16,7 +16,7 @@ namespace AirCare.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity) : ControllerBase
+public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity, Notifier notify) : ControllerBase
 {
     [AllowAnonymous, HttpPost("auth/login")]
     public async Task<IActionResult> Login(LoginRequest request)
@@ -113,6 +113,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
 
         user.FullName = request.FullName.Trim();
         user.Email = email;
+        if (request.EmailNotifications is bool wantsEmail) user.EmailNotifications = wantsEmail;
         await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
         return Ok(ToAuthUser(user));
     }
@@ -295,6 +296,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
         if (saved is null) return NotFound(new { message = "ไม่พบโปรไฟล์ช่าง" });
         var account = await store.Users.Find(x => x.Id == saved.UserId).FirstOrDefaultAsync();
+        if (request.Verified)
+            notify.ToUser(saved.UserId, "บัญชีช่างของคุณได้รับการอนุมัติแล้ว", "ตอนนี้คุณดูงานใกล้ตัวและส่งข้อเสนอราคาได้แล้วที่เมนู “งานใกล้ฉัน”");
+        else
+            notify.ToUser(saved.UserId, "บัญชีช่างของคุณยังไม่ผ่านการตรวจสอบ", $"เหตุผล: {note}\nแก้ไขข้อมูลที่หน้า “โปรไฟล์และราคา” แล้วบันทึก ระบบจะส่งให้ผู้ดูแลตรวจอีกครั้ง");
         return Ok(DtoMapper.ToApplicationDto(saved, account?.Email ?? ""));
     }
 
@@ -495,6 +500,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างส่งความสนใจรับงาน: " + technician.Name, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        notify.ToUser(booking.CustomerId, $"มีช่างเสนอราคางาน {booking.Code}",
+            $"{technician.Name} เสนอราคา ฿{applicant.Quote:N0} สำหรับ{booking.Service} {booking.UnitCount} เครื่อง นัด {ThaiDate(booking.ScheduledAt)}\nเปรียบเทียบข้อเสนอและเลือกช่างได้ที่ “งานของฉัน”");
         return Ok(OpenJobView(DtoMapper.ToDto(booking, technician.Id), technician.Id));
     }
 
@@ -521,6 +528,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = booking.Status, Notes = "ลูกค้ายืนยันช่าง: " + chosen.Name, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        notify.ToTechnician(chosen.TechnicianId, $"ลูกค้ายืนยันให้คุณรับงาน {booking.Code}",
+            $"{booking.Service} {booking.UnitCount} เครื่อง ราคา ฿{chosen.Quote:N0} นัด {ThaiDate(booking.ScheduledAt)}\nที่อยู่: {booking.Address}\nดูรายละเอียดและกดเริ่มเดินทางได้ที่ “งานของฉัน”");
+        foreach (var other in booking.Applicants.Where(x => x.TechnicianId != chosen.TechnicianId))
+            notify.ToTechnician(other.TechnicianId, $"งาน {booking.Code} ลูกค้าเลือกช่างท่านอื่นแล้ว", "ขอบคุณที่ส่งข้อเสนอ ดูงานอื่นในพื้นที่ได้ที่ “งานใกล้ฉัน”");
         return Ok(DtoMapper.ToDto(booking));
     }
 
@@ -564,6 +575,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = target, Notes = request.Notes, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        NotifyStatusChange(booking, oldStatus);
         return NoContent();
     }
 
@@ -623,6 +635,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างแจ้งว่างานเสร็จ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        NotifyStatusChange(booking, previous);
         return Ok(DtoMapper.ToDto(booking));
     }
 
@@ -688,8 +701,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
-        if (booking.Status == BookingStates.Completed && previousStatus != BookingStates.Completed)
+        if (booking.Status == BookingStates.Completed && previousStatus != BookingStates.Completed) {
             await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
+            NotifyStatusChange(booking, previousStatus);
+        }
         return Ok(DtoMapper.ToDto(booking));
     }
 
@@ -712,6 +727,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = request.Reason.Trim(), CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        var issueText = $"มีการแจ้งปัญหาการชำระเงินของงาน {booking.Code}: {request.Reason.Trim()}\nผู้ดูแลระบบจะติดต่อเพื่อช่วยตรวจสอบ";
+        if (CurrentRole == AppRoles.Customer) notify.ToTechnician(booking.TechnicianId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText);
+        else notify.ToUser(booking.CustomerId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText);
+        notify.ToAdmins($"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText);
         return Ok(DtoMapper.ToDto(booking));
     }
 
@@ -777,6 +796,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = BookingStates.AwaitingPayment, Notes = "ช่างส่งรายงานบริการ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
         await store.Bookings.ReplaceOneAsync(x => x.Id == booking.Id, booking);
+        NotifyStatusChange(booking, oldStatus);
         return Created($"/api/service-reports/{report.Id}", new { id = report.Id, bookingId = report.BookingId, report.Summary, report.CreatedAt });
     }
 
@@ -836,6 +856,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             try
             {
                 await store.Technicians.InsertOneAsync(profile);
+                notify.ToAdmins("มีช่างสมัครใหม่รอตรวจสอบ", $"{user.FullName} ({user.Email}) สมัครเป็นช่างแอร์ พื้นที่ {area} เบอร์ {(string.IsNullOrEmpty(phone) ? "ยังไม่ระบุ" : phone)}\nตรวจสอบและอนุมัติได้ที่เมนู “ตรวจสอบช่าง”");
                 return profile;
             }
             catch (MongoWriteException)
@@ -849,7 +870,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     }
 
     private static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
-        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray());
+        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray(), user.EmailNotifications);
 
     /// <summary>Public sign-up can choose customer, technician or manager. It never grants Admin.</summary>
     private static string PublicRole(string? role) => (role ?? "").Trim().ToLowerInvariant() switch {
@@ -885,16 +906,39 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             .Set(x => x.PasswordResetTokenHash, HashToken(token))
             .Set(x => x.PasswordResetExpiresAt, DateTime.UtcNow.Add(lifetime))
             .Set(x => x.PasswordResetRequestedAt, DateTime.UtcNow));
-        var origin = configuration["PASSWORD_RESET_URL"]?.Trim().TrimEnd('/')
-            ?? (configuration["FRONTEND_ORIGIN"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(x => x != "*")?.TrimEnd('/')
-            ?? "http://localhost:5173";
-        return origin + "/?reset=" + token;
+        return notify.SiteUrl + "/?reset=" + token;
     }
 
     private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     private static string Base64UrlEncode(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     private static bool IsPhone(string? value) => value is not null && value.Count(char.IsAsciiDigit) is >= 9 and <= 15
         && value.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or ' ');
+
+    private static string ThaiDate(DateTime value) => value.ToString("d MMM yyyy HH:mm", new System.Globalization.CultureInfo("th-TH")) + " น.";
+
+    /// <summary>One place for the emails that follow a job's status, whichever endpoint moved it.</summary>
+    private void NotifyStatusChange(Booking booking, string? previous)
+    {
+        var job = $"{booking.Service} {booking.UnitCount} เครื่อง ({booking.Code})";
+        switch (booking.Status) {
+            case BookingStates.Traveling:
+                notify.ToUser(booking.CustomerId, $"ช่างกำลังเดินทางไปหาคุณ {booking.Code}", $"{booking.TechnicianName} เริ่มเดินทางไปทำงาน{job}แล้ว ดูตำแหน่งช่างได้ที่ “งานของฉัน”");
+                break;
+            case BookingStates.AwaitingPayment when previous != BookingStates.AwaitingPayment:
+                notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว {booking.Code}", $"{booking.TechnicianName} แจ้งว่างาน{job}เสร็จแล้ว\nเก็บเงินปลายทาง ฿{booking.Price:N0} จ่ายให้ช่างโดยตรง แล้วกด “ฉันชำระเงินแล้ว” ที่ “งานของฉัน”");
+                break;
+            case BookingStates.Completed:
+                notify.ToUser(booking.CustomerId, $"งานเสร็จสมบูรณ์ {booking.Code}", $"ขอบคุณที่ใช้บริการ งาน{job}ปิดเรียบร้อยแล้ว\nให้คะแนน {booking.TechnicianName} ได้ที่ “งานของฉัน” เพื่อช่วยลูกค้าคนอื่นเลือกช่าง");
+                notify.ToTechnician(booking.TechnicianId, $"งานเสร็จสมบูรณ์ {booking.Code}", $"ลูกค้ายืนยันการชำระเงิน ฿{booking.Price:N0} แล้ว งาน{job}ปิดเรียบร้อย");
+                break;
+            case BookingStates.Cancelled when booking.TechnicianId > 0 && previous is BookingStates.Confirmed or BookingStates.Pending:
+                if (CurrentRole == AppRoles.Technician)
+                    notify.ToUser(booking.CustomerId, $"ช่างยกเลิกงาน {booking.Code}", $"{booking.TechnicianName} ยกเลิกงาน{job} คุณส่งคำขอใหม่ได้ที่ “ขอช่างล้างแอร์”");
+                else
+                    notify.ToTechnician(booking.TechnicianId, $"ลูกค้ายกเลิกงาน {booking.Code}", $"ลูกค้ายกเลิกงาน{job} ที่นัดไว้ {ThaiDate(booking.ScheduledAt)} ไม่ต้องเดินทางไป");
+                break;
+        }
+    }
 
     private static string HealthFor(DateTime? nextService)
     {

@@ -7,7 +7,7 @@ export interface CreateServiceReportPayload {
   bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
   checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
 }
-interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null }
+interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean }
 interface AuthResponse { token: string; expiresAt: string; user: ApiUser }
 export class ApiError extends Error {
   constructor(message: string, public status?: number, public data?: Record<string, unknown>) { super(message); this.name = 'ApiError'; }
@@ -27,7 +27,7 @@ function roleFromApi(role: string): UserRole {
   }
 }
 function fromApiUser(user: ApiUser): UserProfile {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [] };
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true };
 }
 function saveToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
@@ -77,9 +77,9 @@ export async function register(fullName: string, email: string, password: string
   saveToken(result.token);
   return fromApiUser(result.user);
 }
-export async function updateMyProfile(payload: { fullName: string; email: string }): Promise<UserProfile> {
+export async function updateMyProfile(payload: { fullName: string; email: string; emailNotifications?: boolean }): Promise<UserProfile> {
   const result = await request<ApiUser>('/auth/profile', {
-    method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim() })
+    method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim(), emailNotifications:payload.emailNotifications })
   });
   return fromApiUser(result);
 }

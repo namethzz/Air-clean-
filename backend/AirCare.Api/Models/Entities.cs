@@ -19,6 +19,8 @@ public class AppUser {
  public string? PasswordResetTokenHash {get;set;} public DateTime? PasswordResetExpiresAt {get;set;} public DateTime? PasswordResetRequestedAt {get;set;}
  /// <summary>Google or Apple accounts linked to this user. Accounts created this way have an empty password hash.</summary>
  public List<ExternalLogin> ExternalLogins {get;set;}=[];
+ /// <summary>Job and account emails. Older records without the field keep the default (on).</summary>
+ public bool EmailNotifications {get;set;}=true;
 }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
 [BsonIgnoreExtraElements]

@@ -297,4 +297,52 @@ if brevo_port:
         time.sleep(0.1)
     reset_mail = next(item for item in sent if item['to'][0]['email'] == mail_email)
     assert '?reset=' in reset_mail['textContent']
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email delivery, Google/Apple sign-in and cancellation.')
+    # Job notifications: each step emails the person who needs to act, and the opt-out is honoured.
+    def mail_to(address, subject_part, timeout=5.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            found = [item for item in sent if item['to'][0]['email'] == address and subject_part in item['subject']]
+            if found:
+                return found[-1]
+            time.sleep(0.1)
+        raise AssertionError(f'no email to {address} about {subject_part!r}; got {[(i["to"][0]["email"], i["subject"]) for i in sent[-8:]]}')
+    n_customer, n_customer_email = register('Customer')
+    n_tech, n_tech_email = register('Technician')
+    n_other, n_other_email = register('Technician')
+    mail_to(admin_email, 'มีช่างสมัครใหม่')
+    n_profile = call('/technicians/me', token=n_tech)
+    n_other_profile = call('/technicians/me', token=n_other)
+    call(f"/technicians/{n_other_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ทดสอบเหตุผล'}, admin)
+    assert 'ทดสอบเหตุผล' in mail_to(n_other_email, 'ยังไม่ผ่าน')['textContent']
+    for row in [n_profile, n_other_profile]:
+        call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)
+    mail_to(n_tech_email, 'ได้รับการอนุมัติ')
+    job = call('/bookings', 'POST', {**payload, 'address': 'NOTIFY-HOUSE-9'}, n_customer, 201)
+    call(f"/bookings/{job['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{job['id']}/applications", 'POST', {}, n_other)
+    assert job['code'] in mail_to(n_customer_email, 'มีช่างเสนอราคา')['subject']
+    call(f"/bookings/{job['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
+    assert 'NOTIFY-HOUSE-9' in mail_to(n_tech_email, 'ลูกค้ายืนยัน')['textContent']
+    mail_to(n_other_email, 'เลือกช่างท่านอื่น')
+    call(f"/bookings/{job['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, n_tech, 204)
+    mail_to(n_customer_email, 'กำลังเดินทาง')
+    for status in ['ถึงหน้างาน', 'กำลังดำเนินการ']:
+        call(f"/bookings/{job['id']}/status", 'PATCH', {'status': status}, n_tech, 204)
+    call('/service-reports', 'POST', {'bookingId': job['id'], 'summary': 'เรียบร้อย', 'cleanedFilter': True, 'cleanedCoil': True, 'checkedDrain': True, 'checkedCooling': True}, n_tech, 201)
+    assert 'เก็บเงินปลายทาง' in mail_to(n_customer_email, 'ล้างแอร์เสร็จแล้ว')['textContent']
+    for token in [n_customer, n_tech]:
+        call(f"/bookings/{job['id']}/payment-confirmation", 'PATCH', {'method': 'Cash', 'confirmed': True}, token)
+    mail_to(n_customer_email, 'งานเสร็จสมบูรณ์')
+    mail_to(n_tech_email, 'งานเสร็จสมบูรณ์')
+    # A customer who turns emails off gets none; cancelling a confirmed job tells the technician.
+    me = call('/auth/me', token=n_customer)
+    assert me['emailNotifications'] is True
+    assert call('/auth/profile', 'PATCH', {'fullName': me['fullName'], 'email': me['email'], 'emailNotifications': False}, n_customer)['emailNotifications'] is False
+    quiet = call('/bookings', 'POST', payload, n_customer, 201)
+    call(f"/bookings/{quiet['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{quiet['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
+    call(f"/bookings/{quiet['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, n_customer, 204)
+    mail_to(n_tech_email, 'ลูกค้ายกเลิกงาน')
+    time.sleep(1)
+    assert not [item for item in sent if item['to'][0]['email'] == n_customer_email and quiet['code'] in item['subject']]
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email delivery and job notifications, Google/Apple sign-in and cancellation.')
