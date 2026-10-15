@@ -128,7 +128,9 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
       </div> : <form onSubmit={submit} className="booking-form">
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
         <LocationPicker value={place} onChange={setPlace} remember={remember} onRememberChange={setRemember} forBuilding={manager} preferId={initialPlaceId}/>
-        <div className="form-section-label"><span>02</span> รายละเอียดงาน</div>
+        <div className="form-section-label"><span>02</span> วันและเวลาที่สะดวก</div>
+        <VisitTimePicker value={visit} onChange={setVisit}/>
+        <div className="form-section-label"><span>03</span> {manager?'ห้องและแอร์':'แอร์ที่จะล้าง'}</div>
         {roster.length>0
           ?<div className="bk-field">
             <span className="bk-label">ห้องที่จะล้าง</span>
@@ -172,7 +174,6 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
         {manager
           ?<label className="form-field"><span>รายละเอียดสำหรับช่าง (ไม่บังคับ)</span><textarea rows={3} maxLength={800} value={details} onChange={event=>setDetails(event.target.value)} placeholder="เช่น ห้อง 101–120 และ 201–210, จอดรถชั้น B1, เข้าทำงานได้ 9:00–17:00"/></label>
           :<label className="form-field"><span>บอกช่างเพิ่มเติม (ไม่บังคับ)</span><input value={unitNote} onChange={event=>setUnitNote(event.target.value)} maxLength={80} placeholder="เช่น น้ำหยด มีกลิ่น ห้องนอน 2 ห้องนั่งเล่น 1"/></label>}
-        <VisitTimePicker value={visit} onChange={setVisit}/>
         <div className="marketplace-estimate">
           <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>
           <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง · เก็บเงินปลายทางเมื่อล้างเสร็จ ไม่ต้องจ่ายล่วงหน้า</small>
