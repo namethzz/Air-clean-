@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, CalendarDays, Check, Wind, X } from 'lucide-react';
 import type { AirConditioner, SavedAddress, Technician } from '../types';
-import LocationPicker from './LocationPicker';
+import LocationPicker, { type RememberChoice } from './LocationPicker';
+import { saveAddress } from '../lib/api';
 
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
@@ -30,6 +31,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
     id:'new',label:'สถานที่ให้บริการ',placeType:'บ้าน',address:'',
     latitude:13.7563,longitude:100.5018,locationSelected:false,
   });
+  const [remember,setRemember]=useState<RememberChoice>({on:true,label:'บ้าน'});
   const [date,setDate]=useState(today);
   const [time,setTime]=useState('10:00');
   const [submitted,setSubmitted]=useState(false);
@@ -53,7 +55,11 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
       date,time,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
     });
     setSubmitting(false);
-    if(success) setSubmitted(true);
+    if(success){
+      setSubmitted(true);
+      // Keep a new or edited place for next time; a failure here must not undo the request.
+      if(remember.on)void saveAddress({...place,label:remember.label.trim()||(place.building?.trim()||place.placeType)}).catch(()=>undefined);
+    }
   }
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
@@ -68,7 +74,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
         <button className="primary-button" onClick={onClose}>ดูงานของฉัน <ArrowRight size={16}/></button>
       </div> : <form onSubmit={submit} className="booking-form">
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
-        <LocationPicker value={place} onChange={setPlace}/>
+        <LocationPicker value={place} onChange={setPlace} remember={remember} onRememberChange={setRemember}/>
         <div className="form-section-label"><span>02</span> รายละเอียดงาน</div>
         <div className="form-grid-two">
           <label className="form-field"><span>ประเภทบริการ</span><select value={service} onChange={event=>setService(event.target.value)}><option>ล้างแอร์มาตรฐาน</option><option>ล้างแอร์ + ตรวจเช็ก</option><option>ล้างแอร์แบบแขวน</option></select></label>
