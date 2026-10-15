@@ -82,7 +82,9 @@ public static class Membership
     {
         var payment = await store.MembershipPayments.Find(x => x.Id == paymentId && x.Status == PaymentStates.Pending).FirstOrDefaultAsync(cancel);
         if (payment is null) return null;
-        var check = await verifier.CheckAsync(payment.SlipData, payment.SlipContentType, payment.Amount, cancel);
+        var settings = await SettingsAsync(store);
+        // The transfer must be recent: made at most two days before the slip was sent.
+        var check = await verifier.CheckAsync(payment.SlipData, payment.SlipContentType, payment.Amount, settings.PromptPayId, payment.CreatedAt.AddDays(-2), cancel);
         switch (check.Outcome) {
             case SlipOutcome.Verified:
                 if (check.TransRef is { Length: > 0 } reference

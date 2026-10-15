@@ -183,7 +183,7 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
     <p className="ms-summary">{pending.length ? `${pending.length} สลิปรอตรวจ` : 'ไม่มีสลิปรอตรวจ'} · ช่าง {data.members.length} คน{expired ? ` · หมดอายุ ${expired} คน` : ''}</p>
     <p className={'ms-auto' + (data.autoCheck ? ' on' : '')}>{data.autoCheck
       ? <><ShieldCheck size={16}/> ตรวจสลิปอัตโนมัติเปิดอยู่: สลิปจริงที่ยอดและบัญชีผู้รับถูกต้องจะต่ออายุทันที ที่นี่จะเหลือเฉพาะสลิปที่ระบบตัดสินไม่ได้</>
-      : <><AlertCircle size={16}/> ยังไม่ได้เปิดตรวจสลิปอัตโนมัติ (ตั้งค่า SLIPOK_BRANCH_ID และ SLIPOK_API_KEY บนเซิร์ฟเวอร์) ทุกสลิปจึงรอคุณตรวจ</>}</p>
+      : <><AlertCircle size={16}/> ยังไม่ได้เปิดตรวจสลิปอัตโนมัติ (ตั้งค่า SLIP2GO_API_SECRET บนเซิร์ฟเวอร์) ทุกสลิปจึงรอคุณตรวจ</>}</p>
 
     {pending.length > 0 && <section aria-label="สลิปรอตรวจ" className="ms-slips">{pending.map(item => <SlipReview key={item.id} payment={item} onDone={() => { onNotice('บันทึกผลแล้ว'); load(); }}/>)}</section>}
 

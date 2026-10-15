@@ -669,39 +669,42 @@ assert saved_settings['promptPayId'] == '0812345678'
 assert call('/technicians/me/membership', token=tech)['monthlyFee'] == 199
 call('/technicians/me/membership/payments', 'POST', {'months': 13, 'slip': TINY_JPEG}, tech, 400)
 before_until = datetime.fromisoformat(call('/technicians/me/membership', token=tech)['memberUntil'].replace('Z', '+00:00'))
-slipok_port = os.environ.get('TEST_SLIPOK_PORT')
+slipok_port = os.environ.get('TEST_SLIP2GO_PORT')
 if slipok_port:
-    # A stand-in for SlipOK. The slip image carries a marker saying how the bank would answer.
+    # A stand-in for Slip2Go. The slip image carries a marker saying how the bank would answer.
     import base64, re, threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     slip_calls = []
-    class SlipOk(BaseHTTPRequestHandler):
+    class Slip2Go(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
         def do_POST(self):
             body = self.rfile.read(int(self.headers['Content-Length']))
             slip_calls.append(body)
-            amount = float(re.search(rb'name=amount\r\n\r\n([\d.]+)', body.replace(b'"', b'')).group(1))
             def answer(status, data):
                 raw_answer = json.dumps(data).encode()
                 self.send_response(status); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(raw_answer)
-            if self.headers.get('x-authorization') != 'ci-slipok-key' or not self.path.endswith('/ci-branch'):
-                return answer(401, {'success': False, 'code': 1002, 'message': 'bad key'})
-            for marker, code in [(b'NOTSLIP', 1007), (b'DUPLICATE', 1012), (b'WRONGAMOUNT', 1013), (b'WRONGRECEIVER', 1014)]:
+            if self.headers.get('Authorization') != 'ci-slip2go-secret' or self.path != '/api/verify-slip/qr-image/info':
+                return answer(401, {'code': '401000', 'message': 'Unauthorized'})
+            conditions = json.loads(re.search(rb'name=payload\r\n(?:Content-Type: [^\r]*\r\n)?\r\n(\{.*?\})\r\n--', body.replace(b'"payload"', b'payload'), re.S).group(1))
+            assert conditions['checkDuplicate'] is True and conditions['checkReceiver'] == [{'accountType': '02001', 'accountNumber': '0812345678'}], conditions
+            assert conditions['checkAmount']['type'] == 'eq' and conditions['checkDate']['type'] == 'gte', conditions
+            for marker, code in [(b'NOTSLIP', '400001'), (b'DUPLICATE', '200501'), (b'WRONGAMOUNT', '200402'), (b'WRONGRECEIVER', '200401'), (b'FAKE', '200500')]:
                 if marker in body:
-                    return answer(400, {'success': False, 'code': code, 'message': marker.decode()})
+                    return answer(200, {'code': code, 'message': marker.decode()})
             if b'WAITONCE' in body and sum(b'WAITONCE' in call_body for call_body in slip_calls) == 1 or b'WAITALWAYS' in body:
-                return answer(400, {'success': False, 'code': 1010, 'message': 'wait'})
+                return answer(200, {'code': '200404', 'message': 'Slip not found.'})
             reference = 'SAMEREF-1' if b'SAMEREF' in body else uuid.uuid4().hex
-            answer(200, {'success': True, 'data': {'success': True, 'transRef': reference, 'amount': amount, 'transDate': '20261016', 'transTime': '10:00:00'}})
-    threading.Thread(target=ThreadingHTTPServer(('127.0.0.1', int(slipok_port)), SlipOk).serve_forever, daemon=True).start()
+            answer(200, {'code': '200200', 'message': 'Slip is valid.', 'data': {'transRef': reference, 'amount': float(conditions['checkAmount']['amount']),
+                                                                               'dateTime': datetime.now(timezone.utc).isoformat()}})
+    threading.Thread(target=ThreadingHTTPServer(('127.0.0.1', int(slipok_port)), Slip2Go).serve_forever, daemon=True).start()
     def slip_with(marker=b''):
         return 'data:image/jpeg;base64,' + base64.b64encode(b'\xff\xd8\xff\xe0' + b'0' * 16 + marker).decode()
     assert call('/technicians/me/membership', token=tech)['autoCheck']
     # A real transfer of the right amount is approved at once, without an admin.
     slip = call('/technicians/me/membership/payments', 'POST', {'months': 2, 'slip': slip_with()}, tech, 201)
     assert slip['amount'] == 398 and slip['status'] == 'Approved' and slip['checkedBy'] == 'auto', slip
-    assert b'name=amount' in slip_calls[-1].replace(b'"', b'') and b'398' in slip_calls[-1]
+    assert b'"amount":"398"' in slip_calls[-1]
     covered = datetime.fromisoformat(slip['coveredUntil'].replace('Z', '+00:00'))
     assert 58 <= (covered - before_until).days <= 62
     assert call('/technicians/me/membership', token=tech)['state'] == 'Active'
@@ -709,7 +712,7 @@ if slipok_port:
     raw(f"/membership/payments/{slip['id']}/slip", tech)
     raw(f"/membership/payments/{slip['id']}/slip", other_tech, 403)
     # Fakes, reused slips and wrong amounts or receivers are turned down with the reason.
-    for marker, reason in [(b'NOTSLIP', 'ไม่ใช่สลิป'), (b'DUPLICATE', 'เคยถูกใช้'), (b'WRONGAMOUNT', 'ไม่ตรง'), (b'WRONGRECEIVER', 'บัญชีผู้รับ')]:
+    for marker, reason in [(b'NOTSLIP', 'ไม่พบ QR'), (b'DUPLICATE', 'เคยถูกใช้'), (b'WRONGAMOUNT', 'ไม่ตรง'), (b'WRONGRECEIVER', 'บัญชีผู้รับ'), (b'FAKE', 'ไม่ยืนยัน')]:
         turned_down = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(marker)}, tech, 201)
         assert turned_down['status'] == 'Rejected' and reason in turned_down['note'], turned_down
     # One bank transaction pays once, even if the slip service did not flag it.
