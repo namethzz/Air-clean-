@@ -28,6 +28,15 @@ Customers see only **หน้าแรก**, **งานของฉัน** an
 - `tracking` and `reports` still exist for technician, manager and admin. `App.tsx` sends a customer who asks for them to "งานของฉัน".
 - No API, status or payment behaviour changed.
 
+## Technician navigation (three places)
+
+Technicians see **งานใกล้ฉัน**, **งานของฉัน** and **โปรไฟล์และราคา**, and land on "งานใกล้ฉัน" after signing in. Phones get the same bottom bar with three items.
+
+- `pages/TechnicianJobsPage.tsx` is the technician's job page. It uses the same list-and-detail layout and `CustomerJobs.css` as the customer page, with its own five stages (รับงาน → เดินทาง → ถึงหน้างาน → ล้างแอร์ → รับเงิน). The block under the progress line has one main button for the current status (รับงาน, เริ่มเดินทาง, ถึงหน้างานแล้ว, เริ่มล้างแอร์, ล้างเสร็จแล้ว, ฉันได้รับเงินแล้ว).
+- GPS sharing while a job is "กำลังเดินทาง" moved here unchanged from the old tracking page. The service-report form appears while the job is being cleaned or waiting for payment.
+- `lib/jobFlow.ts` has the technician stage mapping and wording (`techStep`, `techGuide`, `techNeedsAction`).
+- The old overview, booking table, tracking and report pages are no longer reachable for technicians. Manager and admin keep them.
+
 ## Behaviour
 
 Buttons use the existing authentication, booking and navigation handlers. No account records, booking API contracts or payment behaviour are changed. The customer overview no longer repeats a heading above the hero because the hero carries the greeting and the main action.

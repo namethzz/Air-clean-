@@ -155,3 +155,17 @@
   .cj-head h2{font-size:22px}
 }
 @media(prefers-reduced-motion:reduce){.cj-page *{transition:none!important;animation:none!important}}
+
+/* ── Technician extras ── */
+.cj-form{display:flex;flex-direction:column;gap:14px}
+.cj-field{display:flex;flex-direction:column;gap:6px;font-size:14.5px;font-weight:500;color:var(--ac-ink)}
+.cj-field input,.cj-field textarea{width:100%;min-height:46px;padding:10px 12px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;color:var(--ac-ink);font:inherit;font-size:15px}
+.cj-field input:focus,.cj-field textarea:focus{border-color:var(--ac-blue);box-shadow:0 0 0 3px #2468d826;outline:0}
+.cj-checkgrid{display:grid;grid-template-columns:1fr;gap:8px}
+.cj-checkgrid label{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 14px;border:1px solid var(--ac-frame);border-radius:12px;background:#fff;font-size:15px;color:var(--ac-ink)}
+.cj-checkgrid input{width:20px;height:20px;accent-color:var(--ac-blue)}
+.cj-inline-link{color:var(--ac-blue-deep);font-weight:600;white-space:nowrap}
+.cj-now>.cj-ghost{width:100%}
+.cj-track .cj-ghost{width:100%}
+@media(min-width:640px){.cj-checkgrid{grid-template-columns:1fr 1fr}}
+.nearby-job-toolbar .select-control span{white-space:nowrap}

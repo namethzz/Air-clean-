@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import { currentStep, guideFor, isClosed, journeySteps, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
+import Stepper, { useIsWide } from '../components/JobStepper';
 import './CustomerJobs.css';
 
 export interface JobFocus { id: number; token: number; }
@@ -32,17 +33,6 @@ const checklist = [
 
 function shortDate(date: string) {
   return new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-function useIsWide() {
-  const query = '(min-width: 900px)';
-  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    const change = () => setWide(media.matches);
-    media.addEventListener('change', change);
-    return () => media.removeEventListener('change', change);
-  }, []);
-  return wide;
 }
 
 /** Customer's single place for a job: offers, tracking, payment and the service report. */
@@ -117,18 +107,6 @@ export default function CustomerJobsPage(props: Props) {
   </div>;
 }
 
-function Stepper({ status }: { status: BookingStatus }) {
-  const step = currentStep(status);
-  return <ol className="cj-steps" aria-label="ความคืบหน้า">
-    {journeySteps.map((label, index) => {
-      const state = step === 5 || index < step ? 'done' : index === step ? 'current' : 'next';
-      return <li key={label} className={'cj-step ' + state} aria-current={state === 'current' ? 'step' : undefined}>
-        <span className="cj-step-dot">{state === 'done' ? <Check size={15} strokeWidth={3}/> : index + 1}</span>
-        <span className="cj-step-label">{label}</span>
-      </li>;
-    })}
-  </ol>;
-}
 
 function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onApproveReport, onRefresh }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
@@ -145,7 +123,7 @@ function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChang
       <StatusBadge status={booking.status}/>
     </header>
 
-    {!cancelled && <Stepper status={booking.status}/>}
+    {!cancelled && <Stepper labels={journeySteps} step={currentStep(booking.status)}/>}
 
     <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>

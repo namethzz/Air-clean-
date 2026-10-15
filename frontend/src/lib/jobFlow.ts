@@ -75,3 +75,59 @@ export function sortJobs(bookings: Booking[], reports: ServiceReportRecord[]): B
     return (a.date + a.time).localeCompare(b.date + b.time);
   });
 }
+
+/* ───────────── Technician side ───────────── */
+
+export const techSteps = ['รับงาน', 'เดินทาง', 'ถึงหน้างาน', 'ล้างแอร์', 'รับเงิน'] as const;
+
+/** Stage a technician is on. 5 means all done, -1 means cancelled. */
+export function techStep(status: BookingStatus): number {
+  switch (status) {
+    case 'รอยืนยัน': return 0;
+    case 'ยืนยันแล้ว':
+    case 'กำลังเดินทาง': return 1;
+    case 'ถึงหน้างาน':
+    case 'กำลังดำเนินการ': return 3;
+    case 'รอชำระเงิน':
+    case 'มีปัญหาการชำระเงิน': return 4;
+    case 'เสร็จสิ้น': return 5;
+    default: return -1;
+  }
+}
+
+export function techGuide(booking: Booking): JobGuide {
+  switch (booking.status) {
+    case 'รอยืนยัน':
+      return { short: 'รอคุณตอบรับ', title: 'ลูกค้าเลือกคุณแล้ว', hint: 'กดรับงานเพื่อยืนยันนัดหมาย' };
+    case 'ยืนยันแล้ว':
+      return { short: 'พร้อมออกเดินทาง', title: 'นัดหมายยืนยันแล้ว', hint: 'เมื่อออกเดินทางให้กดเริ่ม ระบบจะแชร์ตำแหน่งของคุณให้ลูกค้าเห็นจนกว่าจะถึงหน้างาน' };
+    case 'กำลังเดินทาง':
+      return { short: 'กำลังเดินทาง', title: 'กำลังเดินทางไปหาลูกค้า', hint: 'เปิดหน้านี้ไว้เพื่อให้ตำแหน่งอัปเดต การล็อกหน้าจอหรือสลับแอปอาจทำให้ตำแหน่งหยุดส่ง' };
+    case 'ถึงหน้างาน':
+      return { short: 'ถึงหน้างานแล้ว', title: 'ถึงหน้างานแล้ว', hint: 'ระบบหยุดแชร์ตำแหน่งแล้ว เริ่มล้างแอร์ได้เมื่อพร้อม' };
+    case 'กำลังดำเนินการ':
+      return { short: 'กำลังล้างแอร์', title: 'กำลังล้างแอร์', hint: 'เมื่อเสร็จ ให้บันทึกรายงานสั้น ๆ แล้วกดงานเสร็จ ลูกค้าจะชำระเงินที่หน้างาน' };
+    case 'รอชำระเงิน':
+      return { short: booking.technicianConfirmedPayment ? 'รอลูกค้ายืนยัน' : 'รอรับเงิน', title: 'รอรับเงินหน้างาน', hint: 'เมื่อได้รับเงินจากลูกค้าแล้วให้กดยืนยัน เมื่อทั้งสองฝ่ายยืนยัน งานจะปิด' };
+    case 'มีปัญหาการชำระเงิน':
+      return { short: 'ผู้ดูแลกำลังตรวจสอบ', title: 'ผู้ดูแลกำลังตรวจสอบการชำระเงิน', hint: 'ระบบยังไม่ถือว่างานนี้ชำระเงินสำเร็จ รอผู้ดูแลติดต่อกลับ' };
+    case 'เสร็จสิ้น':
+      return { short: 'งานเสร็จสมบูรณ์', title: 'งานเสร็จสมบูรณ์', hint: 'ลูกค้าและช่างยืนยันการชำระเงินครบแล้ว' };
+    default:
+      return { short: 'ยกเลิกแล้ว', title: 'งานนี้ถูกยกเลิก', hint: 'ไม่ต้องดำเนินการเพิ่ม' };
+  }
+}
+
+/** True when the technician is the one who has to act next. */
+export function techNeedsAction(booking: Booking): boolean {
+  if (booking.status === 'รอชำระเงิน') return !booking.technicianConfirmedPayment;
+  return ['รอยืนยัน', 'ยืนยันแล้ว', 'ถึงหน้างาน', 'กำลังดำเนินการ'].includes(booking.status);
+}
+
+/** Jobs that need the technician first, then the soonest appointment. */
+export function sortByNeed(bookings: Booking[], needs: (booking: Booking) => boolean): Booking[] {
+  return [...bookings].sort((a, b) => {
+    const urgent = Number(needs(b)) - Number(needs(a));
+    return urgent || (a.date + a.time).localeCompare(b.date + b.time);
+  });
+}

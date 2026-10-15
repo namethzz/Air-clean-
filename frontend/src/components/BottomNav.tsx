@@ -1,7 +1,8 @@
-import { AirVent, ClipboardList, Home, Plus, UserRound } from 'lucide-react';
-import type { PageKey } from '../types';
+import { AirVent, ClipboardList, Home, MapPin, Plus, UserCog, UserRound } from 'lucide-react';
+import type { PageKey, UserRole } from '../types';
 
 interface Props {
+  role: UserRole;
   page: PageKey;
   actionCount: number;
   onNavigate: (page: PageKey) => void;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 /** Thumb-reach navigation for customers on phones. Hidden on wide screens, where the sidebar is used. */
-export default function BottomNav({ page, actionCount, onNavigate, onNewBooking }: Props) {
+export default function BottomNav({ role, page, actionCount, onNavigate, onNewBooking }: Props) {
   const item = (key: PageKey, label: string, Icon: typeof Home, badge = 0) => {
     const active = page === key;
     return <button type="button" className={'bn-item' + (active ? ' active' : '')} aria-current={active ? 'page' : undefined} onClick={() => onNavigate(key)}>
@@ -17,6 +18,13 @@ export default function BottomNav({ page, actionCount, onNavigate, onNewBooking 
       <span>{label}</span>
     </button>;
   };
+  if (role === 'technician') {
+    return <nav className="bottom-nav bn-3" aria-label="เมนูหลัก">
+      {item('nearbyJobs', 'งานใกล้ฉัน', MapPin)}
+      {item('bookings', 'งานของฉัน', ClipboardList, actionCount)}
+      {item('profile', 'โปรไฟล์และราคา', UserCog)}
+    </nav>;
+  }
   return <nav className="bottom-nav" aria-label="เมนูหลัก">
     {item('overview', 'หน้าแรก', Home)}
     {item('bookings', 'งานของฉัน', ClipboardList, actionCount)}
