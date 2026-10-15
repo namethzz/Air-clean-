@@ -1,4 +1,4 @@
-export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues'|'history'|'buildings'|'membership';
+export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'reports'|'profile'|'approvals'|'issues'|'history'|'buildings'|'membership';
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก'|'หมดเวลาเลือกช่าง';
 export type PaymentMethod='Cash'|'PromptPay';
@@ -19,10 +19,9 @@ export type IssueResolution='Paid'|'Cancelled'|'Closed';
 export interface BookingIssue{kind:IssueKind;reason:string;reportedBy:string;reportedAt:string;open:boolean;resolution?:IssueResolution|null;resolutionNote?:string|null;resolvedAt?:string|null;}
 export interface IssueParty{name:string;email?:string|null;phone?:string|null;}
 export interface AdminIssue{bookingId:number;code:string;status:string;service:string;unitCount:number;price:number;scheduledAt:string;address:string;paymentMethod?:string|null;issue:BookingIssue;customer:IssueParty;technician:IssueParty;history:{at:string;status:string;notes?:string|null}[];}
-export interface BatchBooking{id:number;code:string;building:string;address:string;unitCount:number;completedUnits:number;scheduledDate:string;status:string;quote:number;}
 export interface ServiceReportRecord{id:number;bookingId:number;bookingCode:string;summary:string;cleanedFilter:boolean;cleanedCoil:boolean;checkedDrain:boolean;checkedCooling:boolean;beforePhotoUrl?:string|null;afterPhotoUrl?:string|null;customerApproved:boolean;createdAt:string;}
 export interface DashboardSummary{totalUnits:number;upcomingBookings:number;serviceCompletion:number;totalSpent:number;}
-export interface AppState{technicians:Technician[];airConditioners:AirConditioner[];bookings:Booking[];batchBookings:BatchBooking[];serviceReports:ServiceReportRecord[];summary:DashboardSummary;}
+export interface AppState{technicians:Technician[];airConditioners:AirConditioner[];bookings:Booking[];serviceReports:ServiceReportRecord[];summary:DashboardSummary;}
 export interface JobPhoto{id:string;kind:'before'|'after';createdAt:string;}
 export interface TechnicianStats{jobsCompleted:number;jobsActive:number;jobsCancelled:number;offersWaiting:number;revenueTotal:number;revenueThisMonth:number;rating:number;reviewCount:number;openIssues:number;}
 export interface TechnicianJob{id:number;code:string;status:string;date:string;time:string;customer:string;area:string;service:string;unitCount:number;price:number;customerRating?:number|null;photos:number;}

@@ -132,10 +132,6 @@ public class BookingIssue {
  public bool IsOpen => Resolution is null;
 }
 [BsonIgnoreExtraElements]
-public class BatchBooking {
- [BsonId] public int Id {get;set;} public string Code {get;set;}=""; public int ManagerId {get;set;} public string BuildingName {get;set;}=""; public string Address {get;set;}=""; public int UnitCount {get;set;} public int CompletedUnits {get;set;} public DateTime ScheduledDate {get;set;} public string Status {get;set;}="PendingQuote"; public decimal Quote {get;set;} public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
-}
-[BsonIgnoreExtraElements]
 /// <summary>A photo the technician took on the job, stored in the database (resized on the phone first).</summary>
 public class JobPhoto {
  [BsonId] public string Id {get;set;}="" ; public int BookingId {get;set;} public int TechnicianId {get;set;} public int UploadedByUserId {get;set;}

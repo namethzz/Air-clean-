@@ -1,4 +1,4 @@
-import type { AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -164,7 +164,6 @@ export async function fetchCurrentUser(): Promise<UserProfile | null> {
 export async function fetchTechnicians(): Promise<Technician[]> { return request<Technician[]>('/technicians'); }
 export async function fetchBookings(): Promise<Booking[]> { return request<Booking[]>('/bookings'); }
 export async function fetchAirConditioners(): Promise<AirConditioner[]> { return request<AirConditioner[]>('/air-conditioners'); }
-export async function fetchBatchBookings(): Promise<BatchBooking[]> { return request<BatchBooking[]>('/batch-bookings'); }
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
@@ -205,11 +204,6 @@ export async function fetchTechnicianApplications():Promise<TechnicianApplicatio
 }
 export async function setTechnicianVerification(id:number,verified:boolean,note?:string):Promise<TechnicianApplication> {
   return request<TechnicianApplication>('/technicians/'+id+'/verification',{method:'PATCH',body:JSON.stringify({verified,note})});
-}
-export async function createBatchBooking(payload: {
-  buildingName:string; address:string; unitCount:number; scheduledDate:string; notes?:string;
-}): Promise<BatchBooking> {
-  return request<BatchBooking>('/batch-bookings', { method:'POST', body:JSON.stringify(payload) });
 }
 export async function updateBookingStatus(id:number,status:string): Promise<void> {
   return request<void>('/bookings/' + id + '/status', { method:'PATCH', body:JSON.stringify({status}) });

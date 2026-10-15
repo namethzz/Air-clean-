@@ -11,11 +11,8 @@ import AuthPage from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
-import TechniciansPage from './pages/TechniciansPage';
 import BookingsPage from './pages/BookingsPage';
-import PassportPage from './pages/PassportPage';
 import CleaningHistoryPage from './pages/CleaningHistoryPage';
-import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
@@ -31,16 +28,16 @@ import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
-  reopenBooking, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
-  createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
+  reopenBooking, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
+  createReview, createServiceReport, fetchAirConditioners, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
-  type AirConditionerPayload, type CompleteJobPayload, type CreateServiceReportPayload,
+  type CompleteJobPayload, type CreateServiceReportPayload,
 } from './lib/api';
 import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์', buildings:'อาคารของฉัน', membership:'ค่าสมาชิกช่าง',
+  tracking:'ติดตามงาน', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์', buildings:'อาคารของฉัน', membership:'ค่าสมาชิกช่าง',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
@@ -52,7 +49,7 @@ function homePage(role:UserRole):PageKey { return role==='technician'?'nearbyJob
 const activeStatuses:BookingStatus[] = ['เปิดรับช่าง','รอเลือกช่าง','รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
 function emptyState():AppState {
   return { technicians:[], summary:{totalUnits:0,upcomingBookings:0,serviceCompletion:0,totalSpent:0},
-    bookings:[], airConditioners:[], batchBookings:[], serviceReports:[] };
+    bookings:[], airConditioners:[], serviceReports:[] };
 }
 function summarize(units:AppState['airConditioners'],bookings:Booking[]):DashboardSummary {
   return {
@@ -105,23 +102,19 @@ export default function App() {
     if(!user)return;
     setIsLoading(true);setDataError('');
     const needsUnits = user.role!=='technician';
-    const needsBatch = user.role!=='technician';
-    const [t,b,u,ba,r] = await Promise.allSettled([
-      fetchTechnicians(),fetchBookings(),needsUnits?fetchAirConditioners():Promise.resolve([]),
-      needsBatch?fetchBatchBookings():Promise.resolve([]),fetchServiceReports(),
+    const [t,b,u,r] = await Promise.allSettled([
+      fetchTechnicians(),fetchBookings(),needsUnits?fetchAirConditioners():Promise.resolve([]),fetchServiceReports(),
     ]);
     const technicians = t.status==='fulfilled'?t.value:[];
     const bookings = b.status==='fulfilled'?b.value:[];
     const units = u.status==='fulfilled'?u.value:[];
-    const batches = ba.status==='fulfilled'?ba.value:[];
     const reports = r.status==='fulfilled'?r.value:[];
-    setState({technicians,bookings,airConditioners:units,batchBookings:batches,serviceReports:reports,summary:summarize(units,bookings)});
+    setState({technicians,bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,bookings)});
     setApiConnected(t.status==='fulfilled'&&b.status==='fulfilled');
     const failed:string[]=[];
     if(b.status==='rejected')failed.push('รายการจอง');
     if(t.status==='rejected')failed.push('ข้อมูลช่าง');
     if(u.status==='rejected')failed.push('ประวัติแอร์');
-    if(ba.status==='rejected')failed.push('งานหลายเครื่อง');
     if(r.status==='rejected')failed.push('รายงานบริการ');
     if(failed.length)setDataError('โหลดข้อมูลบางส่วนไม่สำเร็จ: '+failed.join(', ')+' กรุณาลองโหลดใหม่');
     setIsLoading(false);
@@ -159,7 +152,7 @@ export default function App() {
     // Customers and technicians track, pay and report inside "my jobs", so those pages open there.
     const role = user?.role;
     // Customers keep a cleaning history instead of the per-unit passport.
-    const target:PageKey = (books(role)||role==='technician')&&(next==='tracking'||next==='reports'||next==='batch')?'bookings':role==='technician'&&next==='overview'?'nearbyJobs':books(role)&&next==='passport'?'history':next;
+    const target:PageKey = (books(role)||role==='technician')&&(next==='tracking'||next==='reports')?'bookings':role==='technician'&&next==='overview'?'nearbyJobs':books(role)&&next==='technicians'?'overview':next;
     setPage(target);setMobileNavOpen(false);setSearchQuery('');
   }
   function openJob(id?:number){setPage('bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
@@ -236,26 +229,6 @@ export default function App() {
     try{const bookings=await fetchBookings();setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));}
     catch(error){showNotice(errorMessage(error,'โหลดรายการจองไม่สำเร็จ'));}
   },[showNotice]);
-  async function batchCreate(payload:{building:string;address:string;unitCount:number;date:string}):Promise<boolean>{
-    try{
-      const created=await createBatchBooking({buildingName:payload.building,address:payload.address,unitCount:payload.unitCount,scheduledDate:payload.date});
-      setState(previous=>({...previous,batchBookings:[created,...previous.batchBookings]}));showNotice('บันทึกคำของานหลายเครื่องแล้ว');return true;
-    }catch(error){showNotice(errorMessage(error,'สร้างคำของานไม่สำเร็จ กรุณาลองใหม่'));return false;}
-  }
-  async function addUnit(payload:AirConditionerPayload){
-    try{
-      const created=await createAirConditioner(payload);
-      setState(previous=>{const airConditioners=[...previous.airConditioners,created];return {...previous,airConditioners,summary:summarize(airConditioners,previous.bookings)};});
-      showNotice('เพิ่มเครื่องในสมุดประวัติแล้ว');return created;
-    }catch(error){showNotice(errorMessage(error,'เพิ่มเครื่องไม่สำเร็จ กรุณาลองใหม่'));return null;}
-  }
-  async function removeUnit(id:number):Promise<boolean>{
-    try{
-      await deleteAirConditioner(id);
-      setState(previous=>{const airConditioners=previous.airConditioners.filter(item=>item.id!==id);return {...previous,airConditioners,summary:summarize(airConditioners,previous.bookings)};});
-      showNotice('ลบเครื่องออกจากสมุดประวัติแล้ว');return true;
-    }catch(error){showNotice(errorMessage(error,'ลบเครื่องไม่สำเร็จ'));return false;}
-  }
   async function reviewJob(bookingId:number,rating:number,comment:string):Promise<boolean>{
     try{
       await createReview(bookingId,rating,comment);
@@ -303,7 +276,7 @@ export default function App() {
     switch(page){
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):openBooking()}/>;
       case 'technicians':if(user.role==='admin')return <AdminTechniciansPage onNotice={showNotice} onChanged={()=>void refreshData()}/>;
-        return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
+        return null;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')} onOpenMembership={()=>navigate('membership')} myJobs={state.bookings}/>;
       case 'membership':return user.role==='technician'||user.role==='admin'?<MembershipPage admin={user.role==='admin'} onNotice={showNotice}/>:null;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onRefresh={refreshBookings}/>;
@@ -312,8 +285,6 @@ export default function App() {
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
       case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={(placeId,rooms)=>openBooking(undefined,placeId,rooms)} onOpenJob={openJob} onNotice={showNotice}/>:null;
       case 'history':return books(user.role)?<CleaningHistoryPage bookings={state.bookings} reports={state.serviceReports} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>:null;
-      case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
-      case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
       case 'issues':return user.role==='admin'?<IssuesPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;

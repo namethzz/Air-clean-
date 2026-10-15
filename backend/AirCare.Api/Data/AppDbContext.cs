@@ -9,7 +9,6 @@ public class MongoStore {
  public IMongoCollection<TechnicianProfile> Technicians {get;}
  public IMongoCollection<AirConditioner> AirConditioners {get;}
  public IMongoCollection<Booking> Bookings {get;}
- public IMongoCollection<BatchBooking> BatchBookings {get;}
  public IMongoCollection<ServiceReport> ServiceReports {get;}
  public IMongoCollection<Review> Reviews {get;}
  public IMongoCollection<SavedAddressRecord> SavedAddresses {get;}
@@ -31,7 +30,6 @@ public class MongoStore {
   Technicians=_database.GetCollection<TechnicianProfile>("technicians");
   AirConditioners=_database.GetCollection<AirConditioner>("airConditioners");
   Bookings=_database.GetCollection<Booking>("bookings");
-  BatchBookings=_database.GetCollection<BatchBooking>("batchBookings");
   ServiceReports=_database.GetCollection<ServiceReport>("serviceReports");
   Reviews=_database.GetCollection<Review>("reviews");
   SavedAddresses=_database.GetCollection<SavedAddressRecord>("savedAddresses");
@@ -109,7 +107,6 @@ public class MongoStore {
   await Bookings.InsertManyAsync(new[]{
    new Booking{Id=1,Code="AC-26018",CustomerId=1,CustomerName="นที วัฒนกุล",TechnicianId=1,TechnicianName="ธนกร ใจดี",TechnicianInitials="ธน",AirConditionerId=1,Service="ล้างแอร์มาตรฐาน",UnitLabel="ห้องนอน · Daikin 12,000 BTU",Address="ลาดพร้าว 71, กรุงเทพฯ",ScheduledAt=new DateTime(2026,10,15,10,30,0),Price=550,Status=BookingStates.Confirmed,CreatedAt=new DateTime(2026,10,11),UpdatedAt=new DateTime(2026,10,11),Events=[new BookingEvent{ChangedByUserId=1,ToStatus=BookingStates.Confirmed,Notes="ตัวอย่างข้อมูลตั้งต้น",CreatedAt=new DateTime(2026,10,11)}]},
    new Booking{Id=2,Code="AC-26021",CustomerId=1,CustomerName="นที วัฒนกุล",TechnicianId=2,TechnicianName="ปกรณ์ มั่นคง",TechnicianInitials="ปก",AirConditionerId=2,Service="ล้างแอร์ + ตรวจเช็ก",UnitLabel="ห้องนั่งเล่น · Daikin 18,000 BTU",Address="ลาดพร้าว 71, กรุงเทพฯ",ScheduledAt=new DateTime(2026,10,18,13,0,0),Price=800,Status=BookingStates.Pending,CreatedAt=new DateTime(2026,10,12),UpdatedAt=new DateTime(2026,10,12)}});
-  await BatchBookings.InsertOneAsync(new BatchBooking{Id=1,Code="BT-0031",ManagerId=3,BuildingName="The Green Residence",Address="ลาดพร้าว 101, กรุงเทพฯ",UnitCount=20,CompletedUnits=12,ScheduledDate=new DateTime(2026,10,20),Status="Confirmed",Quote=9800});
-  await _counters.InsertManyAsync(new[]{new SequenceCounter{Id="users",Value=6},new SequenceCounter{Id="technicians",Value=3},new SequenceCounter{Id="airConditioners",Value=2},new SequenceCounter{Id="bookings",Value=2},new SequenceCounter{Id="batchBookings",Value=1},new SequenceCounter{Id="serviceReports",Value=0},new SequenceCounter{Id="reviews",Value=0}});
+  await _counters.InsertManyAsync(new[]{new SequenceCounter{Id="users",Value=6},new SequenceCounter{Id="technicians",Value=3},new SequenceCounter{Id="airConditioners",Value=2},new SequenceCounter{Id="bookings",Value=2},new SequenceCounter{Id="serviceReports",Value=0},new SequenceCounter{Id="reviews",Value=0}});
  }
 }

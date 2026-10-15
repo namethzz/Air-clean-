@@ -24,8 +24,6 @@ public record TechnicianLocationRequest([Range(-90,90)] double Latitude,[Range(-
 public record TravelStatusRequest([Required] string Status);
 public record OnsitePaymentRequest([Required] string Method,[Required] bool Confirmed);
 public record PaymentIssueRequest([Required,MaxLength(1000)] string Reason);
-public record BatchBookingDto(int Id,string Code,string Building,string Address,int UnitCount,int CompletedUnits,string ScheduledDate,string Status,decimal Quote);
-public record CreateBatchBookingRequest([Required,MaxLength(160)] string BuildingName,[Required,MaxLength(300)] string Address,[Range(1,500)] int UnitCount,[Required] DateTime ScheduledDate,[MaxLength(1000)] string? Notes);
 public record CreateServiceReportRequest([Range(1,int.MaxValue)] int BookingId,[Required,MaxLength(2000)] string Summary,bool CleanedFilter,bool CleanedCoil,bool CheckedDrain,bool CheckedCooling,[MaxLength(500)] string? BeforePhotoUrl,[MaxLength(500)] string? AfterPhotoUrl);
 public record CreateReviewRequest([Range(1,5)] int Rating,[MaxLength(1000)] string Comment);
 public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Title,[Required,MaxLength(200)] string Area,[Range(1,100000)] decimal BasePrice,[Required,MaxLength(120)] string AvailableText,[Required,MaxLength(500)] string Skills,[MaxLength(30)] string? Phone=null,[Range(0,60)] int? ExperienceYears=null);

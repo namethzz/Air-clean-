@@ -1,4 +1,4 @@
-import { BadgeCheck, Wallet, AirVent, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
+import { AirVent, BadgeCheck, Wallet, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -25,12 +25,10 @@ const technicianItems:Item[]=[
 ];
 const navItems:Item[]=[
   {key:'overview',label:'ภาพรวม',icon:LayoutDashboard},
-  {key:'technicians',label:'ค้นหาช่าง',icon:Search,roles:['manager','admin']},
+  {key:'technicians',label:'ช่างทั้งหมด',icon:Search,roles:['admin']},
   {key:'nearbyJobs',label:'งานใกล้ฉัน',icon:MapPin,roles:['technician']},
   {key:'bookings',label:'รายการจอง',icon:CalendarDays},
   {key:'tracking',label:'ติดตามงาน',icon:MapPinned},
-  {key:'passport',label:'ประวัติแอร์',icon:AirVent,roles:['manager','admin']},
-  {key:'batch',label:'งานหลายเครื่อง',icon:Users,roles:['admin']},
   {key:'reports',label:'รายงานบริการ',icon:ClipboardCheck},
   {key:'approvals',label:'ตรวจสอบช่าง',icon:ShieldCheck,roles:['admin']},
   {key:'issues',label:'เรื่องที่ถูกแจ้ง',icon:MessageSquareWarning,roles:['admin']},
