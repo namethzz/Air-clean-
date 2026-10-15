@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
+import { CheckCircle2, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
 import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
 import { updateMyProfile } from '../lib/api';
@@ -7,11 +7,13 @@ import { updateMyProfile } from '../lib/api';
 interface Props {
   user: UserProfile;
   onUpdated: (user: UserProfile) => void;
+  /** Shown on phones, where the sidebar with its sign-out button is hidden. */
+  onLogout?: () => void;
 }
 const roleLabels: Record<UserRole,string> = {
   customer: 'ลูกค้า', technician: 'ช่างแอร์', manager: 'ผู้ดูแลอาคาร', admin: 'ผู้ดูแลระบบ',
 };
-export default function ProfilePage({ user, onUpdated }: Props) {
+export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
   const [fullName,setFullName] = useState(user.fullName);
   const [email,setEmail] = useState(user.email);
   const [saving,setSaving] = useState(false);
@@ -55,5 +57,6 @@ export default function ProfilePage({ user, onUpdated }: Props) {
       </section>
     </div>
     {user.role === 'technician' && <TechnicianProfileSettings/>}
+    {onLogout && <button type="button" className="outline-button profile-logout-mobile" onClick={onLogout}><LogOut size={17}/> ออกจากระบบ</button>}
   </div>;
 }

@@ -56,8 +56,8 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
       </div>
       {submitted ? <div className="success-state">
         <div className="success-icon"><Check size={26}/></div><h3>ส่งคำขอแล้ว</h3>
-        <p>เมื่อช่างใกล้เคียงสนใจรับงาน รายชื่อและราคาที่เสนอจะแสดงในหน้า “รายการจอง” ให้คุณตรวจสอบก่อนยืนยัน</p>
-        <button className="primary-button" onClick={onClose}>ดูรายการจอง <ArrowRight size={16}/></button>
+        <p>เมื่อช่างใกล้เคียงเสนอราคา ข้อเสนอจะแสดงในหน้า “งานของฉัน” ให้คุณเปรียบเทียบก่อนเลือกช่าง</p>
+        <button className="primary-button" onClick={onClose}>ดูงานของฉัน <ArrowRight size={16}/></button>
       </div> : <form onSubmit={submit} className="booking-form">
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
         <LocationPicker value={place} onChange={setPlace}/>

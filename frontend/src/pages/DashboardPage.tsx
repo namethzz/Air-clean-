@@ -5,7 +5,7 @@ import MetricCard from '../components/MetricCard';
 import CustomerHome from './CustomerHome';
 import StatusBadge from '../components/StatusBadge';
 import type { AppState, PageKey, UserRole } from '../types';
-interface Props { state: AppState; role: UserRole; userName: string; onNavigate: (page: PageKey) => void; onNewBooking: () => void; }
+interface Props { state: AppState; role: UserRole; userName: string; onNavigate: (page: PageKey) => void; onOpenJob: (id?: number) => void; onNewBooking: () => void; }
 function formatDate(value: string) { return new Date(value + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }); }
 type Target = PageKey | 'newBooking';
 const heroCopy: Record<UserRole, { heading: (name: string) => string; description: string; primary: string; primaryTo: Target; secondary: string; secondaryTo: PageKey }> = {
@@ -20,8 +20,8 @@ const sideCopy: Record<UserRole, { title: string; sub: string; note: string; cta
   manager: { title: 'ดูแลทั้งอาคารอย่างเป็นระบบ', sub: 'งานหลายเครื่องและรายงานบริการ', note: 'รวมแอร์หลายห้องเป็นคำขอเดียว ดูความคืบหน้าของแต่ละงาน และตรวจรายงานบริการจากช่างก่อนปิดงาน', cta: 'ดูงานหลายเครื่อง', to: 'batch' },
   admin: { title: 'ตรวจสอบภาพรวมระบบ', sub: 'รายการที่ต้องมีผู้ดูแลตรวจสอบ', note: 'ดูรายการจองและรายงานบริการ รวมถึงรายการที่ถูกแจ้งปัญหาการชำระเงินเพื่อให้ผู้ดูแลตรวจสอบ', cta: 'ดูรายการจอง', to: 'bookings' },
 };
-export default function DashboardPage({ state, role, userName, onNavigate, onNewBooking }: Props) {
-  if (role === 'customer') return <CustomerHome bookings={state.bookings} reports={state.serviceReports} userName={userName} onNavigate={onNavigate} onNewBooking={onNewBooking}/>;
+export default function DashboardPage({ state, role, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
+  if (role === 'customer') return <CustomerHome bookings={state.bookings} reports={state.serviceReports} userName={userName} onNavigate={onNavigate} onOpenJob={onOpenJob} onNewBooking={onNewBooking}/>;
   const technician = role === 'technician';
   const active = state.bookings.filter(b => !['เสร็จสิ้น', 'ยกเลิก'].includes(b.status));
   const completed = state.bookings.filter(b => b.status === 'เสร็จสิ้น');
