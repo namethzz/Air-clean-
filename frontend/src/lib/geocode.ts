@@ -1,7 +1,11 @@
 /**
- * Place search and "what address is at this pin" from OpenStreetMap's Nominatim, in Thai, limited to Thailand.
- * Free and keyless; its usage policy allows light use (about one request a second), so callers debounce.
+ * Place search and "what address is at this pin", in Thai, limited to Thailand.
+ * Search uses Google Places (the same results as Google Maps) when VITE_GOOGLE_MAPS_API_KEY is set, and
+ * OpenStreetMap's Nominatim otherwise. The address at a pin always comes from Nominatim, which is free and
+ * keyless; its usage policy allows light use (about one request a second), so callers debounce.
  */
+import { googlePlacesEnabled, googleResolve, googleSearch } from './googlePlaces';
+export { googlePlacesEnabled };
 const BASE = 'https://nominatim.openstreetmap.org';
 
 export interface PlaceResult {
@@ -10,6 +14,13 @@ export interface PlaceResult {
   latitude: number;
   longitude: number;
   isBuilding: boolean;
+  /** Google results carry only an id until picked; resolvePlace() then fetches the location. */
+  googleId?: string;
+}
+
+/** The full result for a picked suggestion (Google's location is fetched only for the one picked). */
+export function resolvePlace(place: PlaceResult): Promise<PlaceResult> {
+  return place.googleId ? googleResolve(place) : Promise.resolve(place);
 }
 
 interface NominatimAddress { [part: string]: string | undefined }
@@ -47,6 +58,7 @@ function toResult(place: NominatimPlace): PlaceResult {
 }
 
 export async function searchPlaces(query: string, near?: { latitude: number; longitude: number }, signal?: AbortSignal): Promise<PlaceResult[]> {
+  if (googlePlacesEnabled) return googleSearch(query, near, signal);
   const params = new URLSearchParams({ q: query, countrycodes: 'th', limit: '6' });
   // Prefer results around the person (about 50 km) without excluding the rest of the country.
   if (near) params.set('viewbox', [near.longitude - 0.5, near.latitude + 0.5, near.longitude + 0.5, near.latitude - 0.5].join(','));

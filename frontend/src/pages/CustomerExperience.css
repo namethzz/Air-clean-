@@ -618,3 +618,6 @@
 .auth-role.active .auth-role-icon{background:var(--ac-blue,#2468d8);color:#fff}
 .auth-role.active::after{content:"";position:absolute;right:14px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:var(--ac-blue,#2468d8) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/14px no-repeat}
 .auth-roles .auth-role-lock-note{margin-top:2px}
+/* One focus ring on the search box (the box itself), not a second one on the input inside it. */
+.lp-search input:focus,.lp-search input:focus-visible,.at-search input:focus-visible{outline:none!important;box-shadow:none!important}
+.lp-attribution{padding:6px 10px 2px;text-align:right;font-size:11.5px;color:var(--ac-ink-3,#5d7089)}
