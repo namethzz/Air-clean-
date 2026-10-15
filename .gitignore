@@ -3,7 +3,7 @@ frontend/dist/
 frontend/.env.local
 **/bin/
 **/obj/
-backend/AirCare.Api/aircare.db
+backend/AirClean.Api/aircare.db
 .vscode/
 .idea/
 __pycache__/

@@ -1,4 +1,4 @@
-name: Build AirCare Connect
+name: Build AirClean
 
 on:
   push:
@@ -20,11 +20,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Restore
-        working-directory: backend/AirCare.Api
+        working-directory: backend/AirClean.Api
         run: dotnet restore
       - name: Build
-        working-directory: backend/AirCare.Api
+        working-directory: backend/AirClean.Api
         run: dotnet build --no-restore --configuration Release
+      - name: Unit tests
+        working-directory: backend
+        run: dotnet test AirClean.Api.Tests --configuration Release
       - name: Test marketplace against disposable database
         env:
           MONGODB_URI: mongodb://localhost:27017
@@ -52,7 +55,7 @@ jobs:
           SLIP2GO_API_SECRET: ci-slip2go-secret
           TEST_SLIP2GO_PORT: 5097
         run: |
-          dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
+          dotnet backend/AirClean.Api/bin/Release/net8.0/AirClean.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!
           trap 'kill "$api_pid" 2>/dev/null || true' EXIT
           python3 -m pip install --quiet cryptography pymongo
@@ -72,6 +75,9 @@ jobs:
       - name: Install
         working-directory: frontend
         run: npm ci
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build
