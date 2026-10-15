@@ -1,4 +1,4 @@
-import { AirVent, ChevronRight } from 'lucide-react';
+import { ChevronRight, History } from 'lucide-react';
 import HeroFinancial from '../components/ui/hero-financial';
 import StatusBadge from '../components/StatusBadge';
 import { formatThaiDate, openBookings, pickNextStep } from '../lib/nextStep';
@@ -32,6 +32,7 @@ const firstSteps = [
 export default function CustomerHome({ bookings, reports, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
   const step = pickNextStep(bookings, reports);
   const others = openBookings(bookings).filter(item => item.id !== step.bookingId).slice(0, 5);
+  const doneCount = bookings.filter(item => item.status === 'เสร็จสิ้น').length;
   const go = () => (step.to === 'newBooking' ? onNewBooking() : onOpenJob(step.bookingId));
 
   return <div className="ac-home">
@@ -57,9 +58,9 @@ export default function CustomerHome({ bookings, reports, userName, onNavigate, 
 
     {bookings.length > 0 && others.length === 0 && <button type="button" className="text-button ac-home-all" onClick={() => onOpenJob()}>ดูงานทั้งหมด <ChevronRight size={16}/></button>}
 
-    <button type="button" className="ac-home-passport" onClick={() => onNavigate('passport')}>
-      <span className="ac-home-passport-icon"><AirVent size={20}/></span>
-      <span><strong>แอร์ของฉัน</strong><small>เก็บประวัติการล้างและรอบดูแลของแอร์แต่ละเครื่อง ไม่บังคับ</small></span>
+    <button type="button" className="ac-home-passport" onClick={() => onNavigate('history')}>
+      <span className="ac-home-passport-icon"><History size={20}/></span>
+      <span><strong>ประวัติการล้างแอร์</strong><small>{doneCount ? `ล้างไปแล้ว ${doneCount} ครั้ง · ดูวันที่ ช่าง และรอบล้างครั้งถัดไป` : 'งานที่ล้างเสร็จจะถูกเก็บไว้ที่นี่ให้อัตโนมัติ'}</small></span>
       <ChevronRight size={18} aria-hidden="true"/>
     </button>
   </div>;

@@ -1,4 +1,4 @@
-import { AirVent, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
+import { AirVent, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -7,7 +7,7 @@ const names:Record<UserRole,string>={customer:'ลูกค้า',technician:'�
 const customerItems:Item[]=[
   {key:'overview',label:'หน้าแรก',icon:Home},
   {key:'bookings',label:'งานของฉัน',icon:ClipboardList},
-  {key:'passport',label:'แอร์ของฉัน',icon:AirVent},
+  {key:'history',label:'ประวัติการล้าง',icon:History},
 ];
 /** Technicians get three destinations. Confirmed jobs, travel, report and payment all live inside "งานของฉัน". */
 const technicianItems:Item[]=[
