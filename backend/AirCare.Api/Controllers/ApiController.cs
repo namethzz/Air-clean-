@@ -638,6 +638,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var oldStatus = booking.Status;
         booking.Status = target;
         booking.UpdatedAt = DateTime.UtcNow;
+        // An admin moving a disputed job on by hand settles the dispute too, so it does not stay listed as open.
+        if (booking.Issue is { IsOpen: true, Kind: IssueKinds.Payment } && target != BookingStates.PaymentIssue) {
+            booking.Issue.Resolution = target switch { BookingStates.Completed => IssueResolutions.Paid, BookingStates.Cancelled => IssueResolutions.Cancelled, _ => IssueResolutions.Closed };
+            booking.Issue.ResolutionNote = "เปลี่ยนสถานะงานเป็น " + DtoMapper.DisplayStatus(target);
+            booking.Issue.ResolvedByUserId = CurrentUserId;
+            booking.Issue.ResolvedAt = DateTime.UtcNow;
+        }
         if (target == BookingStates.Arrived) booking.TravelStatus = "Arrived";
         if (target == BookingStates.Traveling) booking.TravelStatus = "EnRoute";
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = target, Notes = request.Notes, CreatedAt = DateTime.UtcNow });
@@ -742,6 +749,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             booking.TravelStatus = "Completed";
             var existingReportService = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
             await RecordPassportServiceAsync(booking, existingReportService?.Summary ?? "ยืนยันงานเสร็จและรับชำระเงินหน้างานแล้ว");
+            if (booking.Issue is { IsOpen: true, Kind: IssueKinds.Payment }) {
+                booking.Issue.Resolution = IssueResolutions.Paid;
+                booking.Issue.ResolutionNote = "ลูกค้าและช่างยืนยันการชำระเงินแล้ว";
+                booking.Issue.ResolvedByUserId = CurrentUserId;
+                booking.Issue.ResolvedAt = DateTime.UtcNow;
+            }
         }
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent {
@@ -813,10 +826,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (booking is null) return NotFound(new { message = "ไม่พบงานของคุณ" });
         if (booking.Status != BookingStates.Completed) return Conflict(new { message = "แจ้งปัญหาได้หลังงานเสร็จแล้ว" });
         if (booking.UpdatedAt < DateTime.UtcNow.AddDays(-14)) return Conflict(new { message = "แจ้งปัญหาได้ภายใน 14 วันหลังงานเสร็จ" });
+        if (booking.Issue is { IsOpen: true }) return Conflict(new { message = "ส่งเรื่องนี้ให้ผู้ดูแลแล้ว รอผู้ดูแลติดต่อกลับ" });
         var reason = request.Reason.Trim();
-        await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update.Push(x => x.Events,
+        var issue = new BookingIssue { Kind = IssueKinds.Service, Reason = reason, ReportedByUserId = CurrentUserId, ReportedByRole = CurrentRole, ReportedAt = DateTime.UtcNow };
+        var write = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.UpdatedAt == booking.UpdatedAt, Builders<Booking>.Update.Set(x => x.Issue, issue).Push(x => x.Events,
             new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status, Notes = "ลูกค้าแจ้งปัญหา: " + reason, CreatedAt = DateTime.UtcNow }));
-        notify.ToAdmins($"ลูกค้าแจ้งปัญหางาน {booking.Code}", $"{booking.CustomerName} แจ้งปัญหางานของ {booking.TechnicianName}: {reason}", NotificationLink.Job(booking.Id));
+        if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        notify.ToAdmins($"ลูกค้าแจ้งปัญหางาน {booking.Code}", $"{booking.CustomerName} แจ้งปัญหางานของ {booking.TechnicianName}: {reason}", NotificationLink.Issues);
         return NoContent();
     }
 
@@ -835,6 +851,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var previous = booking.Status;
         booking.Status = BookingStates.PaymentIssue;
         booking.PaymentStatus = "Issue";
+        booking.Issue = new BookingIssue { Kind = IssueKinds.Payment, Reason = request.Reason.Trim(), ReportedByUserId = CurrentUserId, ReportedByRole = CurrentRole, ReportedAt = DateTime.UtcNow };
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = request.Reason.Trim(), CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
@@ -842,8 +859,116 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var issueText = $"มีการแจ้งปัญหาการชำระเงินของงาน {booking.Code}: {request.Reason.Trim()}\nผู้ดูแลระบบจะติดต่อเพื่อช่วยตรวจสอบ";
         if (CurrentRole == AppRoles.Customer) notify.ToTechnician(booking.TechnicianId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
         else notify.ToUser(booking.CustomerId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
-        notify.ToAdmins($"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
+        notify.ToAdmins($"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Issues);
         return Ok(DtoMapper.ToDto(booking));
+    }
+
+    /// <summary>
+    /// Reported problems for admins: jobs stuck in a payment dispute and customer reports after a job. Records from
+    /// before issues were stored are rebuilt from the job history so nothing reported earlier is missed.
+    /// </summary>
+    [Authorize(Roles = "Admin"), HttpGet("admin/issues")]
+    public async Task<IActionResult> AdminIssues([FromQuery] string? status)
+    {
+        var filter = Builders<Booking>.Filter.Or(
+            Builders<Booking>.Filter.Ne(x => x.Issue, null),
+            Builders<Booking>.Filter.Eq(x => x.Status, BookingStates.PaymentIssue),
+            Builders<Booking>.Filter.ElemMatch(x => x.Events, Builders<BookingEvent>.Filter.Regex(x => x.Notes, new MongoDB.Bson.BsonRegularExpression("^" + CustomerReportPrefix))));
+        var bookings = await store.Bookings.Find(filter).ToListAsync();
+        var wantResolved = string.Equals(status, "resolved", StringComparison.OrdinalIgnoreCase);
+        var rows = bookings.Select(x => (Booking: x, Issue: IssueOf(x))).Where(x => x.Issue is not null && x.Issue.IsOpen != wantResolved).ToList();
+
+        var technicians = (await store.Technicians.Find(Builders<TechnicianProfile>.Filter.In(x => x.Id, rows.Select(x => x.Booking.TechnicianId).Distinct())).ToListAsync()).ToDictionary(x => x.Id);
+        var userIds = rows.Select(x => x.Booking.CustomerId).Concat(technicians.Values.Select(x => x.UserId)).Distinct().ToList();
+        var users = (await store.Users.Find(Builders<AppUser>.Filter.In(x => x.Id, userIds)).ToListAsync()).ToDictionary(x => x.Id);
+        var ordered = wantResolved ? rows.OrderByDescending(x => x.Issue!.ResolvedAt) : rows.OrderBy(x => x.Issue!.ReportedAt);
+        return Ok(ordered.Take(wantResolved ? 50 : 500).Select(x => {
+            var booking = x.Booking;
+            var tech = technicians.GetValueOrDefault(booking.TechnicianId);
+            var techUser = tech is null ? null : users.GetValueOrDefault(tech.UserId);
+            return new AdminIssueDto(booking.Id, booking.Code, DtoMapper.DisplayStatus(booking.Status), booking.Service, booking.UnitCount, booking.Price,
+                booking.ScheduledAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture), booking.Address, booking.PaymentMethod, DtoMapper.ToDto(x.Issue)!,
+                new IssuePartyDto(booking.CustomerName, users.GetValueOrDefault(booking.CustomerId)?.Email, null),
+                new IssuePartyDto(booking.TechnicianName, techUser?.Email, string.IsNullOrWhiteSpace(tech?.Phone) ? null : tech.Phone),
+                booking.Events.OrderByDescending(e => e.CreatedAt).Take(8).Select(e => new IssueEventDto(e.CreatedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture), DtoMapper.DisplayStatus(e.ToStatus), e.Notes)).ToList());
+        }).ToList());
+    }
+
+    /// <summary>
+    /// Closes a reported problem after the admin talked to both sides. A payment issue ends as paid (the job is
+    /// completed and recorded) or cancelled; a problem after the job is closed with a note on what was done.
+    /// </summary>
+    [Authorize(Roles = "Admin"), HttpPost("admin/issues/{id:int}/resolve")]
+    public async Task<IActionResult> ResolveIssue(int id, ResolveIssueRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound(new { message = "ไม่พบงานนี้" });
+        var issue = IssueOf(booking);
+        if (issue is null || !issue.IsOpen) return Conflict(new { message = "เรื่องนี้ปิดไปแล้ว" });
+        var action = request.Action.Trim().ToLowerInvariant();
+        var note = request.Note?.Trim();
+        var allowed = issue.Kind == IssueKinds.Payment ? action is "paid" or "cancel" : action == "close";
+        if (!allowed) return BadRequest(new { message = issue.Kind == IssueKinds.Payment ? "ปัญหาการชำระเงินปิดได้ด้วย “ชำระแล้ว” หรือ “ยกเลิกงาน”" : "ปัญหาหลังงานเสร็จปิดได้ด้วย “ปิดเรื่อง” เท่านั้น" });
+        if (action != "paid" && string.IsNullOrWhiteSpace(note)) return BadRequest(new { message = "กรุณาบันทึกว่าตกลงหรือแก้ไขอย่างไร" });
+        var method = request.Method?.Trim() is { Length: > 0 } chosen ? chosen : booking.PaymentMethod ?? "Cash";
+        if (action == "paid" && method is not ("Cash" or "PromptPay")) return BadRequest(new { message = "เลือกเงินสดหรือโอนเท่านั้น" });
+        if (issue.Kind == IssueKinds.Payment && booking.Status != BookingStates.PaymentIssue) return Conflict(new { message = "สถานะงานเปลี่ยนไปแล้ว กรุณาโหลดใหม่" });
+
+        var version = booking.UpdatedAt;
+        var previous = booking.Status;
+        issue.Resolution = action switch { "paid" => IssueResolutions.Paid, "cancel" => IssueResolutions.Cancelled, _ => IssueResolutions.Closed };
+        issue.ResolutionNote = string.IsNullOrWhiteSpace(note) ? null : note;
+        issue.ResolvedByUserId = CurrentUserId;
+        issue.ResolvedAt = DateTime.UtcNow;
+        booking.Issue = issue;
+        if (action == "paid") {
+            booking.Status = BookingStates.Completed;
+            booking.TravelStatus = "Completed";
+            booking.PaymentMethod = method;
+            booking.PaymentStatus = "Paid";
+        } else if (action == "cancel") {
+            booking.Status = BookingStates.Cancelled;
+            booking.PaymentStatus = "Unpaid";
+        }
+        booking.UpdatedAt = DateTime.UtcNow;
+        var summary = action switch { "paid" => "ผู้ดูแลยืนยันว่าชำระเงินแล้ว", "cancel" => "ผู้ดูแลยกเลิกงานหลังตรวจสอบปัญหา", _ => "ผู้ดูแลปิดเรื่องที่ลูกค้าแจ้ง" };
+        booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status,
+            Notes = note is { Length: > 0 } ? $"{summary}: {note}" : summary, CreatedAt = DateTime.UtcNow });
+        var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
+        if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+
+        if (action == "paid") {
+            var report = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
+            await RecordPassportServiceAsync(booking, report?.Summary ?? "ล้างแอร์เรียบร้อย ผู้ดูแลยืนยันการชำระเงิน");
+            await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
+        }
+        var job = $"{booking.Service} {booking.UnitCount} เครื่อง ({booking.Code})";
+        var detail = note is { Length: > 0 } ? $"\nหมายเหตุจากผู้ดูแล: {note}" : "";
+        var (title, customerText, technicianText) = action switch {
+            "paid" => ($"ผู้ดูแลปิดเรื่องการชำระเงิน {booking.Code}", $"ผู้ดูแลยืนยันว่างาน{job}ชำระเงินแล้ว งานเสร็จสมบูรณ์ ให้คะแนนช่างได้ที่ “งานของฉัน”{detail}", $"ผู้ดูแลยืนยันว่างาน{job}ชำระเงิน ฿{booking.Price:N0} แล้ว งานปิดเรียบร้อย{detail}"),
+            "cancel" => ($"ผู้ดูแลยกเลิกงาน {booking.Code}", $"หลังตรวจสอบปัญหา ผู้ดูแลยกเลิกงาน{job}{detail}", $"หลังตรวจสอบปัญหา ผู้ดูแลยกเลิกงาน{job}{detail}"),
+            _ => ($"ผู้ดูแลปิดเรื่องที่แจ้งแล้ว {booking.Code}", $"ผู้ดูแลดำเนินการเรื่องที่คุณแจ้งเกี่ยวกับงาน{job}แล้ว{detail}", $"ผู้ดูแลปิดเรื่องที่ลูกค้าแจ้งเกี่ยวกับงาน{job}แล้ว{detail}")
+        };
+        notify.ToUser(booking.CustomerId, title, customerText, NotificationLink.Job(booking.Id));
+        if (booking.TechnicianId > 0) notify.ToTechnician(booking.TechnicianId, title, technicianText, NotificationLink.Job(booking.Id));
+        return Ok(DtoMapper.ToDto(booking));
+    }
+
+    private const string CustomerReportPrefix = "ลูกค้าแจ้งปัญหา: ";
+
+    /// <summary>The stored issue, or one rebuilt from history for jobs reported before issues were stored.</summary>
+    private static BookingIssue? IssueOf(Booking booking)
+    {
+        if (booking.Issue is not null) return booking.Issue;
+        if (booking.Status == BookingStates.PaymentIssue) {
+            var reported = booking.Events.LastOrDefault(x => x.ToStatus == BookingStates.PaymentIssue);
+            return new BookingIssue { Kind = IssueKinds.Payment, Reason = reported?.Notes ?? "", ReportedByUserId = reported?.ChangedByUserId ?? 0,
+                ReportedByRole = reported?.ChangedByUserId == booking.CustomerId ? AppRoles.Customer : AppRoles.Technician, ReportedAt = reported?.CreatedAt ?? booking.UpdatedAt };
+        }
+        var report = booking.Events.LastOrDefault(x => x.Notes?.StartsWith(CustomerReportPrefix, StringComparison.Ordinal) == true);
+        if (report is null || booking.Status != BookingStates.Completed) return null;
+        return new BookingIssue { Kind = IssueKinds.Service, Reason = report.Notes![CustomerReportPrefix.Length..], ReportedByUserId = report.ChangedByUserId,
+            ReportedByRole = AppRoles.Customer, ReportedAt = report.CreatedAt };
     }
 
     [Authorize(Roles = "Manager,Admin,Customer"), HttpGet("batch-bookings")]

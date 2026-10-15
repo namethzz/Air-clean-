@@ -277,7 +277,9 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
       <button type="button" className="cj-primary" onClick={onNewBooking}><RotateCcw size={16}/> ขอช่างล้างแอร์อีกครั้ง</button>
       <button type="button" className="cj-ghost" onClick={onOpenPassport}><AirVent size={16}/> {booking.airConditionerId ? 'ดูประวัติในแอร์ของฉัน' : 'บันทึกแอร์ไว้ในแอร์ของฉัน'}</button>
     </div>
-    {sent
+    {booking.issue?.kind === 'Service' && !booking.issue.open && booking.issue.resolutionNote && !sent &&
+      <p className="cj-done"><CheckCircle2 size={18}/> ผู้ดูแลปิดเรื่องที่คุณแจ้งแล้ว: {booking.issue.resolutionNote}</p>}
+    {sent || (booking.issue?.kind === 'Service' && booking.issue.open)
       ? <p className="cj-done"><CheckCircle2 size={18}/> ส่งเรื่องให้ผู้ดูแลแล้ว จะติดต่อกลับเร็วที่สุด</p>
       : reporting
         ? <div className="cj-confirm">

@@ -249,3 +249,18 @@
 .push-state.on{border-color:#b9ded9;background:#effaf8;color:#0f6f69}
 .push-note svg,.push-state svg{flex:none;margin-top:2px}
 .push-actions{display:flex;flex-wrap:wrap;gap:8px}
+/* Reported issues (admin) */
+.issue-card .approval-state{display:inline-flex;align-items:center;gap:4px}
+.issue-reason{display:flex;flex-direction:column;gap:4px;margin:0;padding:10px 12px;border-left:3px solid #d98a1c;border-radius:0 10px 10px 0;background:#fff8ec;color:#13253b;font-size:15px;overflow-wrap:anywhere}
+.issue-reason span{color:#7a5410;font-size:13px}
+.issue-card dd strong{display:block}
+.issue-contact{display:inline-flex;align-items:center;gap:5px;min-height:32px;margin-right:12px;color:#1a4fb0;font-weight:600;text-decoration:none}
+.issue-contact:hover{text-decoration:underline}
+.issue-history summary{min-height:36px;display:flex;align-items:center;color:#445870;font-size:14px;font-weight:600;cursor:pointer}
+.issue-history ol{display:flex;flex-direction:column;gap:8px;margin:6px 0 0;padding:0;list-style:none}
+.issue-history li{display:flex;gap:8px;font-size:14px;color:#13253b}
+.issue-history li svg{flex:none;margin-top:3px;color:#5d7089}
+.issue-history small{display:block;color:#5d7089;font-size:12px}
+.issue-result{display:flex;gap:8px;margin:0;padding:10px 12px;border-radius:10px;background:#effaf8;color:#0f4f4a;font-size:14px}
+.issue-result svg{flex:none;margin-top:2px}
+.issue-card select{min-height:44px;padding:0 10px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;font:inherit;font-size:15px}

@@ -55,6 +55,17 @@ public class Booking {
  public bool CustomerConfirmedPayment {get;set;} public bool TechnicianConfirmedPayment {get;set;}
  public int? CustomerRating {get;set;}
  public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[]; public List<BookingApplicant> Applicants {get;set;}=[];
+ /// <summary>The latest problem someone reported on this job, kept until an admin closes it.</summary>
+ public BookingIssue? Issue {get;set;}
+}
+public static class IssueKinds { public const string Payment="Payment"; public const string Service="Service"; }
+public static class IssueResolutions { public const string Paid="Paid"; public const string Cancelled="Cancelled"; public const string Closed="Closed"; }
+/// <summary>A reported problem: payment (job stuck before payment) or service (after the job was completed).</summary>
+public class BookingIssue {
+ public string Kind {get;set;}=IssueKinds.Payment; public string Reason {get;set;}=""; public int ReportedByUserId {get;set;} public string ReportedByRole {get;set;}=""; public DateTime ReportedAt {get;set;}=DateTime.UtcNow;
+ /// <summary>Paid, Cancelled or Closed once an admin resolved it; null while open.</summary>
+ public string? Resolution {get;set;} public string? ResolutionNote {get;set;} public int? ResolvedByUserId {get;set;} public DateTime? ResolvedAt {get;set;}
+ public bool IsOpen => Resolution is null;
 }
 [BsonIgnoreExtraElements]
 public class BatchBooking {

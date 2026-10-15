@@ -8,6 +8,7 @@ public record NotificationLink(string Target, int? BookingId = null)
 {
     public static NotificationLink Job(int bookingId) => new("bookings", bookingId);
     public static readonly NotificationLink Approvals = new("approvals");
+    public static readonly NotificationLink Issues = new("issues");
     public static readonly NotificationLink NearbyJobs = new("nearbyJobs");
     public static readonly NotificationLink Profile = new("profile");
 }
