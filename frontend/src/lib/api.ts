@@ -7,7 +7,7 @@ export interface CreateServiceReportPayload {
   bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
   checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
 }
-interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean }
+interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean; phone?: string | null }
 interface AuthResponse { token: string; expiresAt: string; user: ApiUser }
 export class ApiError extends Error {
   constructor(message: string, public status?: number, public data?: Record<string, unknown>) { super(message); this.name = 'ApiError'; }
@@ -27,7 +27,7 @@ function roleFromApi(role: string): UserRole {
   }
 }
 function fromApiUser(user: ApiUser): UserProfile {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true };
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true, phone: user.phone ?? null };
 }
 function saveToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
@@ -168,7 +168,7 @@ export async function fetchBatchBookings(): Promise<BatchBooking[]> { return req
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
-  price:number; notes?:string; timeWindow?:string; placeId?:number; rooms?:string[]; latitude?:number; longitude?:number; airConditionerId?:number;
+  price:number; notes?:string; timeWindow?:string; placeId?:number; rooms?:string[]; contactPhone?:string; latitude?:number; longitude?:number; airConditionerId?:number;
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
 }
@@ -264,4 +264,7 @@ export async function fetchReceipt(bookingId:number):Promise<Receipt> {
 }
 export async function issueReceipt(bookingId:number,payer:Billing,remember:boolean):Promise<Receipt> {
   return request<Receipt>('/bookings/'+bookingId+'/receipt',{method:'POST',body:JSON.stringify({payer,remember})});
+}
+export async function requestReschedule(bookingId:number,scheduledAt:string,timeWindow?:string,reason?:string):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/reschedule',{method:'POST',body:JSON.stringify({scheduledAt,timeWindow,reason})});
 }

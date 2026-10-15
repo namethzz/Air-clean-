@@ -427,3 +427,12 @@ span.rm-chip{cursor:default}
 .ch-receipt{position:absolute;right:44px;bottom:12px;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 10px;border:1px solid var(--ac-frame);border-radius:999px;background:#fff;color:var(--ac-blue-deep);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .tj-receipt{width:100%}
 .rc-form textarea{min-height:88px!important;height:auto;padding:12px 14px!important;line-height:1.6}
+
+/* ── Reschedule and calling ── */
+.rs-call{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--ac-blue-tint)}
+.rs-call p,.rs-note{margin:0;font-size:14.5px;line-height:1.6;color:var(--ac-ink-2)}
+.rs-call .cj-primary{text-decoration:none}
+.cj-call{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cj-call a{flex:1 1 160px;text-decoration:none}
+.cj-reschedule{width:100%;margin-top:4px}
+.tj-cancel{align-self:center;margin-top:4px}

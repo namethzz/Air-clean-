@@ -24,6 +24,8 @@ public class AppUser {
  public bool EmailNotifications {get;set;}=true;
  /// <summary>Who receipts are made out to (a company for building managers); remembered for next time.</summary>
  public BillingInfo? Billing {get;set;}
+ /// <summary>The customer's phone for technicians to call about a job; remembered from the last booking.</summary>
+ public string? Phone {get;set;}
 }
 public class BillingInfo { public string Name {get;set;}=""; public string? TaxId {get;set;} public string? Branch {get;set;} public string? Address {get;set;} }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
@@ -69,6 +71,8 @@ public class Booking {
  /// <summary>For buildings: the rooms in this job and which ones the technician has finished.</summary>
  public List<BookingRoom> Rooms {get;set;}=[];
  /// <summary>Set once, the first time the customer issues the receipt for this paid job.</summary>
+ /// <summary>Phones the two sides use to call each other once a technician is chosen.</summary>
+ public string? CustomerPhone {get;set;} public string? TechnicianPhone {get;set;}
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
 }
 public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }

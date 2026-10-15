@@ -1,6 +1,7 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, FileText, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { RescheduleSheet, canReschedule, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
@@ -22,6 +23,7 @@ interface Props {
   onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
   onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
   onProgress: (id: number, unitsDone: number, roomsDone?: string[]) => Promise<boolean>;
+  onReschedule: (id: number, scheduledAt: string, timeWindow?: string, reason?: string) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -183,8 +185,9 @@ export default function TechnicianJobsPage(props: Props) {
   </div>;
 }
 
-function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
+  const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
   const gps = useShareLocation(booking, onLocationUpdate, () => onStatusChange(booking.id, 'ถึงหน้างาน'));
   const cancelled = booking.status === 'ยกเลิก';
@@ -211,6 +214,9 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
         <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
         <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
       </div>}
+      {canReschedule(booking, 'technician') && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวันนัด</button>}
+      {['รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status) && <TechCancel onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
+      {moving && <RescheduleSheet booking={booking} side="technician" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
       {booking.status === 'รอยืนยัน' && <button type="button" className="cj-primary full" onClick={() => onStatusChange(booking.id, 'ยืนยันแล้ว')}>รับงาน <Check size={17}/></button>}
       {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ได้รับเงิน ฿{booking.price.toLocaleString()} {booking.paymentMethod === 'PromptPay' ? '(โอน)' : '(เงินสด)'}</p>}
     </section>
@@ -218,6 +224,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     {going && <section className="cj-block tj-destination">
       <h3><MapPin size={18}/> ที่ต้องไป</h3>
       <p className="tj-address">{booking.address}</p>
+      {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {booking.customerPhone}</a></div>}
       <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
       {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
         destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
@@ -305,6 +312,17 @@ function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking:
       </section>}
     <button type="button" className="cj-link tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={16}/> ดูงานทั้งหมด</button>
   </article>;
+}
+
+/** Cancelling a job the technician cannot do; asks once, after suggesting a call to the customer. */
+function TechCancel({ onConfirm }: { onConfirm: () => void }) {
+  const [asking, setAsking] = useState(false);
+  return asking
+    ? <div className="cj-confirm" role="alertdialog" aria-label="ยืนยันยกเลิกงาน">
+      <p>ยกเลิกงานนี้? ลูกค้าจะได้รับแจ้งและต้องหาช่างใหม่ ถ้าแค่ไม่สะดวกวันนี้ ลองโทรตกลงวันใหม่กับลูกค้า แล้วกด “เปลี่ยนวันนัด” แทน</p>
+      <div><button type="button" className="cj-danger" onClick={onConfirm}><XCircle size={16}/> ยกเลิกงาน</button><button type="button" className="cj-ghost" onClick={() => setAsking(false)}>ไม่ยกเลิก</button></div>
+    </div>
+    : <button type="button" className="cj-link lp-danger tj-cancel" onClick={() => setAsking(true)}><XCircle size={15}/> ยกเลิกงานนี้</button>;
 }
 
 /** Building jobs with rooms: tap each room when it is done; saved shortly after the last tap. */
