@@ -668,21 +668,76 @@ saved_settings = call('/admin/membership/settings', 'PUT', {'monthlyFee': 199, '
 assert saved_settings['promptPayId'] == '0812345678'
 assert call('/technicians/me/membership', token=tech)['monthlyFee'] == 199
 call('/technicians/me/membership/payments', 'POST', {'months': 13, 'slip': TINY_JPEG}, tech, 400)
-slip = call('/technicians/me/membership/payments', 'POST', {'months': 2, 'slip': TINY_JPEG}, tech, 201)
-assert slip['amount'] == 398 and slip['status'] == 'Pending'
-call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': TINY_JPEG}, tech, 409)
-raw(f"/membership/payments/{slip['id']}/slip", admin)
-raw(f"/membership/payments/{slip['id']}/slip", tech)
-raw(f"/membership/payments/{slip['id']}/slip", other_tech, 403)
-board = call('/admin/membership', token=admin)
-assert board['payments'][0]['id'] == slip['id'] and any(m['technicianId'] == profile['id'] for m in board['members'])
-call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': False}, admin, 400)
 before_until = datetime.fromisoformat(call('/technicians/me/membership', token=tech)['memberUntil'].replace('Z', '+00:00'))
-approved = call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin)
-covered = datetime.fromisoformat(approved['coveredUntil'].replace('Z', '+00:00'))
-assert 58 <= (covered - before_until).days <= 62
-call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin, 409)
-assert call('/technicians/me/membership', token=tech)['state'] == 'Active'
+slipok_port = os.environ.get('TEST_SLIPOK_PORT')
+if slipok_port:
+    # A stand-in for SlipOK. The slip image carries a marker saying how the bank would answer.
+    import base64, re, threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    slip_calls = []
+    class SlipOk(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers['Content-Length']))
+            slip_calls.append(body)
+            amount = float(re.search(rb'name=amount\r\n\r\n([\d.]+)', body.replace(b'"', b'')).group(1))
+            def answer(status, data):
+                raw_answer = json.dumps(data).encode()
+                self.send_response(status); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(raw_answer)
+            if self.headers.get('x-authorization') != 'ci-slipok-key' or not self.path.endswith('/ci-branch'):
+                return answer(401, {'success': False, 'code': 1002, 'message': 'bad key'})
+            for marker, code in [(b'NOTSLIP', 1007), (b'DUPLICATE', 1012), (b'WRONGAMOUNT', 1013), (b'WRONGRECEIVER', 1014)]:
+                if marker in body:
+                    return answer(400, {'success': False, 'code': code, 'message': marker.decode()})
+            if b'WAITONCE' in body and sum(b'WAITONCE' in call_body for call_body in slip_calls) == 1 or b'WAITALWAYS' in body:
+                return answer(400, {'success': False, 'code': 1010, 'message': 'wait'})
+            reference = 'SAMEREF-1' if b'SAMEREF' in body else uuid.uuid4().hex
+            answer(200, {'success': True, 'data': {'success': True, 'transRef': reference, 'amount': amount, 'transDate': '20261016', 'transTime': '10:00:00'}})
+    threading.Thread(target=ThreadingHTTPServer(('127.0.0.1', int(slipok_port)), SlipOk).serve_forever, daemon=True).start()
+    def slip_with(marker=b''):
+        return 'data:image/jpeg;base64,' + base64.b64encode(b'\xff\xd8\xff\xe0' + b'0' * 16 + marker).decode()
+    assert call('/technicians/me/membership', token=tech)['autoCheck']
+    # A real transfer of the right amount is approved at once, without an admin.
+    slip = call('/technicians/me/membership/payments', 'POST', {'months': 2, 'slip': slip_with()}, tech, 201)
+    assert slip['amount'] == 398 and slip['status'] == 'Approved' and slip['checkedBy'] == 'auto', slip
+    assert b'name=amount' in slip_calls[-1].replace(b'"', b'') and b'398' in slip_calls[-1]
+    covered = datetime.fromisoformat(slip['coveredUntil'].replace('Z', '+00:00'))
+    assert 58 <= (covered - before_until).days <= 62
+    assert call('/technicians/me/membership', token=tech)['state'] == 'Active'
+    raw(f"/membership/payments/{slip['id']}/slip", admin)
+    raw(f"/membership/payments/{slip['id']}/slip", tech)
+    raw(f"/membership/payments/{slip['id']}/slip", other_tech, 403)
+    # Fakes, reused slips and wrong amounts or receivers are turned down with the reason.
+    for marker, reason in [(b'NOTSLIP', 'ไม่ใช่สลิป'), (b'DUPLICATE', 'เคยถูกใช้'), (b'WRONGAMOUNT', 'ไม่ตรง'), (b'WRONGRECEIVER', 'บัญชีผู้รับ')]:
+        turned_down = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(marker)}, tech, 201)
+        assert turned_down['status'] == 'Rejected' and reason in turned_down['note'], turned_down
+    # One bank transaction pays once, even if the slip service did not flag it.
+    assert call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF')}, tech, 201)['status'] == 'Approved'
+    reused = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF')}, tech, 201)
+    assert reused['status'] == 'Rejected' and 'เคยใช้' in reused['note']
+    # The bank has not confirmed yet: it waits (one slip at a time), and an admin can still decide by hand.
+    waiting = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'WAITALWAYS')}, tech, 201)
+    assert waiting['status'] == 'Pending' and waiting['checkError']
+    call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with()}, tech, 409)
+    board = call('/admin/membership', token=admin)
+    assert board['autoCheck'] and board['payments'][0]['id'] == waiting['id'] and any(m['technicianId'] == profile['id'] for m in board['members'])
+    call(f"/admin/membership/payments/{waiting['id']}/review", 'POST', {'approve': False}, admin, 400)
+    assert call(f"/admin/membership/payments/{waiting['id']}/review", 'POST', {'approve': True}, admin)['checkedBy'] == 'admin'
+    call(f"/admin/membership/payments/{waiting['id']}/review", 'POST', {'approve': True}, admin, 409)
+else:
+    # Without the slip service, every slip waits for an admin.
+    slip = call('/technicians/me/membership/payments', 'POST', {'months': 2, 'slip': TINY_JPEG}, tech, 201)
+    assert slip['amount'] == 398 and slip['status'] == 'Pending'
+    call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': TINY_JPEG}, tech, 409)
+    raw(f"/membership/payments/{slip['id']}/slip", admin)
+    raw(f"/membership/payments/{slip['id']}/slip", other_tech, 403)
+    call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': False}, admin, 400)
+    approved = call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin)
+    covered = datetime.fromisoformat(approved['coveredUntil'].replace('Z', '+00:00'))
+    assert 58 <= (covered - before_until).days <= 62
+    call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin, 409)
+    assert call('/technicians/me/membership', token=tech)['state'] == 'Active'
 if os.environ.get('MONGODB_URI'):
     from pymongo import MongoClient
     db = MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')]
@@ -744,4 +799,48 @@ if os.environ.get('MONGODB_URI'):
         cron(today + 'T11:30:00')
         time.sleep(0.5)
         assert sum('ใกล้หมดอายุ' in t for t in titles(other_tech)) == 1
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, membership and reminders.')
+        # A slip the bank had not confirmed is checked again a few minutes later and approved.
+        if slipok_port:
+            later_slip = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'WAITONCE')}, tech, 201)
+            assert later_slip['status'] == 'Pending'
+            cron((datetime.now(timezone.utc) + timedelta(hours=7, minutes=10)).strftime('%Y-%m-%dT%H:%M:%S'))
+            assert next(p for p in call('/technicians/me/membership', token=tech)['history'] if p['id'] == later_slip['id'])['status'] == 'Approved'
+
+    # ── The hour to pick a technician, counted from the first offer. ──
+    t_customer = account('Customer')
+    timed = call('/bookings', 'POST', payload, t_customer, 201)
+    assert timed['offerDeadline'] is None
+    first = call(f"/bookings/{timed['id']}/applications", 'POST', {}, tech)
+    deadline = datetime.fromisoformat(call(f"/bookings/{timed['id']}", token=t_customer)['offerDeadline'].replace('Z', '+00:00'))
+    assert 55 <= (deadline - datetime.now(timezone.utc)).total_seconds() / 60 <= 61
+    call(f"/bookings/{timed['id']}/applications", 'POST', {}, other_tech)
+    assert datetime.fromisoformat(call(f"/bookings/{timed['id']}", token=t_customer)['offerDeadline'].replace('Z', '+00:00')) == deadline
+    if cron_key:
+        db.bookings.update_one({'_id': timed['id']}, {'$set': {'OfferDeadline': datetime.now(timezone.utc) + timedelta(minutes=12)}})
+        assert cron((datetime.now(timezone.utc) + timedelta(hours=7)).strftime('%Y-%m-%dT%H:%M:%S'))['offerWarnings'] >= 1
+    db.bookings.update_one({'_id': timed['id']}, {'$set': {'OfferDeadline': datetime.now(timezone.utc) - timedelta(minutes=1)}})
+    lapsed_offer = call(f"/bookings/{timed['id']}", token=t_customer)
+    assert lapsed_offer['status'] == 'หมดเวลาเลือกช่าง'
+    assert call(f"/bookings/{timed['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, t_customer, 409)['code'] == 'offers_expired'
+    assert not any(row['id'] == timed['id'] for row in call('/bookings', token=tech))
+    call(f"/bookings/{timed['id']}/applications", 'POST', {}, tech, 409)
+    for _ in range(40):
+        if any('ลูกค้าไม่ได้เลือกช่าง' in i['title'] for i in call('/notifications', token=tech)['items']):
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError('technician not told the offers lapsed')
+    # Open it again: the offers are cleared and the next offer starts a new hour.
+    call(f"/bookings/{timed['id']}/reopen", 'POST', {}, customer, 403)
+    reopened = call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer)
+    assert reopened['status'] == 'เปิดรับช่าง' and reopened['applicants'] == [] and reopened['offerDeadline'] is None
+    call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer, 409)
+    call(f"/bookings/{timed['id']}/applications", 'POST', {}, tech)
+    assert call(f"/bookings/{timed['id']}", token=t_customer)['offerDeadline']
+    # An expired request can be cancelled; one whose date has passed needs a new date before opening again.
+    db.bookings.update_one({'_id': timed['id']}, {'$set': {'OfferDeadline': datetime.now(timezone.utc) - timedelta(minutes=1)}})
+    call(f"/bookings/{timed['id']}", token=t_customer)
+    db.bookings.update_one({'_id': timed['id']}, {'$set': {'ScheduledAt': datetime.now(timezone.utc) - timedelta(days=2)}})
+    assert call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer, 409)['code'] == 'date_passed'
+    call(f"/bookings/{timed['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, t_customer, 204)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, membership, automatic slip checks, reminders and the hour to pick a technician.')

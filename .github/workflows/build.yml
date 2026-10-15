@@ -48,6 +48,10 @@ jobs:
           TEST_BREVO_PORT: 5098
           TEST_PUSH_PORT: 5096
           CRON_KEY: isolated-ci-cron-key
+          SLIPOK_API_URL: http://localhost:5097/api/line/apikey
+          SLIPOK_BRANCH_ID: ci-branch
+          SLIPOK_API_KEY: ci-slipok-key
+          TEST_SLIPOK_PORT: 5097
         run: |
           dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!

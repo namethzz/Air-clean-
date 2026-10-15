@@ -16,7 +16,7 @@ namespace AirCare.Api.Controllers;
 /// and the hook an outside scheduler calls to send reminders.</summary>
 [ApiController]
 [Route("api")]
-public class MembershipController(MongoStore store, Notifier notify, ReminderService reminders, IConfiguration configuration, IWebHostEnvironment environment) : ControllerBase
+public class MembershipController(MongoStore store, Notifier notify, ReminderService reminders, SlipVerifier slips, IConfiguration configuration, IWebHostEnvironment environment) : ControllerBase
 {
     private const int MaxImageBytes = 2_000_000;
     private const int MaxCertificates = 3;
@@ -99,11 +99,11 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
         var settings = await Membership.SettingsAsync(store);
         var payments = await store.MembershipPayments.Find(x => x.TechnicianId == tech.Id).SortByDescending(x => x.CreatedAt).Limit(24)
             .Project(x => new MembershipPayment { Id = x.Id, TechnicianId = x.TechnicianId, TechnicianName = x.TechnicianName, Months = x.Months, Amount = x.Amount,
-                Status = x.Status, Note = x.Note, CreatedAt = x.CreatedAt, ReviewedAt = x.ReviewedAt, CoveredUntil = x.CoveredUntil }).ToListAsync();
+                Status = x.Status, Note = x.Note, CreatedAt = x.CreatedAt, ReviewedAt = x.ReviewedAt, CoveredUntil = x.CoveredUntil, CheckedBy = x.CheckedBy, LastCheckError = x.LastCheckError }).ToListAsync();
         var pending = payments.FirstOrDefault(x => x.Status == PaymentStates.Pending);
         return Ok(new MembershipDto(Membership.StateOf(tech, payments.Any(x => x.Status == PaymentStates.Approved)), tech.MemberUntil is { } until ? Iso(until) : null,
             DaysLeft(tech), settings.MonthlyFee, settings.TrialDays, settings.PromptPayId, settings.PayeeName,
-            pending is null ? null : ToDto(pending), payments.Select(ToDto).ToList()));
+            pending is null ? null : ToDto(pending), payments.Select(ToDto).ToList(), slips.Enabled));
     }
 
     /// <summary>The technician sends the transfer slip; the admin checks it against the bank and approves.</summary>
@@ -122,7 +122,12 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
             Amount = settings.MonthlyFee * request.Months, SlipContentType = contentType, SlipData = data, CreatedAt = DateTime.UtcNow
         };
         await store.MembershipPayments.InsertOneAsync(payment);
-        notify.ToAdmins("มีสลิปค่าสมาชิกรอตรวจ", $"{tech.Name} โอนค่าสมาชิก {payment.Months} เดือน ฿{payment.Amount:N0} ตรวจสลิปได้ที่เมนู “ค่าสมาชิก”", NotificationLink.Membership);
+        // With the slip service set up the slip is checked with the bank right away; otherwise an admin checks it.
+        if (slips.Enabled) {
+            var checkedPayment = await Membership.CheckSlipAsync(store, notify, slips, payment.Id, cancel: HttpContext.RequestAborted) ?? payment;
+            return Created($"/api/membership/payments/{payment.Id}/slip", ToDto(checkedPayment));
+        }
+        notify.ToAdmins("มีสลิปค่าสมาชิกรอตรวจ", $"{tech.Name} โอนค่าสมาชิก {payment.Months} เดือน ฿{payment.Amount:N0} ตรวจสลิปได้ที่เมนู “ค่าสมาชิกช่าง”", NotificationLink.Membership);
         return Created($"/api/membership/payments/{payment.Id}/slip", ToDto(payment));
     }
 
@@ -145,13 +150,13 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
         var settings = await Membership.SettingsAsync(store);
         var payments = await store.MembershipPayments.Find(FilterDefinition<MembershipPayment>.Empty).SortByDescending(x => x.CreatedAt).Limit(60)
             .Project(x => new MembershipPayment { Id = x.Id, TechnicianId = x.TechnicianId, TechnicianName = x.TechnicianName, Months = x.Months, Amount = x.Amount,
-                Status = x.Status, Note = x.Note, CreatedAt = x.CreatedAt, ReviewedAt = x.ReviewedAt, CoveredUntil = x.CoveredUntil }).ToListAsync();
+                Status = x.Status, Note = x.Note, CreatedAt = x.CreatedAt, ReviewedAt = x.ReviewedAt, CoveredUntil = x.CoveredUntil, CheckedBy = x.CheckedBy, LastCheckError = x.LastCheckError }).ToListAsync();
         var paid = (await store.MembershipPayments.Find(x => x.Status == PaymentStates.Approved).Project(x => x.TechnicianId).ToListAsync()).ToHashSet();
         var technicians = await store.Technicians.Find(x => x.VerificationStatus == VerificationStates.Approved || x.IsVerified).ToListAsync();
         var members = technicians.Select(t => new MemberRowDto(t.Id, t.Name, t.Phone, Membership.StateOf(t, paid.Contains(t.Id)), t.MemberUntil is { } until ? Iso(until) : null, DaysLeft(t)))
             .OrderBy(x => x.MemberUntil ?? "").ToList();
         return Ok(new AdminMembershipDto(new MembershipSettingsDto(settings.MonthlyFee, settings.TrialDays, settings.PromptPayId, settings.PayeeName),
-            payments.Select(ToDto).OrderBy(x => x.Status == PaymentStates.Pending ? 0 : 1).ToList(), members));
+            payments.Select(ToDto).OrderBy(x => x.Status == PaymentStates.Pending ? 0 : 1).ToList(), members, slips.Enabled));
     }
 
     [Authorize(Roles = "Admin"), HttpPut("admin/membership/settings")]
@@ -170,20 +175,10 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
     {
         var note = request.Note?.Trim();
         if (!request.Approve && string.IsNullOrWhiteSpace(note)) return BadRequest(new { message = "กรุณาระบุเหตุผลให้ช่างทราบ" });
-        var payment = await store.MembershipPayments.FindOneAndUpdateAsync(
-            Builders<MembershipPayment>.Filter.Where(x => x.Id == id && x.Status == PaymentStates.Pending),
-            Builders<MembershipPayment>.Update.Set(x => x.Status, request.Approve ? PaymentStates.Approved : PaymentStates.Rejected)
-                .Set(x => x.Note, note).Set(x => x.ReviewedAt, DateTime.UtcNow).Set(x => x.ReviewedByUserId, CurrentUserId),
-            new FindOneAndUpdateOptions<MembershipPayment, MembershipPayment> { ReturnDocument = ReturnDocument.After });
+        var payment = request.Approve
+            ? await Membership.ApproveAsync(store, notify, id, "admin", CurrentUserId)
+            : await Membership.RejectAsync(store, notify, id, "admin", note!, CurrentUserId);
         if (payment is null) return Conflict(new { message = "สลิปนี้ถูกตรวจไปแล้ว" });
-        if (request.Approve) {
-            var until = await ExtendAsync(payment.TechnicianId, from => from.AddMonths(payment.Months));
-            await store.MembershipPayments.UpdateOneAsync(x => x.Id == id, Builders<MembershipPayment>.Update.Set(x => x.CoveredUntil, until));
-            payment.CoveredUntil = until;
-            notify.ToTechnician(payment.TechnicianId, "ต่ออายุสมาชิกแล้ว", $"ผู้ดูแลยืนยันการโอน ฿{payment.Amount:N0} แล้ว สมาชิกใช้ได้ถึง {ThaiDay(until)}", NotificationLink.Membership);
-        } else {
-            notify.ToTechnician(payment.TechnicianId, "สลิปค่าสมาชิกยังไม่ผ่าน", $"เหตุผล: {note}\nส่งสลิปใหม่ได้ที่หน้า “สมาชิก AirClean”", NotificationLink.Membership);
-        }
         return Ok(ToDto(payment));
     }
 
@@ -192,27 +187,17 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
     public async Task<IActionResult> GrantDays(int id, GrantMembershipRequest request)
     {
         if (!await store.Technicians.Find(x => x.Id == id).AnyAsync()) return NotFound(new { message = "ไม่พบช่าง" });
-        var until = await ExtendAsync(id, from => from.AddDays(request.Days));
-        notify.ToTechnician(id, "ได้รับวันสมาชิกเพิ่ม", $"ผู้ดูแลเพิ่มวันสมาชิกให้ {request.Days} วัน ใช้ได้ถึง {ThaiDay(until)}", NotificationLink.Membership);
+        var until = await Membership.ExtendAsync(store, id, from => from.AddDays(request.Days));
+        notify.ToTechnician(id, "ได้รับวันสมาชิกเพิ่ม", $"ผู้ดูแลเพิ่มวันสมาชิกให้ {request.Days} วัน ใช้ได้ถึง {Membership.ThaiDay(until)}", NotificationLink.Membership);
         return Ok(new { memberUntil = Iso(until) });
     }
 
-    private async Task<DateTime> ExtendAsync(int technicianId, Func<DateTime, DateTime> extend)
-    {
-        var tech = await store.Technicians.Find(x => x.Id == technicianId).FirstAsync();
-        var from = tech.MemberUntil is { } current && current > DateTime.UtcNow ? current : DateTime.UtcNow;
-        var until = extend(from);
-        await store.Technicians.UpdateOneAsync(x => x.Id == technicianId, Builders<TechnicianProfile>.Update.Set(x => x.MemberUntil, until));
-        return until;
-    }
-
     private static MembershipPaymentDto ToDto(MembershipPayment p) => new(p.Id, p.TechnicianId, p.TechnicianName, p.Months, p.Amount, p.Status, p.Note,
-        Iso(p.CreatedAt), p.ReviewedAt is { } reviewed ? Iso(reviewed) : null, p.CoveredUntil is { } covered ? Iso(covered) : null);
+        Iso(p.CreatedAt), p.ReviewedAt is { } reviewed ? Iso(reviewed) : null, p.CoveredUntil is { } covered ? Iso(covered) : null, p.CheckedBy, p.LastCheckError);
 
     private static int DaysLeft(TechnicianProfile tech) =>
         tech.MemberUntil is { } until && until > DateTime.UtcNow ? (int)Math.Ceiling((until - DateTime.UtcNow).TotalDays) : 0;
 
-    internal static string ThaiDay(DateTime utc) => utc.AddHours(7).ToString("d MMM yyyy", new CultureInfo("th-TH"));
 
     /* ───────────── Reminders ───────────── */
 
