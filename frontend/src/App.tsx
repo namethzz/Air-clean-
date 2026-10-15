@@ -20,6 +20,8 @@ import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
+import BuildingsPage from './pages/BuildingsPage';
+import { books } from './lib/roles';
 import IssuesPage from './pages/IssuesPage';
 import AdminTechniciansPage from './pages/AdminTechniciansPage';
 import UpdateBanner from './components/UpdateBanner';
@@ -28,7 +30,7 @@ import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
-  approveServiceReport, applyForBooking, completeJob, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
+  approveServiceReport, applyForBooking, completeJob, updateJobProgress, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
   createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type AirConditionerPayload, type CompleteJobPayload, type CreateServiceReportPayload,
@@ -37,12 +39,13 @@ import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummar
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์', buildings:'อาคารของฉัน',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
 const technicianTitles:Partial<Record<PageKey,string>> = { nearbyJobs:'งานใกล้ฉัน', bookings:'งานของฉัน', profile:'โปรไฟล์และราคา' };
-function titleFor(role:UserRole,page:PageKey):string { if(role==='admin'&&page==='technicians')return 'ช่างทั้งหมด'; return (role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
+const managerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของอาคาร', buildings:'อาคารของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
+function titleFor(role:UserRole,page:PageKey):string { if(role==='admin'&&page==='technicians')return 'ช่างทั้งหมด'; return (role==='manager'&&managerTitles[page])||(role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
 /** Where each role starts. Technicians go straight to jobs near them. */
 function homePage(role:UserRole):PageKey { return role==='technician'?'nearbyJobs':'overview'; }
 const activeStatuses:BookingStatus[] = ['เปิดรับช่าง','รอเลือกช่าง','รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
@@ -74,6 +77,7 @@ export default function App() {
   const [searchQuery,setSearchQuery] = useState('');
   const [bookingModalOpen,setBookingModalOpen] = useState(false);
   const [bookingUnitId,setBookingUnitId] = useState<number|undefined>();
+  const [bookingPlaceId,setBookingPlaceId] = useState<string|undefined>();
   const [notice,setNotice] = useState('');
   const [apiConnected,setApiConnected] = useState(false);
   const [mobileNavOpen,setMobileNavOpen] = useState(false);
@@ -153,7 +157,7 @@ export default function App() {
     // Customers and technicians track, pay and report inside "my jobs", so those pages open there.
     const role = user?.role;
     // Customers keep a cleaning history instead of the per-unit passport.
-    const target:PageKey = (role==='customer'||role==='technician')&&(next==='tracking'||next==='reports')?'bookings':role==='technician'&&next==='overview'?'nearbyJobs':role==='customer'&&next==='passport'?'history':next;
+    const target:PageKey = (books(role)||role==='technician')&&(next==='tracking'||next==='reports'||next==='batch')?'bookings':role==='technician'&&next==='overview'?'nearbyJobs':books(role)&&next==='passport'?'history':next;
     setPage(target);setMobileNavOpen(false);setSearchQuery('');
   }
   function openJob(id?:number){setPage('bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
@@ -167,7 +171,7 @@ export default function App() {
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');
   }
-  function openBooking(unitId?:number){setBookingUnitId(unitId);setBookingModalOpen(true);}
+  function openBooking(unitId?:number,placeId?:string){setBookingUnitId(unitId);setBookingPlaceId(placeId);setBookingModalOpen(true);}
 
   async function bookingSubmit(payload:BookingPayload):Promise<boolean>{
     if(!user)return false;
@@ -175,7 +179,7 @@ export default function App() {
       const saved=await createBooking({
         service:payload.service,unitLabel:payload.unitLabel,propertyType:payload.propertyType,unitCount:payload.unitCount,address:payload.address,
         scheduledAt:payload.date+'T'+payload.time+':00',price:payload.price,latitude:payload.latitude,longitude:payload.longitude,
-        airConditionerId:payload.airConditionerId,timeWindow:payload.timeWindow,
+        airConditionerId:payload.airConditionerId,timeWindow:payload.timeWindow,notes:payload.notes,placeId:payload.placeId,
       });
       setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       openJob(saved.id);showNotice('ส่งคำขอแล้ว รอช่างใกล้เคียงเสนอราคา');return true;
@@ -256,6 +260,10 @@ export default function App() {
       showNotice('ขอบคุณสำหรับคะแนน');return true;
     }catch(error){showNotice(errorMessage(error,'ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
+  async function saveProgress(id:number,unitsDone:number):Promise<boolean>{
+    try{const saved=await updateJobProgress(id,unitsDone);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));return true;}
+    catch(error){showNotice(errorMessage(error,'บันทึกความคืบหน้าไม่สำเร็จ'));return false;}
+  }
   async function finishJob(id:number,payload:CompleteJobPayload):Promise<boolean>{
     try{
       const saved=await completeJob(id,payload);
@@ -280,15 +288,16 @@ export default function App() {
   const content = useMemo(()=>{
     if(!user)return null;
     switch(page){
-      case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
+      case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):openBooking()}/>;
       case 'technicians':if(user.role==='admin')return <AdminTechniciansPage onNotice={showNotice} onChanged={()=>void refreshData()}/>;
         return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
-      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onRefresh={refreshBookings}/>;
-        if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
+      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onRefresh={refreshBookings}/>;
+        if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
-      case 'history':return user.role==='customer'?<CleaningHistoryPage bookings={state.bookings} reports={state.serviceReports} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>:null;
+      case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={placeId=>openBooking(undefined,placeId)} onOpenJob={openJob} onNotice={showNotice}/>:null;
+      case 'history':return books(user.role)?<CleaningHistoryPage bookings={state.bookings} reports={state.serviceReports} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>:null;
       case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
@@ -298,7 +307,7 @@ export default function App() {
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
-  const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:user?.role==='admin'?state.bookings.filter(item=>item.issue?.open||item.status==='มีปัญหาการชำระเงิน').length:0;
+  const actionCount = books(user?.role)?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:user?.role==='admin'?state.bookings.filter(item=>item.issue?.open||item.status==='มีปัญหาการชำระเงิน').length:0;
 
   function finishReset(message?:string){
     const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);
@@ -313,10 +322,10 @@ export default function App() {
   }
 
   const bell = <NotificationBell onOpen={openNotification} onSetupPush={setupPush}/>;
-  const customer = user.role==='customer'||user.role==='technician'; // both get the phone bottom bar
+  const customer = books(user.role)||user.role==='technician'; // they get the phone bottom bar
   return <div className="app-shell ac-shell" data-role={user.role}>
     <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
-    <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={user.role==='customer'?()=>openBooking():undefined} actionCount={actionCount}/></div>
+    <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={books(user.role)?()=>openBooking():undefined} actionCount={actionCount}/></div>
     <main className="main-shell">
       <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={bell}/>
       {customer
@@ -329,7 +338,7 @@ export default function App() {
     {customer&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
     <UpdateBanner/>
     <PushPrompt key={user.id} userId={user.id} role={user.role}/>
-    {bookingModalOpen&&<BookingModal technicians={state.technicians} units={user.role==='customer'?[]:state.airConditioners} initialUnitId={bookingUnitId} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
+    {bookingModalOpen&&<BookingModal technicians={state.technicians} units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
     {notice&&<div className="toast-notice" role="status"><div className="toast-check"><CheckCircle2 size={17}/></div><span>{notice}</span><button className="icon-button" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={15}/></button></div>}
     {isLoading&&<div className="loading-indicator"><span/>กำลังโหลดข้อมูล...</div>}
   </div>;

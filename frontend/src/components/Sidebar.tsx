@@ -1,4 +1,4 @@
-import { AirVent, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
+import { AirVent, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -10,6 +10,13 @@ const customerItems:Item[]=[
   {key:'history',label:'ประวัติการล้าง',icon:History},
 ];
 /** Technicians get three destinations. Confirmed jobs, travel, report and payment all live inside "งานของฉัน". */
+/** Building managers: the customer flow for whole buildings, plus their buildings. */
+const managerItems:Item[]=[
+  {key:'overview',label:'หน้าแรก',icon:Home},
+  {key:'bookings',label:'งานของอาคาร',icon:ClipboardList},
+  {key:'buildings',label:'อาคารของฉัน',icon:Building2},
+  {key:'history',label:'ประวัติการล้าง',icon:History},
+];
 const technicianItems:Item[]=[
   {key:'nearbyJobs',label:'งานใกล้ฉัน',icon:MapPin},
   {key:'bookings',label:'งานของฉัน',icon:ClipboardList},
@@ -22,16 +29,16 @@ const navItems:Item[]=[
   {key:'bookings',label:'รายการจอง',icon:CalendarDays},
   {key:'tracking',label:'ติดตามงาน',icon:MapPinned},
   {key:'passport',label:'ประวัติแอร์',icon:AirVent,roles:['manager','admin']},
-  {key:'batch',label:'งานหลายเครื่อง',icon:Users,roles:['manager','admin']},
+  {key:'batch',label:'งานหลายเครื่อง',icon:Users,roles:['admin']},
   {key:'reports',label:'รายงานบริการ',icon:ClipboardCheck},
   {key:'approvals',label:'ตรวจสอบช่าง',icon:ShieldCheck,roles:['admin']},
   {key:'issues',label:'เรื่องที่ถูกแจ้ง',icon:MessageSquareWarning,roles:['admin']},
 ];
 function initials(name:string):string{return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.slice(0,1)).join('')||'AC';}
 export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking,actionCount=0}:Props){
-  const customer=role==='customer';
+  const customer=role==='customer'||role==='manager';
   const technician=role==='technician';
-  const main=customer?customerItems:technician?technicianItems:navItems.filter(item=>!item.roles||item.roles.includes(role));
+  const main=role==='manager'?managerItems:customer?customerItems:technician?technicianItems:navItems.filter(item=>!item.roles||item.roles.includes(role));
   const renderItem=(item:Item)=>{const Icon=item.icon;const label=role==='admin'&&item.key==='technicians'?'ช่างทั้งหมด':item.label;const badge=((customer||technician)&&item.key==='bookings')||(role==='admin'&&item.key==='issues')?actionCount:0;return <button type="button" className={'nav-item '+(page===item.key?'active':'')} key={item.key} aria-current={page===item.key?'page':undefined} onClick={()=>onNavigate(item.key)}><Icon size={18} strokeWidth={1.9}/><span>{label}</span>{badge>0&&<b className="nav-badge" aria-label={badge+(role==='admin'?' เรื่องรอดำเนินการ':' งานรอคุณ')}>{badge}</b>}</button>;};
   return <aside className="sidebar">
     <div className="brand-lockup"><div className="brand-symbol"><Wind size={22} strokeWidth={2.1}/></div><div><div className="brand-name">AirClean<span>.</span></div><div className="brand-caption">COMFORT, IN CONTROL</div></div></div>

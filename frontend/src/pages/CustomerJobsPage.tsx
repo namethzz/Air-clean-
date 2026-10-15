@@ -132,6 +132,10 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
     <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
       <p>{guide.hint}</p>
+      {(booking.unitsDone ?? 0) > 0 && booking.status !== 'เสร็จสิ้น' && booking.status !== 'ยกเลิก' && <div className="cj-unit-progress">
+        <span>ช่างล้างไปแล้ว <strong>{booking.unitsDone}</strong> จาก {booking.unitCount} เครื่อง</span>
+        <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, ((booking.unitsDone ?? 0) / Math.max(1, booking.unitCount ?? 1)) * 100)}%` }}/></div>
+      </div>}
       {choosing && <Offers booking={booking} onSelect={onSelectTechnician} onRefresh={onRefresh}/>}
       {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
       {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
@@ -154,6 +158,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       <dl className="cj-facts">
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+        {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="cj-pre">{booking.notes}</dd></div>}
         <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>
       {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}

@@ -192,7 +192,7 @@ saved = call('/me/addresses', 'POST', home, customer)
 assert call('/me/addresses', 'POST', {**home, 'address': '100/2 ถนนใหม่'}, customer)['id'] == saved['id']
 assert [row['address'] for row in call('/me/addresses', token=customer)] == ['100/2 ถนนใหม่']
 assert call('/me/addresses', token=other_customer) == []
-call('/me/addresses', 'POST', {**home, 'placeType': 'โรงแรม'}, customer, 400)
+call('/me/addresses', 'POST', {**home, 'placeType': 'ปราสาท'}, customer, 400)
 call('/me/addresses', 'POST', {**home, 'latitude': 95}, customer, 400)
 call(f"/me/addresses/{saved['id']}", 'DELETE', token=other_customer, expected=404)
 call(f"/me/addresses/{saved['id']}", 'DELETE', token=customer, expected=204)
@@ -519,4 +519,31 @@ assert next(row for row in call('/bookings', token=tech) if row['id'] == windowe
 for bad in ['13:00-17:00', '17:00-12:00', 'afternoon']:
     call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T12:00:00', 'timeWindow': bad}, customer, 400)
 assert call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T14:30:00'}, customer, 201)['timeWindow'] is None
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows and cancellation.')
+# Building managers: a saved building with its unit count and on-site contact, a whole-building job,
+# notes the technician sees only after being chosen, and unit-by-unit progress.
+manager = account('Manager')
+building = call('/me/addresses', 'POST', {'label': 'คอนโด A', 'placeType': 'คอนโด', 'address': 'BUILDING-A-ADDRESS', 'building': 'คอนโด A',
+                'latitude': 13.7563, 'longitude': 100.5018, 'unitCount': 48, 'contactName': 'คุณสมศรี', 'contactPhone': '081-111-2222'}, manager)
+assert building['unitCount'] == 48 and building['contactName'] == 'คุณสมศรี'
+call('/me/addresses', 'POST', {'label': 'x', 'placeType': 'ปราสาท', 'address': 'x', 'latitude': 1, 'longitude': 1}, manager, 400)
+call('/bookings', 'POST', {**payload, 'unitCount': 31}, customer, 400)
+call('/bookings', 'POST', {**payload, 'unitCount': 40, 'placeId': building['id']}, customer, 400)
+whole = call('/bookings', 'POST', {**payload, 'unitCount': 48, 'placeId': building['id'], 'address': 'BUILDING-A-ADDRESS',
+             'notes': 'ผู้ติดต่อหน้างาน: คุณสมศรี โทร 081-111-2222\nห้อง 101-148'}, manager, 201)
+assert whole['unitCount'] == 48 and whole['placeId'] == building['id'] and 'สมศรี' in whole['notes']
+call(f"/bookings/{whole['id']}/applications", 'POST', {}, tech)
+offer_view = next(row for row in call('/bookings', token=tech) if row['id'] == whole['id'])
+assert offer_view['notes'] is None and offer_view['placeId'] is None and 'BUILDING-A' not in json.dumps(offer_view)
+call(f"/bookings/{whole['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, manager)
+assert 'ห้อง 101-148' in call(f"/bookings/{whole['id']}", token=tech)['notes']
+call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 5}, other_tech, 403)
+call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 5}, manager, 403)
+progressed = call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 20}, tech)
+assert progressed['unitsDone'] == 20 and progressed['status'] == 'กำลังดำเนินการ'
+assert call(f"/bookings/{whole['id']}", token=manager)['unitsDone'] == 20
+assert call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 300}, tech)['unitsDone'] == 48
+finished_whole = call(f"/bookings/{whole['id']}/complete", 'POST', {'method': 'PromptPay'}, tech)
+assert finished_whole['unitsDone'] == 48 and finished_whole['status'] == 'เสร็จสิ้น'
+call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 1}, tech, 409)
+call(f"/bookings/{whole['id']}/reviews", 'POST', {'rating': 5, 'comment': 'ทีมงานดี'}, manager, 201)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers and cancellation.')

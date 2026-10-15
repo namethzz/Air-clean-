@@ -265,7 +265,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     [Authorize, HttpPost("me/addresses")]
     public async Task<IActionResult> SaveAddress(SaveAddressRequest request)
     {
-        if (request.PlaceType is not ("บ้าน" or "คอนโด" or "หอพัก")) return BadRequest(new { message = "ประเภทสถานที่ไม่ถูกต้อง" });
+        if (request.PlaceType is not ("บ้าน" or "คอนโด" or "หอพัก" or "สำนักงาน" or "โรงแรม" or "อาคารอื่น")) return BadRequest(new { message = "ประเภทสถานที่ไม่ถูกต้อง" });
         if (string.IsNullOrWhiteSpace(request.Address) || string.IsNullOrWhiteSpace(request.Label)) return BadRequest(new { message = "กรุณากรอกชื่อและที่อยู่" });
         var label = request.Label.Trim();
         // Saving under an existing name replaces that entry, as the picker always has.
@@ -276,7 +276,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var record = new SavedAddressRecord {
             Id = existing?.Id ?? 0, UserId = CurrentUserId, Label = label,
             PlaceType = request.PlaceType, Address = request.Address.Trim(), Building = Clean(request.Building), Floor = Clean(request.Floor),
-            Room = Clean(request.Room), Note = Clean(request.Note), Latitude = request.Latitude, Longitude = request.Longitude, UpdatedAt = DateTime.UtcNow
+            Room = Clean(request.Room), Note = Clean(request.Note), UnitCount = request.UnitCount, ContactName = Clean(request.ContactName), ContactPhone = Clean(request.ContactPhone), Latitude = request.Latitude, Longitude = request.Longitude, UpdatedAt = DateTime.UtcNow
         };
         if (existing is null) {
             record.Id = await store.NextIdAsync("savedAddresses");
@@ -408,6 +408,26 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
                 x.ScheduledAt.ToString("yyyy-MM-dd", culture), x.ScheduledAt.ToString("HH:mm", culture), x.CustomerName, x.Address, x.Service, x.UnitCount, x.Price, x.CustomerRating,
                 photoCounts.GetValueOrDefault(x.Id))).ToList(),
             reviews.Select(x => new TechnicianReviewDto(x.Rating, x.Comment, bookingCodes.TryGetValue(x.BookingId, out var b) ? b.CustomerName : "", bookingCodes.TryGetValue(x.BookingId, out var c) ? c.Code : "", x.CreatedAt.ToString("O", culture))).ToList()));
+    }
+
+    /// <summary>On a large job the technician counts finished units as they go; the customer sees the progress.</summary>
+    [Authorize(Roles = "Technician"), HttpPost("bookings/{id:int}/progress")]
+    public async Task<IActionResult> JobProgress(int id, JobProgressRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound(new { message = "ไม่พบงานนี้" });
+        var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+        if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        if (booking.Status is not (BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived or BookingStates.InProgress or BookingStates.AwaitingPayment))
+            return Conflict(new { message = "อัปเดตความคืบหน้าได้ระหว่างทำงานเท่านั้น" });
+        var done = Math.Clamp(request.UnitsDone, 0, booking.UnitCount);
+        var update = Builders<Booking>.Update.Set(x => x.UnitsDone, done);
+        // Counting finished units means the work has started.
+        if (booking.Status is BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived && done > 0)
+            update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived").Set(x => x.UpdatedAt, DateTime.UtcNow);
+        await store.Bookings.UpdateOneAsync(x => x.Id == id, update);
+        var saved = await store.Bookings.Find(x => x.Id == id).FirstAsync();
+        return Ok(DtoMapper.ToDto(saved));
     }
 
     private const int MaxPhotosPerJob = 8;
@@ -596,6 +616,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
                 || to <= from || from != TimeOnly.FromDateTime(request.ScheduledAt))
                 return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
         } else window = null;
+        // Homes book up to 30 units at a time; building managers book whole buildings.
+        if (CurrentRole == AppRoles.Customer && request.UnitCount > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
+        if (request.PlaceId is int placeId && !await store.SavedAddresses.Find(x => x.Id == placeId && x.UserId == CurrentUserId).AnyAsync())
+            return BadRequest(new { message = "ไม่พบอาคารนี้ในรายการของคุณ" });
         if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || request.Latitude is null || request.Longitude is null)
             return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
@@ -616,7 +640,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount, AirConditionerId = request.AirConditionerId,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
-            ScheduledAt = request.ScheduledAt, TimeWindow = window, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
+            ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };
@@ -656,7 +680,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         Customer = "ลูกค้าในพื้นที่",
         Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
         Latitude = null, Longitude = null, TechnicianLatitude = null, TechnicianLongitude = null,
-        AirConditionerId = null,
+        AirConditionerId = null, Notes = null, PlaceId = null,
         Applicants = dto.Applicants.Where(x => x.TechnicianId == technicianId).ToList()
     };
 
@@ -833,7 +857,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return Ok(DtoMapper.ToDto(booking));
     }
 
-    [Authorize(Roles = "Customer,Technician"), HttpPatch("bookings/{id:int}/payment-confirmation")]
+    [Authorize(Roles = "Customer,Manager,Technician"), HttpPatch("bookings/{id:int}/payment-confirmation")]
     public async Task<IActionResult> ConfirmOnsitePayment(int id, OnsitePaymentRequest request)
     {
         var method = request.Method.Trim();
@@ -844,7 +868,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
         var version = booking.UpdatedAt;
-        if (CurrentRole == AppRoles.Customer && booking.CustomerId != CurrentUserId) return Forbid();
+        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && booking.CustomerId != CurrentUserId) return Forbid();
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
@@ -858,7 +882,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
 
         booking.PaymentMethod = method;
         booking.PaymentStatus = "ConfirmationPending";
-        if (CurrentRole == AppRoles.Customer) booking.CustomerConfirmedPayment = true;
+        if (CurrentRole is AppRoles.Customer or AppRoles.Manager) booking.CustomerConfirmedPayment = true;
         if (CurrentRole == AppRoles.Technician) booking.TechnicianConfirmedPayment = true;
 
         var previousStatus = booking.Status;
@@ -917,6 +941,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.PaymentMethod = method;
         booking.PaymentStatus = "Paid";
         booking.TechnicianConfirmedPayment = true;
+        booking.UnitsDone = booking.UnitCount;
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status,
             Notes = $"ช่างปิดงานและได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0}", CreatedAt = DateTime.UtcNow });
@@ -955,13 +980,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return NoContent();
     }
 
-    [Authorize(Roles = "Customer,Technician"), HttpPost("bookings/{id:int}/payment-issue")]
+    [Authorize(Roles = "Customer,Manager,Technician"), HttpPost("bookings/{id:int}/payment-issue")]
     public async Task<IActionResult> ReportPaymentIssue(int id, PaymentIssueRequest request)
     {
         var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (booking is null) return NotFound();
         var version = booking.UpdatedAt;
-        if (CurrentRole == AppRoles.Customer && booking.CustomerId != CurrentUserId) return Forbid();
+        if (CurrentRole is AppRoles.Customer or AppRoles.Manager && booking.CustomerId != CurrentUserId) return Forbid();
         if (CurrentRole == AppRoles.Technician) {
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
@@ -976,7 +1001,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
         var issueText = $"มีการแจ้งปัญหาการชำระเงินของงาน {booking.Code}: {request.Reason.Trim()}\nผู้ดูแลระบบจะติดต่อเพื่อช่วยตรวจสอบ";
-        if (CurrentRole == AppRoles.Customer) notify.ToTechnician(booking.TechnicianId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
+        if (CurrentRole is AppRoles.Customer or AppRoles.Manager) notify.ToTechnician(booking.TechnicianId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
         else notify.ToUser(booking.CustomerId, $"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Job(booking.Id));
         notify.ToAdmins($"แจ้งปัญหาการชำระเงิน {booking.Code}", issueText, NotificationLink.Issues);
         return Ok(DtoMapper.ToDto(booking));
@@ -1167,7 +1192,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return NoContent();
     }
 
-    [Authorize(Roles = "Customer"), HttpPost("bookings/{bookingId:int}/reviews")]
+    [Authorize(Roles = "Customer,Manager"), HttpPost("bookings/{bookingId:int}/reviews")]
     public async Task<IActionResult> CreateReview(int bookingId, CreateReviewRequest request)
     {
         var booking = await store.Bookings.Find(x => x.Id == bookingId && x.CustomerId == CurrentUserId).FirstOrDefaultAsync();

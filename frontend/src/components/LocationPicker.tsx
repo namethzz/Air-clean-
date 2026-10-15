@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Check, Crosshair, Home, Loader2, MapPin, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
-import type { SavedAddress } from '../types';
+import { Building2, Check, Crosshair, Home, Loader2, MapPin, Pencil, Phone, Plus, Search, Trash2, UserRound, Wind, X } from 'lucide-react';
+import type { PlaceType, SavedAddress } from '../types';
 import LocationMap from './LocationMap';
 import { deleteSavedAddress, fetchSavedAddresses, saveAddress as saveAddressToAccount } from '../lib/api';
 import { addressAt, guessPlaceType, searchPlaces, type PlaceResult } from '../lib/geocode';
@@ -12,7 +12,15 @@ interface Props {
   /** Whether to keep this address for next time, and under which name. The form saves it after sending. */
   remember: RememberChoice;
   onRememberChange: (value: RememberChoice) => void;
+  /** Building managers: building types, unit count and the on-site contact instead of floor and room. */
+  forBuilding?: boolean;
+  /** Editing one place on its own (the buildings page): no saved list, and the name is always asked. */
+  standalone?: boolean;
+  /** Start with this saved place selected. */
+  preferId?: string;
 }
+const homeTypes: PlaceType[] = ['บ้าน', 'คอนโด', 'หอพัก'];
+const buildingTypes: PlaceType[] = ['คอนโด', 'หอพัก', 'สำนักงาน', 'โรงแรม', 'อาคารอื่น', 'บ้าน'];
 
 /** Addresses used to live only in this browser. They move to the account the first time the picker opens. */
 const LEGACY_STORAGE_KEY = 'aircare.saved.addresses';
@@ -39,14 +47,16 @@ async function migrateOnce(): Promise<void> {
 export function addressSummary(item: SavedAddress) {
   return [item.address, item.building, item.floor ? `ชั้น ${item.floor}` : '', item.room ? `ห้อง ${item.room}` : ''].filter(Boolean).join(' · ');
 }
-const defaultLabel = (type: SavedAddress['placeType'], building?: string) => building?.trim() || (type === 'บ้าน' ? 'บ้าน' : type);
+const defaultLabel = (type: PlaceType, building?: string) => building?.trim() || (type === 'บ้าน' ? 'บ้าน' : type);
 
 /**
  * Where the technician should go. Customers with saved places pick one in a tap. A new place can be found by
  * searching a condo, village or road, by the phone's location, or by tapping the map; the address text is
  * filled in from the map so only the house number and details are typed.
  */
-export default function LocationPicker({ value, onChange, remember, onRememberChange }: Props) {
+export default function LocationPicker({ value, onChange, remember, onRememberChange, forBuilding = false, standalone = false, preferId }: Props) {
+  const types = forBuilding ? buildingTypes : homeTypes;
+  const word = forBuilding ? 'อาคาร' : 'ที่อยู่';
   const [saved, setSaved] = useState<SavedAddress[] | null>(null);
   const [mode, setMode] = useState<'saved' | 'new'>('new');
   const [message, setMessage] = useState('');
@@ -72,14 +82,16 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
 
   useEffect(() => {
     let active = true;
+    if (standalone) return;
     loadAccountAddresses()
       .then(rows => {
         if (!active) return;
         setSaved(rows);
         // Most people book for the same place again: start with the last one used.
         if (rows.length && latest.current.id === 'new' && !latest.current.address.trim()) {
-          onChange({ ...rows[0], locationSelected: true });
-          onRememberChange({ on: false, label: rows[0].label });
+          const first = rows.find(row => row.id === preferId) ?? rows[0];
+          onChange({ ...first, locationSelected: true });
+          onRememberChange({ on: false, label: first.label });
           setMode('saved');
         }
       })
@@ -131,7 +143,8 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
     );
   }
   function pickResult(place: PlaceResult) {
-    const type = guessPlaceType(place.name) ?? (place.isBuilding ? 'คอนโด' : latest.current.placeType);
+    const guessed = guessPlaceType(place.name) ?? (place.isBuilding ? 'คอนโด' : latest.current.placeType);
+    const type = types.includes(guessed) ? guessed : types[0];
     autoAddress.current = place.address;
     onChange({ ...latest.current, latitude: place.latitude, longitude: place.longitude, locationSelected: true, address: place.address,
       placeType: type, building: type === 'บ้าน' ? latest.current.building : place.name });
@@ -142,8 +155,8 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
   function choose(item: SavedAddress) { onChange({ ...item, locationSelected: true }); onRememberChange({ on: false, label: item.label }); setMessage(''); }
   function startNew() {
     autoAddress.current = '';
-    onChange({ id: 'new', label: '', placeType: 'บ้าน', address: '', latitude: value.latitude, longitude: value.longitude, locationSelected: false });
-    onRememberChange({ on: true, label: 'บ้าน' });
+    onChange({ id: 'new', label: '', placeType: types[0], address: '', latitude: value.latitude, longitude: value.longitude, locationSelected: false });
+    onRememberChange({ on: true, label: forBuilding ? '' : 'บ้าน' });
     setMode('new'); setMessage('');
   }
   function edit(item: SavedAddress) {
@@ -164,14 +177,14 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
 
   if (mode === 'saved' && saved?.length) {
     return <div className="location-picker lp">
-      <div className="lp-head"><strong>ส่งช่างไปที่</strong><span>ที่อยู่ที่บันทึกไว้ ใช้ได้ทุกเครื่อง</span></div>
-      <div className="lp-saved" role="radiogroup" aria-label="ที่อยู่ที่บันทึกไว้">
+      <div className="lp-head"><strong>ส่งช่างไปที่</strong><span>{forBuilding ? 'อาคารของคุณ' : 'ที่อยู่ที่บันทึกไว้ ใช้ได้ทุกเครื่อง'}</span></div>
+      <div className="lp-saved" role="radiogroup" aria-label={forBuilding ? 'อาคารของคุณ' : 'ที่อยู่ที่บันทึกไว้'}>
         {saved.map(item => {
           const selected = value.id === item.id;
           return <div key={item.id} className={'lp-saved-item' + (selected ? ' selected' : '')}>
             <button type="button" role="radio" aria-checked={selected} className="lp-saved-pick" onClick={() => choose(item)}>
               <span className="lp-radio" aria-hidden="true">{selected && <Check size={14} strokeWidth={3}/>}</span>
-              <span className="lp-saved-text"><strong>{item.label}</strong><small>{addressSummary(item)}</small>{item.note && <small>จุดสังเกต: {item.note}</small>}</span>
+              <span className="lp-saved-text"><strong>{item.label}</strong><small>{addressSummary(item)}</small>{(item.unitCount || item.contactName) && <small>{[item.unitCount ? `แอร์ ${item.unitCount} เครื่อง` : '', item.contactName ? `ผู้ติดต่อ ${item.contactName}` : ''].filter(Boolean).join(' · ')}</small>}{item.note && <small>จุดสังเกต: {item.note}</small>}</span>
             </button>
             {selected && <div className="lp-saved-actions">
               <button type="button" className="cj-link" onClick={() => edit(item)}><Pencil size={14}/> แก้ไข</button>
@@ -179,21 +192,23 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
             </div>}
           </div>;
         })}
-        <button type="button" className="lp-new" onClick={startNew}><Plus size={18}/> ใช้ที่อยู่อื่น</button>
+        <button type="button" className="lp-new" onClick={startNew}><Plus size={18}/> {forBuilding ? 'อาคารอื่น / เพิ่มอาคาร' : 'ใช้ที่อยู่อื่น'}</button>
       </div>
       {message && <p className="location-feedback" role="status">{message}</p>}
     </div>;
   }
 
   const condo = value.placeType !== 'บ้าน';
+  // A building manager books the whole building; rooms go in the notes for the technician.
+  const rooms = condo && !forBuilding;
   return <div className="location-picker lp">
     <div className="lp-head">
-      <strong>{value.id !== 'new' ? `แก้ไข ${value.label}` : 'ส่งช่างไปที่ไหน'}</strong>
-      {!!saved?.length && <button type="button" className="cj-link" onClick={() => { setMode('saved'); if (value.id === 'new') choose(saved[0]); }}>เลือกจากที่บันทึกไว้</button>}
+      <strong>{value.id !== 'new' ? `แก้ไข ${value.label}` : forBuilding ? 'อาคารที่ให้ช่างไป' : 'ส่งช่างไปที่ไหน'}</strong>
+      {!standalone && !!saved?.length && <button type="button" className="cj-link" onClick={() => { setMode('saved'); if (value.id === 'new') choose(saved[0]); }}>{forBuilding ? 'เลือกจากอาคารของฉัน' : 'เลือกจากที่บันทึกไว้'}</button>}
     </div>
     <div className="lp-search">
       <Search size={18} aria-hidden="true"/>
-      <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="ค้นหาชื่อคอนโด หมู่บ้าน หรือถนน" aria-label="ค้นหาสถานที่" enterKeyHint="search" autoComplete="off"/>
+      <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={forBuilding ? 'ค้นหาชื่ออาคาร โครงการ หรือถนน' : 'ค้นหาชื่อคอนโด หมู่บ้าน หรือถนน'} aria-label="ค้นหาสถานที่" enterKeyHint="search" autoComplete="off"/>
       {searching ? <Loader2 size={18} className="lp-spin" aria-label="กำลังค้นหา"/> : query && <button type="button" className="lp-clear" onClick={() => { setQuery(''); setResults([]); }} aria-label="ล้างคำค้นหา"><X size={16}/></button>}
       {results.length > 0 && <ul className="lp-results" role="listbox" aria-label="ผลการค้นหา">{results.map((place, index) => <li key={index}>
         <button type="button" role="option" aria-selected="false" onClick={() => pickResult(place)}><MapPin size={16}/><span><strong>{place.name}</strong><small>{place.address}</small></span></button>
@@ -207,14 +222,14 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
     {message && <p className="location-feedback" role="status">{message}</p>}
     {loadError && <p className="location-feedback" role="alert">{loadError}</p>}
 
-    <div className="place-type-picker" role="group" aria-label="ประเภทสถานที่">
-      {(['บ้าน', 'คอนโด', 'หอพัก'] as const).map(type => {
+    <div className={'place-type-picker' + (forBuilding ? ' lp-types-wide' : '')} role="group" aria-label="ประเภทสถานที่">
+      {types.map(type => {
         const Icon = type === 'บ้าน' ? Home : Building2;
         return <button type="button" key={type} aria-pressed={value.placeType === type} className={`place-type-option ${value.placeType === type ? 'active' : ''}`} onClick={() => patch({ placeType: type })}><Icon size={16}/>{type}</button>;
       })}
     </div>
-    {condo && <label className="form-field"><span>ชื่ออาคาร / คอนโด / หอพัก</span><input value={value.building || ''} onChange={event => patch({ building: event.target.value })} placeholder="เช่น ลุมพินี วิลล์ อาคาร B" autoComplete="off"/></label>}
-    {condo && <div className="form-grid-two lp-two">
+    {condo && <label className="form-field"><span>{forBuilding ? 'ชื่ออาคาร / โครงการ' : 'ชื่ออาคาร / คอนโด / หอพัก'}</span><input value={value.building || ''} onChange={event => patch({ building: event.target.value })} placeholder="เช่น ลุมพินี วิลล์ อาคาร B" autoComplete="off"/></label>}
+    {rooms && <div className="form-grid-two lp-two">
       <label className="form-field"><span>ชั้น</span><input inputMode="numeric" value={value.floor || ''} onChange={event => patch({ floor: event.target.value })} placeholder="8"/></label>
       <label className="form-field"><span>เลขห้อง</span><input value={value.room || ''} onChange={event => patch({ room: event.target.value })} placeholder="812"/></label>
     </div>}
@@ -222,10 +237,19 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
       <textarea ref={addressBox} rows={3} value={value.address} onChange={event => patch({ address: event.target.value })} placeholder={condo ? 'ระบบเติมให้จากหมุด' : 'เช่น 99/12 ซอยลาดพร้าว 71 (ระบบเติมถนน เขต จังหวัดให้จากหมุด)'} required autoComplete="street-address"/>
       {!condo && value.address && value.address === autoAddress.current && <small className="lp-hint">เติมจากแผนที่แล้ว เพิ่มบ้านเลขที่ด้านหน้าให้ช่างหาเจอง่าย</small>}
     </label>
-    <label className="form-field"><span>จุดสังเกต / วิธีเข้าพื้นที่ (ไม่บังคับ)</span><input value={value.note || ''} onChange={event => patch({ note: event.target.value })} placeholder="เช่น บ้านประตูสีเขียว, แลกบัตรที่ รปภ."/></label>
-    <div className="lp-remember">
-      <label className="lp-check"><input type="checkbox" checked={remember.on} onChange={event => onRememberChange({ ...remember, on: event.target.checked })}/> บันทึกที่อยู่นี้ไว้ใช้ครั้งหน้า</label>
-      {remember.on && <label className="form-field"><span>ชื่อเรียก</span><input value={remember.label} onChange={event => onRememberChange({ ...remember, label: event.target.value })} placeholder="เช่น บ้าน, คอนโด, บ้านแม่" maxLength={60}/></label>}
-    </div>
+    {forBuilding && <>
+      <label className="form-field"><span><Wind size={14}/> จำนวนแอร์ทั้งหมดในอาคาร (ไม่บังคับ)</span><input inputMode="numeric" value={value.unitCount ?? ''} onChange={event => { const n = Number.parseInt(event.target.value.replace(/[^0-9]/g, ''), 10); patch({ unitCount: Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : undefined }); }} placeholder="เช่น 48"/></label>
+      <div className="form-grid-two lp-two">
+        <label className="form-field"><span><UserRound size={14}/> ผู้ติดต่อหน้างาน</span><input value={value.contactName || ''} onChange={event => patch({ contactName: event.target.value })} placeholder="เช่น คุณสมศรี (นิติบุคคล)" maxLength={80} autoComplete="off"/></label>
+        <label className="form-field"><span><Phone size={14}/> เบอร์ผู้ติดต่อ</span><input type="tel" inputMode="tel" value={value.contactPhone || ''} onChange={event => patch({ contactPhone: event.target.value })} placeholder="081-234-5678" maxLength={30}/></label>
+      </div>
+    </>}
+    <label className="form-field"><span>จุดสังเกต / วิธีเข้าพื้นที่ (ไม่บังคับ)</span><input value={value.note || ''} onChange={event => patch({ note: event.target.value })} placeholder={forBuilding ? 'เช่น จอดรถที่ลานด้านหลัง, แลกบัตรที่ รปภ.' : 'เช่น บ้านประตูสีเขียว, แลกบัตรที่ รปภ.'}/></label>
+    {standalone
+      ? <label className="form-field"><span>ชื่อเรียก{word} *</span><input value={remember.label} onChange={event => onRememberChange({ on: true, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน'} maxLength={60} required/></label>
+      : <div className="lp-remember">
+        <label className="lp-check"><input type="checkbox" checked={remember.on} onChange={event => onRememberChange({ ...remember, on: event.target.checked })}/> บันทึก{word}นี้ไว้ใช้ครั้งหน้า</label>
+        {remember.on && <label className="form-field"><span>ชื่อเรียก</span><input value={remember.label} onChange={event => onRememberChange({ ...remember, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน, คอนโด, บ้านแม่'} maxLength={60}/></label>}
+      </div>}
   </div>;
 }

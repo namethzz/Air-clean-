@@ -1,6 +1,6 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { ArrowRight, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
@@ -19,6 +19,7 @@ interface Props {
   onStatusChange: (id: number, status: BookingStatus) => void;
   onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
   onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
+  onProgress: (id: number, unitsDone: number) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -180,7 +181,7 @@ export default function TechnicianJobsPage(props: Props) {
   </div>;
 }
 
-function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
   const report = reports.find(item => item.bookingId === booking.id);
   const gps = useShareLocation(booking, onLocationUpdate, () => onStatusChange(booking.id, 'ถึงหน้างาน'));
@@ -223,6 +224,9 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
       {booking.status === 'ยืนยันแล้ว' && <button type="button" className="cj-ghost" onClick={() => onStatusChange(booking.id, 'กำลังเดินทาง')}><Send size={16}/> ออกเดินทาง · ให้ลูกค้าเห็นตำแหน่งของฉัน</button>}
       {booking.status === 'กำลังเดินทาง' && <p className="cj-note"><MapPin size={15}/> {gps.message || 'กำลังรับพิกัดจากอุปกรณ์'} <button type="button" className="cj-link" onClick={gps.retry}>ลองใหม่</button></p>}
     </section>}
+
+    {going && booking.notes && <section className="cj-block tj-notes"><h3>ข้อมูลจากลูกค้า</h3><p>{booking.notes}</p></section>}
+    {going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
 
     {going && <FinishJob booking={booking} onComplete={onComplete}/>}
 
@@ -296,6 +300,30 @@ function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking:
       </section>}
     <button type="button" className="cj-link tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={16}/> ดูงานทั้งหมด</button>
   </article>;
+}
+
+/** Large jobs: count finished units as you go, so the customer sees how far along the building is. */
+function UnitProgress({ booking, onProgress }: { booking: Booking; onProgress: Props['onProgress'] }) {
+  const total = booking.unitCount || 1;
+  const [done, setDone] = useState(booking.unitsDone ?? 0);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setDone(booking.unitsDone ?? 0); }, [booking.unitsDone]);
+  // Save shortly after the last tap, so quick taps send one update.
+  useEffect(() => {
+    if (done === (booking.unitsDone ?? 0)) return;
+    const timer = window.setTimeout(async () => { setSaving(true); await onProgress(booking.id, done); setSaving(false); }, 700);
+    return () => window.clearTimeout(timer);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <section className="cj-block tj-progress">
+    <h3>ล้างไปแล้ว</h3>
+    <div className="tj-progress-row">
+      <button type="button" aria-label="ลดหนึ่งเครื่อง" disabled={done <= 0} onClick={() => setDone(value => Math.max(0, value - 1))}><Minus size={20}/></button>
+      <strong aria-live="polite">{done}<small> / {total} เครื่อง</small></strong>
+      <button type="button" aria-label="เพิ่มหนึ่งเครื่อง" disabled={done >= total} onClick={() => setDone(value => Math.min(total, value + 1))}><Plus size={20}/></button>
+    </div>
+    <div className="cj-progress" aria-hidden="true"><span style={{ width: `${(done / total) * 100}%` }}/></div>
+    <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'กด + ทุกครั้งที่ล้างเสร็จหนึ่งเครื่อง ลูกค้าเห็นความคืบหน้าทันที'}</p>
+  </section>;
 }
 
 /** The one press at the end: job done and money received. Records the report and the cleaning history. */
