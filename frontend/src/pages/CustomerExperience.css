@@ -483,3 +483,4 @@
 .auth-screen .auth-social-divider::before,.auth-screen .auth-social-divider::after{content:"";flex:1;height:1px;background:var(--ac-frame)}
 .auth-screen .auth-social-pending{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--ac-frame);border-radius:12px;background:var(--ac-mist);font-size:14px;color:var(--ac-ink-2)}
 .auth-screen .auth-social-pending strong{color:var(--ac-ink);font-size:15px;overflow-wrap:anywhere}
+.acl-footer small a,.auth-screen .auth-copyright a{color:inherit;text-decoration:underline;text-underline-offset:3px}

@@ -125,7 +125,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
         </form>
         {mode==='register' && <p className="auth-registration-note">สามารถสมัครเป็นลูกค้า ช่างแอร์ หรือผู้ดูแลอาคารได้ แต่บัญชีผู้ดูแลระบบ (Admin) สร้างหรือกำหนดสิทธิ์ผ่านหลังบ้านเท่านั้น</p>}
         <div className="auth-security-note"><LockKeyhole size={15}/><span>ข้อมูลบัญชีจะถูกตรวจสอบกับระบบจริง ไม่มีบัญชีตัวอย่างให้เลือก</span></div>
-        <p className="auth-copyright">© 2026 AirClean</p>
+        <p className="auth-copyright"><a href="/privacy.html">นโยบายความเป็นส่วนตัว</a> · <a href="/terms.html">ข้อกำหนดการใช้งาน</a> · © 2026 AirClean</p>
       </div>
     </section>
   </main>;

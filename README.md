@@ -56,6 +56,7 @@ For the Render Static Site:
 - Build command: npm install && npm run build
 - Publish directory: dist
 - Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
+- Optional: VITE_CONTACT_EMAIL, the contact address shown on the privacy policy (/privacy.html) and terms (/terms.html) pages
 - Optional: VITE_GOOGLE_CLIENT_ID and VITE_APPLE_CLIENT_ID (same values as the API) to show the Google and Apple buttons; VITE_APPLE_REDIRECT_URI if the Apple Return URL is not the site's home page
 
 The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
