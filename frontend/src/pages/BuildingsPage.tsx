@@ -4,13 +4,15 @@ import type { Booking, SavedAddress } from '../types';
 import { deleteSavedAddress, fetchSavedAddresses, saveAddress } from '../lib/api';
 import LocationPicker, { addressSummary, type RememberChoice } from '../components/LocationPicker';
 import StatusBadge from '../components/StatusBadge';
+import { RoomRosterEditor } from '../components/Rooms';
 import { guideFor, isClosed } from '../lib/jobFlow';
+import { dueRooms, lastCleaned } from '../lib/rooms';
 import { timeLabel } from '../lib/time';
 import './CustomerJobs.css';
 
 interface Props {
   bookings: Booking[];
-  onBook: (placeId: string) => void;
+  onBook: (placeId: string, rooms?: string[]) => void;
   onOpenJob: (id: number) => void;
   onNotice: (message: string) => void;
 }
@@ -19,14 +21,16 @@ const day = (date: string) => new Date(date + 'T00:00:00');
 const shortDate = (date: string) => day(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 const telLink = (phone: string) => 'tel:' + phone.replace(/[^\d+]/g, '');
 
-interface BuildingStats { jobs: Booking[]; done: Booking[]; active?: Booking; next?: Date; due: boolean; spent: number; }
+interface BuildingStats { jobs: Booking[]; done: Booking[]; active?: Booking; next?: Date; due: boolean; spent: number; dueRooms: string[]; }
 function statsFor(place: SavedAddress, bookings: Booking[]): BuildingStats {
   const jobs = bookings.filter(item => item.placeId === Number(place.id));
   const done = jobs.filter(item => item.status === 'เสร็จสิ้น').sort((a, b) => b.date.localeCompare(a.date));
   const active = jobs.filter(item => !isClosed(item)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const next = done[0] ? day(done[0].date) : undefined;
   next?.setMonth(next.getMonth() + 6);
-  return { jobs, done, active, next, due: Boolean(next && next.getTime() - Date.now() < 14 * 86400000), spent: done.reduce((sum, item) => sum + item.price, 0) };
+  // Rooms are due one by one; a building with no history yet has nothing "due", just a first cleaning to book.
+  const due = done.length && place.rooms?.length ? dueRooms(place.rooms, lastCleaned(place.id, bookings)).map(room => room.name) : [];
+  return { jobs, done, active, next, due: Boolean(next && next.getTime() - Date.now() < 14 * 86400000) || due.length > 0, spent: done.reduce((sum, item) => sum + item.price, 0), dueRooms: due };
 }
 
 /** A manager's buildings: what each has, who to call on site, the job in progress, when it is next due, and its history. */
@@ -71,7 +75,7 @@ export default function BuildingsPage({ bookings, onBook, onOpenJob, onNotice }:
         <div><h2>{place.label}</h2><p>{place.placeType} · {addressSummary(place)}</p></div>
       </header>
       <div className="bd-facts">
-        <span><Wind size={15}/> {place.unitCount ? `แอร์ ${place.unitCount} เครื่อง` : 'ยังไม่ระบุจำนวนแอร์'}</span>
+        <span><Wind size={15}/> {place.rooms?.length ? `${place.rooms.length} ห้อง · แอร์ ${place.unitCount ?? place.rooms.length} เครื่อง` : place.unitCount ? `แอร์ ${place.unitCount} เครื่อง` : 'ยังไม่ระบุจำนวนแอร์'}</span>
         {place.contactName && <span>ผู้ติดต่อ {place.contactName}</span>}
         {place.contactPhone && <a href={telLink(place.contactPhone)}><Phone size={14}/> {place.contactPhone}</a>}
       </div>
@@ -83,11 +87,13 @@ export default function BuildingsPage({ bookings, onBook, onOpenJob, onNotice }:
         : <div className={'bd-status' + (stats.due ? ' due' : '')}>
           <CalendarClock size={18}/>
           <span>{stats.done[0]
-            ? <><strong>{stats.due ? 'ถึงรอบล้างแอร์แล้ว' : `ล้างครั้งถัดไป ${stats.next!.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}`}</strong><small>ล้างล่าสุด {shortDate(stats.done[0].date)}</small></>
+            ? <><strong>{stats.dueRooms.length ? `ถึงรอบล้าง ${stats.dueRooms.length} ห้อง` : stats.due ? 'ถึงรอบล้างแอร์แล้ว' : `ล้างครั้งถัดไป ${stats.next!.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}`}</strong><small>ล้างล่าสุด {shortDate(stats.done[0].date)}{stats.dueRooms.length ? ` · ${stats.dueRooms.slice(0, 6).join(', ')}${stats.dueRooms.length > 6 ? ' …' : ''}` : ''}</small></>
             : <><strong>ยังไม่เคยล้างผ่าน AirClean</strong><small>ขอช่างครั้งแรกได้เลย</small></>}</span>
         </div>}
       <div className="bd-actions">
-        <button type="button" className="cj-primary" onClick={() => onBook(place.id)}><Wind size={17}/> ขอช่างล้างอาคารนี้</button>
+        {stats.dueRooms.length > 0 && !stats.active
+          ? <button type="button" className="cj-primary" onClick={() => onBook(place.id, stats.dueRooms)}><Wind size={17}/> ขอช่างล้าง {stats.dueRooms.length} ห้องที่ถึงรอบ</button>
+          : <button type="button" className="cj-primary" onClick={() => onBook(place.id)}><Wind size={17}/> ขอช่างล้างอาคารนี้</button>}
         <button type="button" className="cj-ghost" onClick={() => setEditing(place)}>แก้ไข</button>
       </div>
       {stats.done.length > 0 && <button type="button" className="bd-history-toggle" aria-expanded={openHistory === place.id} onClick={() => setOpenHistory(value => value === place.id ? null : place.id)}>
@@ -96,7 +102,7 @@ export default function BuildingsPage({ bookings, onBook, onOpenJob, onNotice }:
       {openHistory === place.id && <ul className="bd-history">{stats.done.map(job => <li key={job.id}>
         <button type="button" onClick={() => onOpenJob(job.id)}>
           <span className="cj-row-date"><strong>{day(job.date).getDate()}</strong><span>{day(job.date).toLocaleDateString('th-TH', { month: 'short' })}</span></span>
-          <span className="bd-history-main"><strong>{job.unitCount} เครื่อง · ฿{job.price.toLocaleString()}</strong><small>ช่าง {job.technician} · {job.code}{job.customerRating ? ` · ${job.customerRating} ดาว` : ''}</small></span>
+          <span className="bd-history-main"><strong>{job.rooms?.length ? `${job.rooms.length} ห้อง · ` : ''}{job.unitCount} เครื่อง · ฿{job.price.toLocaleString()}</strong><small>ช่าง {job.technician} · {job.code}{job.customerRating ? ` · ${job.customerRating} ดาว` : ''}</small></span>
           <ChevronRight size={16}/>
         </button>
       </li>)}</ul>}
@@ -142,7 +148,10 @@ function BuildingEditor({ initial, onClose, onSaved }: { initial: SavedAddress |
         <button type="button" className="icon-button" onClick={onClose} aria-label="ปิดหน้าต่าง"><X size={19}/></button>
       </div>
       <form className="booking-form" onSubmit={save}>
+        <div className="form-section-label"><span>01</span> ข้อมูลและที่ตั้งอาคาร</div>
         <LocationPicker value={place} onChange={setPlace} remember={name} onRememberChange={setName} forBuilding standalone/>
+        <div className="form-section-label"><span>02</span> ห้องที่มีแอร์ <em className="bd-optional">แนะนำ · เลือกห้องตอนขอช่างได้ และรู้ว่าห้องไหนถึงรอบ</em></div>
+        <RoomRosterEditor rooms={place.rooms ?? []} onChange={rooms => setPlace(previous => ({ ...previous, rooms, unitCount: rooms.length ? rooms.reduce((sum, room) => sum + room.units, 0) : previous.unitCount }))}/>
         {error && <div className="auth-error" role="alert">{error}</div>}
         <button type="submit" className="primary-button full-width" disabled={busy}>{busy ? 'กำลังบันทึก...' : 'บันทึกอาคาร'}</button>
         {initial && (confirmDelete

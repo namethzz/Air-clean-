@@ -1,4 +1,4 @@
-import type { AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -136,18 +136,18 @@ export async function sendTestEmail(email: string): Promise<string> {
 export async function createPasswordResetLink(email: string): Promise<{ link: string; expiresAt: string; fullName: string }> {
   return request('/admin/password-reset-links', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
 }
-interface SavedAddressResponse { id:number; label:string; placeType:SavedAddress['placeType']; address:string; building?:string|null; floor?:string|null; room?:string|null; note?:string|null; latitude:number; longitude:number; unitCount?:number|null; contactName?:string|null; contactPhone?:string|null; }
+interface SavedAddressResponse { id:number; label:string; placeType:SavedAddress['placeType']; address:string; building?:string|null; floor?:string|null; room?:string|null; note?:string|null; latitude:number; longitude:number; unitCount?:number|null; contactName?:string|null; contactPhone?:string|null; rooms?:RoomEntry[]|null; }
 function fromApiAddress(item: SavedAddressResponse): SavedAddress {
   return { id:String(item.id), label:item.label, placeType:item.placeType, address:item.address, building:item.building??undefined,
     floor:item.floor??undefined, room:item.room??undefined, note:item.note??undefined, latitude:item.latitude, longitude:item.longitude, locationSelected:true,
-    unitCount:item.unitCount??undefined, contactName:item.contactName??undefined, contactPhone:item.contactPhone??undefined };
+    unitCount:item.unitCount??undefined, contactName:item.contactName??undefined, contactPhone:item.contactPhone??undefined, rooms:item.rooms??[] };
 }
 export async function fetchSavedAddresses(): Promise<SavedAddress[]> {
   return (await request<SavedAddressResponse[]>('/me/addresses')).map(fromApiAddress);
 }
 export async function saveAddress(item: SavedAddress): Promise<SavedAddress> {
-  const { label, placeType, address, building, floor, room, note, latitude, longitude, unitCount, contactName, contactPhone } = item;
-  return fromApiAddress(await request<SavedAddressResponse>('/me/addresses', { method:'POST', body:JSON.stringify({ label, placeType, address, building, floor, room, note, latitude, longitude, unitCount, contactName, contactPhone }) }));
+  const { label, placeType, address, building, floor, room, note, latitude, longitude, unitCount, contactName, contactPhone, rooms } = item;
+  return fromApiAddress(await request<SavedAddressResponse>('/me/addresses', { method:'POST', body:JSON.stringify({ label, placeType, address, building, floor, room, note, latitude, longitude, unitCount, contactName, contactPhone, rooms }) }));
 }
 export async function deleteSavedAddress(id: string): Promise<void> {
   return request<void>('/me/addresses/' + encodeURIComponent(id), { method:'DELETE' });
@@ -168,7 +168,7 @@ export async function fetchBatchBookings(): Promise<BatchBooking[]> { return req
 export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { return request<ServiceReportRecord[]>('/service-reports'); }
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
-  price:number; notes?:string; timeWindow?:string; placeId?:number; latitude?:number; longitude?:number; airConditionerId?:number;
+  price:number; notes?:string; timeWindow?:string; placeId?:number; rooms?:string[]; latitude?:number; longitude?:number; airConditionerId?:number;
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
 }
@@ -256,6 +256,6 @@ export async function jobPhotoUrl(id:string):Promise<string> {
 export async function fetchTechnicianDetail(id:number):Promise<TechnicianDetail> {
   return request<TechnicianDetail>('/admin/technicians/'+id);
 }
-export async function updateJobProgress(bookingId:number,unitsDone:number):Promise<Booking> {
-  return request<Booking>('/bookings/'+bookingId+'/progress',{method:'POST',body:JSON.stringify({unitsDone})});
+export async function updateJobProgress(bookingId:number,unitsDone:number,roomsDone?:string[]):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/progress',{method:'POST',body:JSON.stringify({unitsDone,roomsDone})});
 }

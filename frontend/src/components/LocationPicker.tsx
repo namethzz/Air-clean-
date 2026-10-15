@@ -206,6 +206,7 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
       <strong>{value.id !== 'new' ? `แก้ไข ${value.label}` : forBuilding ? 'อาคารที่ให้ช่างไป' : 'ส่งช่างไปที่ไหน'}</strong>
       {!standalone && !!saved?.length && <button type="button" className="cj-link" onClick={() => { setMode('saved'); if (value.id === 'new') choose(saved[0]); }}>{forBuilding ? 'เลือกจากอาคารของฉัน' : 'เลือกจากที่บันทึกไว้'}</button>}
     </div>
+    {standalone && <label className="form-field lp-name"><span>ชื่อเรียก{word} *</span><input value={remember.label} onChange={event => onRememberChange({ on: true, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน'} maxLength={60} required/></label>}
     <div className="lp-search">
       <Search size={18} aria-hidden="true"/>
       <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={forBuilding ? 'ค้นหาชื่ออาคาร โครงการ หรือถนน' : 'ค้นหาชื่อคอนโด หมู่บ้าน หรือถนน'} aria-label="ค้นหาสถานที่" enterKeyHint="search" autoComplete="off"/>
@@ -238,16 +239,14 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
       {!condo && value.address && value.address === autoAddress.current && <small className="lp-hint">เติมจากแผนที่แล้ว เพิ่มบ้านเลขที่ด้านหน้าให้ช่างหาเจอง่าย</small>}
     </label>
     {forBuilding && <>
-      <label className="form-field"><span><Wind size={14}/> จำนวนแอร์ทั้งหมดในอาคาร (ไม่บังคับ)</span><input inputMode="numeric" value={value.unitCount ?? ''} onChange={event => { const n = Number.parseInt(event.target.value.replace(/[^0-9]/g, ''), 10); patch({ unitCount: Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : undefined }); }} placeholder="เช่น 48"/></label>
+      {!value.rooms?.length && <label className="form-field"><span><Wind size={14}/> จำนวนแอร์ทั้งหมดในอาคาร (ไม่บังคับ)</span><input inputMode="numeric" value={value.unitCount ?? ''} onChange={event => { const n = Number.parseInt(event.target.value.replace(/[^0-9]/g, ''), 10); patch({ unitCount: Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : undefined }); }} placeholder="เช่น 48"/></label>}
       <div className="form-grid-two lp-two">
         <label className="form-field"><span><UserRound size={14}/> ผู้ติดต่อหน้างาน</span><input value={value.contactName || ''} onChange={event => patch({ contactName: event.target.value })} placeholder="เช่น คุณสมศรี (นิติบุคคล)" maxLength={80} autoComplete="off"/></label>
         <label className="form-field"><span><Phone size={14}/> เบอร์ผู้ติดต่อ</span><input type="tel" inputMode="tel" value={value.contactPhone || ''} onChange={event => patch({ contactPhone: event.target.value })} placeholder="081-234-5678" maxLength={30}/></label>
       </div>
     </>}
     <label className="form-field"><span>จุดสังเกต / วิธีเข้าพื้นที่ (ไม่บังคับ)</span><input value={value.note || ''} onChange={event => patch({ note: event.target.value })} placeholder={forBuilding ? 'เช่น จอดรถที่ลานด้านหลัง, แลกบัตรที่ รปภ.' : 'เช่น บ้านประตูสีเขียว, แลกบัตรที่ รปภ.'}/></label>
-    {standalone
-      ? <label className="form-field"><span>ชื่อเรียก{word} *</span><input value={remember.label} onChange={event => onRememberChange({ on: true, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน'} maxLength={60} required/></label>
-      : <div className="lp-remember">
+    {!standalone && <div className="lp-remember">
         <label className="lp-check"><input type="checkbox" checked={remember.on} onChange={event => onRememberChange({ ...remember, on: event.target.checked })}/> บันทึก{word}นี้ไว้ใช้ครั้งหน้า</label>
         {remember.on && <label className="form-field"><span>ชื่อเรียก</span><input value={remember.label} onChange={event => onRememberChange({ ...remember, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน, คอนโด, บ้านแม่'} maxLength={60}/></label>}
       </div>}
