@@ -12,6 +12,7 @@ public class MongoStore {
  public IMongoCollection<BatchBooking> BatchBookings {get;}
  public IMongoCollection<ServiceReport> ServiceReports {get;}
  public IMongoCollection<Review> Reviews {get;}
+ public IMongoCollection<SavedAddressRecord> SavedAddresses {get;}
  private readonly IMongoCollection<SequenceCounter> _counters;
 
  public MongoStore(IConfiguration configuration) {
@@ -26,6 +27,7 @@ public class MongoStore {
   BatchBookings=_database.GetCollection<BatchBooking>("batchBookings");
   ServiceReports=_database.GetCollection<ServiceReport>("serviceReports");
   Reviews=_database.GetCollection<Review>("reviews");
+  SavedAddresses=_database.GetCollection<SavedAddressRecord>("savedAddresses");
   _counters=_database.GetCollection<SequenceCounter>("counters");
  }
  public async Task<int> NextIdAsync(string collection) {
@@ -40,6 +42,9 @@ public class MongoStore {
   // One technician profile per account. An older database that already holds duplicates keeps running without the index.
   try { await Technicians.Indexes.CreateOneAsync(new CreateIndexModel<TechnicianProfile>(Builders<TechnicianProfile>.IndexKeys.Ascending(x=>x.UserId),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }
+  try { await SavedAddresses.Indexes.CreateOneAsync(new CreateIndexModel<SavedAddressRecord>(Builders<SavedAddressRecord>.IndexKeys.Ascending(x=>x.UserId).Ascending(x=>x.Label),new CreateIndexOptions{Unique=true})); }
+  catch (MongoCommandException) { }
+  await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.PasswordResetTokenHash),new CreateIndexOptions{Sparse=true}));
  }
  public async Task SeedAsync(IPasswordHasher<AppUser> hasher) {
   if(await Users.CountDocumentsAsync(FilterDefinition<AppUser>.Empty)>0) return;

@@ -1,17 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, Wind, Wrench } from 'lucide-react';
-import type { Booking } from '../types';
+import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, UserCog, Wind, Wrench } from 'lucide-react';
+import type { Booking, TechnicianApplication } from '../types';
+import { VerificationBanner } from '../components/TechnicianProfileSettings';
 import StatusBadge from '../components/StatusBadge';
-import { fetchNearbyJobs } from '../lib/api';
+import { fetchMyTechnicianProfile, fetchNearbyJobs } from '../lib/api';
 
-interface Props { onApply:(bookingId:number)=>Promise<boolean>; }
+interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; }
 function prettyDate(date:string) {
   return new Date(date+'T00:00:00').toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short'});
 }
 function messageOf(error:unknown) {
   return error instanceof Error?error.message:'โหลดงานใกล้เคียงไม่สำเร็จ';
 }
-export default function NearbyJobsPage({onApply}:Props) {
+/** Technicians reach the job feed only after an admin approves their application. */
+export default function NearbyJobsPage({onApply,onOpenProfile}:Props) {
+  const [profile,setProfile]=useState<TechnicianApplication|null>(null);
+  const [profileError,setProfileError]=useState('');
+  const [attempt,setAttempt]=useState(0);
+  useEffect(()=>{
+    let active=true;setProfileError('');
+    fetchMyTechnicianProfile().then(p=>{if(active)setProfile(p);}).catch(err=>{if(active)setProfileError(messageOf(err));});
+    return ()=>{active=false;};
+  },[attempt]);
+  if(profileError)return <div className="page-stack"><div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{profileError}</span><button className="outline-button" onClick={()=>setAttempt(n=>n+1)}><RefreshCw size={15}/> ลองอีกครั้ง</button></div></div>;
+  if(!profile)return <div className="page-stack"><section className="panel nearby-empty"><RefreshCw size={23}/><strong>กำลังตรวจสอบบัญชีช่าง</strong></section></div>;
+  if(profile.verificationStatus!=='Approved')return <div className="page-stack">
+    <div className="page-heading-row"><div><div className="eyebrow">LOCAL JOB MARKETPLACE</div><h1>งานใกล้ฉัน</h1><p className="page-subtitle">เพื่อความปลอดภัยของลูกค้า ผู้ดูแลระบบตรวจสอบช่างทุกคนก่อนเปิดให้เห็นงานและส่งข้อเสนอ</p></div></div>
+    <VerificationBanner profile={profile}/>
+    <button type="button" className="primary-button" onClick={onOpenProfile}><UserCog size={16}/> {profile.verificationStatus==='Rejected'?'แก้ไขข้อมูลและส่งตรวจอีกครั้ง':'ตรวจข้อมูลโปรไฟล์ของฉัน'}</button>
+  </div>;
+  return <NearbyJobs onApply={onApply}/>;
+}
+
+function NearbyJobs({onApply}:{onApply:Props['onApply']}) {
   const [jobs,setJobs]=useState<Booking[]>([]);
   const [radiusKm,setRadiusKm]=useState(25);
   const [loading,setLoading]=useState(false);

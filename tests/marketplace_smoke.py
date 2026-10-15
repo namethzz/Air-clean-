@@ -34,8 +34,18 @@ else:
 
 suffix = uuid.uuid4().hex
 
+def register(role, **extra):
+    email = role.lower() + uuid.uuid4().hex + '@example.test'
+    body = {'fullName': 'ทดสอบ ' + role, 'email': email, 'password': 'CiTestPass123!', 'role': role, **extra}
+    if role.lower() == 'technician':
+        body = {'phone': '081-234-5678', 'serviceArea': 'บางเขน', 'experienceYears': 3, **body}
+    return call('/auth/register', 'POST', body, expected=201)['token'], email
+
 def account(role):
-    return call('/auth/register', 'POST', {'fullName': 'ทดสอบ ' + role, 'email': role + uuid.uuid4().hex + '@example.test', 'password': 'CiTestPass123!', 'role': role}, expected=201)['token']
+    return register(role)[0]
+
+admin_email, admin_password = os.environ['TEST_ADMIN_EMAIL'], os.environ['TEST_ADMIN_PASSWORD']
+admin = call('/auth/login', 'POST', {'email': admin_email, 'password': admin_password})['token']
 
 customer = account('Customer')
 other_customer = account('customer')
@@ -55,15 +65,41 @@ booking = call('/bookings', 'POST', {**payload, 'airConditionerId': unit['id']},
 id = booking['id']
 assert booking['airConditionerId'] == unit['id']
 assert booking['technicianId'] == 0 and booking['status'] == 'เปิดรับช่าง'
+# Technician sign-up is an application: contact details are required and the account starts pending.
+call('/auth/register', 'POST', {'fullName': 'ไม่มีเบอร์', 'email': uuid.uuid4().hex + '@example.test', 'password': 'CiTestPass123!', 'role': 'Technician', 'serviceArea': 'บางเขน'}, expected=400)
+call('/auth/register', 'POST', {'fullName': 'ไม่มีพื้นที่', 'email': uuid.uuid4().hex + '@example.test', 'password': 'CiTestPass123!', 'role': 'Technician', 'phone': '0812345678'}, expected=400)
 tech = account('Technician')
 other_tech = account('technician')
 profile = call('/technicians/me', token=tech)
+assert profile['verificationStatus'] == 'Pending' and not profile['verified'] and profile['phone'] == '081-234-5678'
 call('/technicians/me', token=customer, expected=403)
 call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600,
      'availableText': '09:00–18:00', 'skills': 'ล้างแอร์มาตรฐาน, ตรวจเช็ก'}, tech)
 call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': -1,
      'availableText': 'ทุกวัน', 'skills': 'ล้างแอร์'}, tech, 400)
-assert not call('/technicians/me', token=tech)['verified']
+call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600,
+     'availableText': 'ทุกวัน', 'skills': 'ล้างแอร์', 'phone': '12'}, tech, 400)
+# Pending technicians cannot browse or bid and are not listed publicly.
+call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech, expected=403)
+call(f'/bookings/{id}/applications', 'POST', {}, tech, 403)
+assert all(row['id'] != profile['id'] for row in call('/technicians'))
+queue = call('/admin/technicians?status=Pending', token=admin)
+assert any(row['id'] == profile['id'] and row['phone'] for row in queue)
+call('/admin/technicians', token=tech, expected=403)
+# Only an administrator decides; a rejection needs a reason and the technician can resubmit.
+call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, tech, 403)
+call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, customer, 403)
+call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': False}, admin, 400)
+rejected = call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'เบอร์โทรติดต่อไม่ได้'}, admin)
+assert rejected['verificationStatus'] == 'Rejected'
+assert 'เบอร์โทรติดต่อไม่ได้' in str(call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech, expected=403))
+assert call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600,
+     'availableText': '09:00–18:00', 'skills': 'ล้างแอร์มาตรฐาน, ตรวจเช็ก', 'phone': '089-999-0000'}, tech)['verificationStatus'] == 'Pending'
+for row in [profile, call('/technicians/me', token=other_tech)]:
+    assert call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)['verificationStatus'] == 'Approved'
+assert call('/technicians/me', token=tech)['verified']
+assert any(row['id'] == profile['id'] for row in call('/technicians'))
+call('/technicians/999999/verification', 'PATCH', {'verified': True}, admin, 404)
 feed = call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech)
 job = next(row for row in feed if row['id'] == id)
 assert job['latitude'] is None and job['longitude'] is None and 'PRIVATE-HOUSE' not in json.dumps(job)
@@ -140,13 +176,37 @@ assert len(call(f"/bookings/{row['id']}", token=customer)['applicants']) == 2
 # A technician sees only their own offer, never a competitor's quote.
 mine = next(item for item in call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech) if item['id'] == row['id'])
 assert [item['technicianId'] for item in mine['applicants']] == [profile['id']]
-# Only an administrator can verify a technician profile.
-call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, tech, 403)
-call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, customer, 403)
-admin_email, admin_password = os.environ.get('TEST_ADMIN_EMAIL'), os.environ.get('TEST_ADMIN_PASSWORD')
-if admin_email and admin_password:
-    admin = call('/auth/login', 'POST', {'email': admin_email, 'password': admin_password})['token']
-    assert call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, admin)['verified']
-    assert call('/technicians/me', token=tech)['verified']
-    call('/technicians/999999/verification', 'PATCH', {'verified': True}, admin, 404)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, verification and cancellation.')
+# Saved addresses belong to the account, so every device sees the same list.
+home = {'label': 'บ้าน', 'placeType': 'คอนโด', 'address': '99/1 ถนนทดสอบ', 'building': 'อาคาร A', 'floor': '8', 'room': '801',
+        'note': 'แลกบัตรที่ รปภ.', 'latitude': 13.75, 'longitude': 100.5}
+saved = call('/me/addresses', 'POST', home, customer)
+assert call('/me/addresses', 'POST', {**home, 'address': '100/2 ถนนใหม่'}, customer)['id'] == saved['id']
+assert [row['address'] for row in call('/me/addresses', token=customer)] == ['100/2 ถนนใหม่']
+assert call('/me/addresses', token=other_customer) == []
+call('/me/addresses', 'POST', {**home, 'placeType': 'โรงแรม'}, customer, 400)
+call('/me/addresses', 'POST', {**home, 'latitude': 95}, customer, 400)
+call(f"/me/addresses/{saved['id']}", 'DELETE', token=other_customer, expected=404)
+call(f"/me/addresses/{saved['id']}", 'DELETE', token=customer, expected=204)
+assert call('/me/addresses', token=customer) == []
+# Two devices saving the same name at once keep a single entry.
+with ThreadPoolExecutor(max_workers=4) as pool:
+    list(pool.map(lambda _: call('/me/addresses', 'POST', {**home, 'label': 'พร้อมกัน'}, customer), range(4)))
+assert len(call('/me/addresses', token=customer)) == 1
+# Password reset: same answer for unknown accounts, single-use links, and older sessions end.
+forgot_token, forgot_email = register('Customer')
+assert call('/auth/forgot-password', 'POST', {'email': forgot_email})['message'] == call('/auth/forgot-password', 'POST', {'email': 'nobody' + suffix + '@example.test'})['message']
+call('/admin/password-reset-links', 'POST', {'email': forgot_email}, customer, 403)
+call('/admin/password-reset-links', 'POST', {'email': admin_email}, admin, 400)
+link = call('/admin/password-reset-links', 'POST', {'email': forgot_email}, admin)['link']
+reset_token = link.split('reset=')[1]
+call('/auth/reset-password', 'POST', {'token': reset_token, 'newPassword': 'short'}, expected=400)
+call('/auth/reset-password', 'POST', {'token': reset_token, 'newPassword': 'BrandNewPass456!'})
+call('/auth/reset-password', 'POST', {'token': reset_token, 'newPassword': 'AnotherPass789!'}, expected=400)
+call('/auth/me', token=forgot_token, expected=401)
+call('/auth/login', 'POST', {'email': forgot_email, 'password': 'CiTestPass123!'}, expected=401)
+fresh = call('/auth/login', 'POST', {'email': forgot_email, 'password': 'BrandNewPass456!'})['token']
+call('/auth/change-password', 'POST', {'currentPassword': 'wrong-password', 'newPassword': 'ChangedPass789!'}, fresh, 400)
+changed = call('/auth/change-password', 'POST', {'currentPassword': 'BrandNewPass456!', 'newPassword': 'ChangedPass789!'}, fresh)['token']
+call('/auth/me', token=fresh, expected=401)
+call('/auth/me', token=changed)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset and cancellation.')

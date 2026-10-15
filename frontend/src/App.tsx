@@ -18,18 +18,19 @@ import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
+import ApprovalsPage from './pages/ApprovalsPage';
 import './pages/WorkspaceTheme.css';
 import {
   approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
   createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
-  fetchServiceReports, fetchTechnicians, reportPaymentIssue, setTechnicianVerification, updateBookingStatus, updateTechnicianLocation,
+  fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type AirConditionerPayload, type CreateServiceReportPayload,
 } from './lib/api';
 import type { AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', passport:'แอร์ของฉัน', profile:'บัญชีของฉัน' };
@@ -73,6 +74,9 @@ export default function App() {
   const [isLoading,setIsLoading] = useState(false);
   const [dataError,setDataError] = useState('');
   const [sessionError,setSessionError] = useState('');
+  // A password reset link opens the app with ?reset=<token>.
+  const [resetToken,setResetToken] = useState(()=>new URLSearchParams(window.location.search).get('reset')??'');
+  const [authInfo,setAuthInfo] = useState('');
   const showNotice = useCallback((message:string) => { setNotice(message); window.setTimeout(()=>setNotice(''),3600); },[]);
 
   useEffect(()=>{
@@ -120,7 +124,7 @@ export default function App() {
   function openJob(id?:number){setPage('bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
   function profileUpdated(nextUser:UserProfile){setUser(nextUser);showNotice('อัปเดตโปรไฟล์เรียบร้อยแล้ว');}
   function onAuthenticated(nextUser:UserProfile){
-    setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
+    setAuthInfo('');setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
   }
   function logout(){
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
@@ -208,13 +212,6 @@ export default function App() {
       showNotice('ขอบคุณสำหรับคะแนน');return true;
     }catch(error){showNotice(errorMessage(error,'ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
-  async function verifyTechnician(id:number,verified:boolean):Promise<boolean>{
-    try{
-      const saved=await setTechnicianVerification(id,verified);
-      setState(previous=>({...previous,technicians:previous.technicians.map(item=>item.id===id?{...item,verified:saved.verified}:item)}));
-      showNotice(verified?'ยืนยันโปรไฟล์ช่างแล้ว':'ยกเลิกการยืนยันโปรไฟล์ช่างแล้ว');return true;
-    }catch(error){showNotice(errorMessage(error,'เปลี่ยนสถานะการยืนยันไม่สำเร็จ'));return false;}
-  }
   async function createReport(payload:CreateServiceReportPayload):Promise<boolean>{
     try{await createServiceReport(payload);await refreshData();showNotice('บันทึกรายงานบริการเรียบร้อยแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'บันทึกรายงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
@@ -228,8 +225,8 @@ export default function App() {
     if(!user)return null;
     switch(page){
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
-      case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()} onVerify={user.role==='admin'?verifyTechnician:undefined}/>;
-      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob}/>;
+      case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
+      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onCreateReport={createReport} onRefresh={refreshBookings}/>;
         if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onApproveReport={approveReport} onReview={reviewJob} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
@@ -237,16 +234,23 @@ export default function App() {
       case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
+      case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout}/>;
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
   const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosed(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:0;
 
+  function finishReset(message?:string){
+    const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);
+    setResetToken('');setVisitorScreen('login');
+    if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
+  }
+  if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
   if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><Activity size={23}/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
   if(!user) {
     if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
-    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
+    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
   }
 
   const customer = user.role==='customer'||user.role==='technician'; // both get the phone bottom bar

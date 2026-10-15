@@ -20,3 +20,14 @@ services:
         value: false
       - key: FRONTEND_ORIGIN
         value: https://aircare-connect-web.onrender.com
+      # Password reset email. Without SMTP, an admin creates reset links on the "ตรวจสอบช่าง" page.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false

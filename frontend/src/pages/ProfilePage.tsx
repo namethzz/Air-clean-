@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
+import { CheckCircle2, KeyRound, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
 import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
-import { updateMyProfile } from '../lib/api';
+import { changePassword, updateMyProfile } from '../lib/api';
 
 interface Props {
   user: UserProfile;
@@ -57,6 +57,36 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
       </section>
     </div>
     {user.role === 'technician' && <TechnicianProfileSettings/>}
+    <ChangePasswordPanel/>
     {onLogout && <button type="button" className="outline-button profile-logout-mobile" onClick={onLogout}><LogOut size={17}/> ออกจากระบบ</button>}
   </div>;
+}
+
+
+function ChangePasswordPanel() {
+  const [current,setCurrent] = useState('');
+  const [next,setNext] = useState('');
+  const [confirm,setConfirm] = useState('');
+  const [saving,setSaving] = useState(false);
+  const [error,setError] = useState('');
+  const [done,setDone] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); setDone(false);
+    if (next !== confirm) { setError('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน'); return; }
+    setSaving(true);
+    try { await changePassword(current, next); setCurrent(''); setNext(''); setConfirm(''); setDone(true); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'เปลี่ยนรหัสผ่านไม่สำเร็จ'); }
+    finally { setSaving(false); }
+  }
+  return <section className="panel profile-form-panel">
+    <div className="panel-heading"><div><h2>เปลี่ยนรหัสผ่าน</h2><p>เมื่อเปลี่ยนแล้ว อุปกรณ์อื่นที่เข้าสู่ระบบไว้จะต้องเข้าสู่ระบบใหม่</p></div></div>
+    <form className="profile-form" onSubmit={submit}>
+      <label className="form-field"><span>รหัสผ่านปัจจุบัน</span><div className="profile-input-wrap"><KeyRound size={17}/><input type="password" autoComplete="current-password" value={current} onChange={e=>setCurrent(e.target.value)} maxLength={128} required/></div></label>
+      <label className="form-field"><span>รหัสผ่านใหม่</span><div className="profile-input-wrap"><KeyRound size={17}/><input type="password" autoComplete="new-password" value={next} onChange={e=>setNext(e.target.value)} minLength={8} maxLength={128} placeholder="อย่างน้อย 8 ตัวอักษร" required/></div></label>
+      <label className="form-field"><span>ยืนยันรหัสผ่านใหม่</span><div className="profile-input-wrap"><KeyRound size={17}/><input type="password" autoComplete="new-password" value={confirm} onChange={e=>setConfirm(e.target.value)} minLength={8} maxLength={128} required/></div></label>
+      {error && <div className="auth-error" role="alert">{error}</div>}
+      {done && <div className="profile-saved" role="status"><CheckCircle2 size={17}/>เปลี่ยนรหัสผ่านแล้ว</div>}
+      <button className="primary-button" type="submit" disabled={saving}><KeyRound size={16}/>{saving?'กำลังบันทึก...':'เปลี่ยนรหัสผ่าน'}</button>
+    </form>
+  </section>;
 }

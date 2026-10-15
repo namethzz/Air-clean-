@@ -154,9 +154,9 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
         </div>
 
         {isAwaitingPayment && <div className="tracking-payment-box">
-          <h3><Banknote size={16} style={{verticalAlign:'middle',marginRight:6}}/>ชำระเงินหน้างาน</h3>
+          <h3><Banknote size={16} style={{verticalAlign:'middle',marginRight:6}}/>เก็บเงินปลายทาง</h3>
           <p>เมื่องานเสร็จ ลูกค้าเลือกวิธีชำระเงินและยืนยันว่าได้จ่ายแล้ว ส่วนช่างยืนยันว่าได้รับเงินแล้ว ระบบจึงปิดภารกิจ</p>
-          {canConfirmPayment && <div className="tracking-payment-options"><button type="button" className={paymentMethod==='Cash'?'active':''} onClick={()=>setPaymentMethod('Cash')}><Banknote size={15}/> เงินสด</button><button type="button" className={paymentMethod==='PromptPay'?'active':''} onClick={()=>setPaymentMethod('PromptPay')}><Smartphone size={15}/> PromptPay</button></div>}
+          {canConfirmPayment && <div className="tracking-payment-options"><button type="button" className={paymentMethod==='Cash'?'active':''} onClick={()=>setPaymentMethod('Cash')}><Banknote size={15}/> เงินสด</button><button type="button" className={paymentMethod==='PromptPay'?'active':''} onClick={()=>setPaymentMethod('PromptPay')}><Smartphone size={15}/> โอนให้ช่าง</button></div>}
           <div className="tracking-payment-confirmations">
             <div className="payment-check-row"><CheckCircle2 size={15}/>{customerConfirmed?'ลูกค้ายืนยันว่าชำระแล้ว':'รอลูกค้ายืนยันการชำระเงิน'}</div>
             <div className="payment-check-row"><CheckCircle2 size={15}/>{technicianConfirmed?'ช่างยืนยันว่าได้รับเงินแล้ว':'รอช่างยืนยันว่าได้รับเงิน'}</div>
@@ -164,7 +164,7 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
           {canConfirmPayment && ((role==='customer' && !customerConfirmed) || (isTechnician && !technicianConfirmed)) && <button className="primary-button full-width" style={{marginTop:10}} onClick={() => onPaymentConfirm(selected.id,paymentMethod)}>{role==='customer'?'ฉันชำระเงินแล้ว':'ฉันได้รับเงินแล้ว'} <CheckCircle2 size={15}/></button>}
           {canConfirmPayment && (role === 'customer' || isTechnician) && <button className="outline-button full-width" style={{marginTop:8}} onClick={reportIssue}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>}
           {selected.status==='มีปัญหาการชำระเงิน' && <p>รายการนี้ถูกส่งให้ผู้ดูแลตรวจสอบแล้ว โปรดติดต่อผู้ดูแลก่อนเปลี่ยนสถานะ</p>}
-          <p className="tracking-disclaimer">ระบบบันทึกการยืนยันจากทั้งสองฝ่ายเท่านั้น ยังไม่ได้ตรวจสอบธุรกรรม PromptPay ผ่านธนาคารหรือผู้ให้บริการชำระเงิน</p>
+          <p className="tracking-disclaimer">ลูกค้าจ่ายให้ช่างโดยตรงเมื่องานเสร็จ ด้วยเงินสดหรือโอน AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง</p>
         </div>}
 
         {selected.status === 'เสร็จสิ้น' && <div className="tracking-status-line" style={{marginTop:14}}><div className="tracking-status-icon"><CheckCircle2 size={18}/></div><div className="tracking-status-copy"><strong>ปิดภารกิจเรียบร้อย</strong><span>ลูกค้าและช่างยืนยันการชำระเงินแล้ว · ฿{selected.price.toLocaleString()}</span></div></div>}

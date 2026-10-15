@@ -37,7 +37,7 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
       <div className="booking-tabs">{tabs.map((tab) => <button className={activeTab===tab?'active':''} key={tab} onClick={() => setActiveTab(tab)}>{tab}<span>{countFor(tab)}</span></button>)}</div>
       <div className="table-scroll"><table className="data-table"><thead><tr><th>รหัส / บริการ</th><th>วันและเวลา</th><th>ช่างผู้ให้บริการ</th><th>ราคา</th><th>สถานะ</th><th>การจัดการ</th></tr></thead><tbody>{filtered.map((booking) => <tr key={booking.id}><td><div className="booking-code">{booking.code}</div><strong>{booking.service}</strong><small className="table-secondary">{booking.unitLabel}</small></td><td><div className="table-date">{thaiDate(booking.date)}</div><small className="table-secondary"><Clock3 size={12}/> {booking.time} น.</small></td><td><div className="table-technician"><span className="avatar avatar-small">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong><small><MapPin size={11}/> {booking.address}</small></div></div></td><td className="table-price">฿{booking.price.toLocaleString()}</td><td><StatusBadge status={booking.status}/></td><td>{actionFor(booking)}</td></tr>)}</tbody></table></div>
       {filtered.length===0 && <div className="empty-state"><SlidersHorizontal size={24}/><strong>ไม่มีรายการในหมวดนี้</strong><span>เมื่อมีรายการจองใหม่ จะแสดงข้อมูลที่นี่</span></div>}
-      <div className="table-footer"><span>แสดง {filtered.length} จาก {bookings.length} รายการ</span><span>ชำระหน้างาน</span></div>
+      <div className="table-footer"><span>แสดง {filtered.length} จาก {bookings.length} รายการ</span><span>เก็บเงินปลายทาง</span></div>
     </section>
 
     {(role === 'customer' || role === 'manager' || role === 'admin') && <section className="panel interested-technicians-panel">
@@ -59,6 +59,6 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
         </article>)}
       </div>}
     </section>}
-    <div className="info-callout"><Wrench size={19}/><div><strong>ภารกิจจะเสร็จสิ้นเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</strong><span>การยืนยันชำระเงิน เป็นการบันทึกจากลูกค้าและช่าง ยังไม่มีการตรวจสอบธุรกรรม PromptPay ผ่านธนาคารอัตโนมัติ</span></div></div>
+    <div className="info-callout"><Wrench size={19}/><div><strong>ภารกิจจะเสร็จสิ้นเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</strong><span>เก็บเงินปลายทาง ลูกค้าจ่ายช่างโดยตรงด้วยเงินสดหรือโอน แล้วทั้งสองฝ่ายกดยืนยันในระบบ</span></div></div>
   </div>;
 }

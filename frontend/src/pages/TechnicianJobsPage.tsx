@@ -199,7 +199,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
         <div><dt>ลูกค้า</dt><dd>{booking.customer || '-'}</dd></div>
         <div><dt>สถานที่</dt><dd>{booking.address}{!cancelled && <> <a className="cj-inline-link" href={mapsLink(booking)} target="_blank" rel="noreferrer">เปิดแผนที่</a></>}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>ค่าบริการที่ตกลง</dt><dd>฿{booking.price.toLocaleString()} · รับเงินหน้างาน</dd></div>
+        <div><dt>ค่าบริการที่ตกลง</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>
     </section>
   </article>;
@@ -216,7 +216,7 @@ function GetPaid({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
     <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
     {!underReview && !gotIt && <div className="cj-methods" role="group" aria-label="วิธีที่ลูกค้าชำระ">
       <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
-      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> PromptPay</button>
+      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> ลูกค้าโอน</button>
     </div>}
     <ul className="cj-checks">
       <li className={customerPaid ? 'ok' : ''}><CheckCircle2 size={17}/> {customerPaid ? 'ลูกค้ายืนยันว่าชำระแล้ว' : 'รอลูกค้ายืนยันการชำระเงิน'}</li>
@@ -230,7 +230,7 @@ function GetPaid({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
         <div><button type="button" className="cj-primary" disabled={!reason.trim()} onClick={() => { onIssue(booking.id, reason.trim()); setReporting(false); }}>ส่งให้ผู้ดูแลตรวจสอบ</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
       </div>
       : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>)}
-    <p className="cj-note">ระบบบันทึกการยืนยันจากลูกค้าและช่างเท่านั้น ยังไม่ได้ตรวจยอดโอน PromptPay กับธนาคาร</p>
+    <p className="cj-note">เก็บเงินปลายทาง: รับเงินจากลูกค้าโดยตรงเมื่อล้างเสร็จ หากลูกค้าโอน ให้ตรวจยอดเข้าบัญชีก่อนกดยืนยัน</p>
   </div>;
 }
 

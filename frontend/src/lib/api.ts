@@ -1,4 +1,4 @@
-import type { AirConditioner, BatchBooking, Booking, PaymentMethod, ServiceReportRecord, Technician, UserProfile, UserRole } from '../types';
+import type { AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -67,8 +67,9 @@ export async function login(email: string, password: string): Promise<UserProfil
   saveToken(result.token);
   return fromApiUser(result.user);
 }
-export async function register(fullName: string, email: string, password: string, role: Exclude<UserRole, 'admin'> = 'customer'): Promise<UserProfile> {
-  const result = await request<AuthResponse>('/auth/register', { method:'POST', body:JSON.stringify({ fullName:fullName.trim(), email:email.trim(), password, role }) });
+export interface TechnicianApplicationFields { phone:string; serviceArea:string; experienceYears:number; }
+export async function register(fullName: string, email: string, password: string, role: Exclude<UserRole, 'admin'> = 'customer', technician?: TechnicianApplicationFields): Promise<UserProfile> {
+  const result = await request<AuthResponse>('/auth/register', { method:'POST', body:JSON.stringify({ fullName:fullName.trim(), email:email.trim(), password, role, ...(role==='technician'&&technician?{ phone:technician.phone.trim(), serviceArea:technician.serviceArea.trim(), experienceYears:technician.experienceYears }:{}) }) });
   saveToken(result.token);
   return fromApiUser(result.user);
 }
@@ -77,6 +78,37 @@ export async function updateMyProfile(payload: { fullName: string; email: string
     method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim() })
   });
   return { id:result.id, fullName:result.fullName, email:result.email, role:roleFromApi(result.role) };
+}
+export async function forgotPassword(email: string): Promise<string> {
+  const result = await request<{ message: string }>('/auth/forgot-password', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
+  return result.message;
+}
+export async function resetPassword(token: string, newPassword: string): Promise<string> {
+  const result = await request<{ message: string }>('/auth/reset-password', { method:'POST', body:JSON.stringify({ token, newPassword }) });
+  return result.message;
+}
+/** Other devices are signed out; this browser keeps working with the new token. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const result = await request<AuthResponse>('/auth/change-password', { method:'POST', body:JSON.stringify({ currentPassword, newPassword }) });
+  saveToken(result.token);
+}
+export async function createPasswordResetLink(email: string): Promise<{ link: string; expiresAt: string; fullName: string }> {
+  return request('/admin/password-reset-links', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
+}
+interface SavedAddressResponse { id:number; label:string; placeType:SavedAddress['placeType']; address:string; building?:string|null; floor?:string|null; room?:string|null; note?:string|null; latitude:number; longitude:number; }
+function fromApiAddress(item: SavedAddressResponse): SavedAddress {
+  return { id:String(item.id), label:item.label, placeType:item.placeType, address:item.address, building:item.building??undefined,
+    floor:item.floor??undefined, room:item.room??undefined, note:item.note??undefined, latitude:item.latitude, longitude:item.longitude, locationSelected:true };
+}
+export async function fetchSavedAddresses(): Promise<SavedAddress[]> {
+  return (await request<SavedAddressResponse[]>('/me/addresses')).map(fromApiAddress);
+}
+export async function saveAddress(item: SavedAddress): Promise<SavedAddress> {
+  const { label, placeType, address, building, floor, room, note, latitude, longitude } = item;
+  return fromApiAddress(await request<SavedAddressResponse>('/me/addresses', { method:'POST', body:JSON.stringify({ label, placeType, address, building, floor, room, note, latitude, longitude }) }));
+}
+export async function deleteSavedAddress(id: string): Promise<void> {
+  return request<void>('/me/addresses/' + encodeURIComponent(id), { method:'DELETE' });
 }
 export async function fetchCurrentUser(): Promise<UserProfile | null> {
   if (!localStorage.getItem(TOKEN_KEY)) { clearAuth(); return null; }
@@ -121,8 +153,11 @@ export async function deleteAirConditioner(id:number):Promise<void> {
 export async function createReview(bookingId:number,rating:number,comment:string):Promise<void> {
   await request<unknown>('/bookings/'+bookingId+'/reviews',{method:'POST',body:JSON.stringify({rating,comment:comment.trim()})});
 }
-export async function setTechnicianVerification(id:number,verified:boolean):Promise<Technician> {
-  return request<Technician>('/technicians/'+id+'/verification',{method:'PATCH',body:JSON.stringify({verified})});
+export async function fetchTechnicianApplications():Promise<TechnicianApplication[]> {
+  return request<TechnicianApplication[]>('/admin/technicians');
+}
+export async function setTechnicianVerification(id:number,verified:boolean,note?:string):Promise<TechnicianApplication> {
+  return request<TechnicianApplication>('/technicians/'+id+'/verification',{method:'PATCH',body:JSON.stringify({verified,note})});
 }
 export async function createBatchBooking(payload: {
   buildingName:string; address:string; unitCount:number; scheduledDate:string; notes?:string;
@@ -149,9 +184,9 @@ export async function approveServiceReport(id:number): Promise<void> {
 }
 
 export interface TechnicianProfilePayload {
-  title: string; area: string; basePrice: number; availableText: string; skills: string;
+  title: string; area: string; basePrice: number; availableText: string; skills: string; phone: string; experienceYears: number;
 }
-export function fetchMyTechnicianProfile(): Promise<Technician> { return request<Technician>('/technicians/me'); }
-export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<Technician> {
-  return request<Technician>('/technicians/me', { method: 'PATCH', body: JSON.stringify(payload) });
+export function fetchMyTechnicianProfile(): Promise<TechnicianApplication> { return request<TechnicianApplication>('/technicians/me'); }
+export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<TechnicianApplication> {
+  return request<TechnicianApplication>('/technicians/me', { method: 'PATCH', body: JSON.stringify(payload) });
 }
