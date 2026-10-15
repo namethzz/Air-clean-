@@ -8,7 +8,7 @@ import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
 import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
 import { RoomBoard } from '../components/Rooms';
-import { isClosed, isOffer, sortByNeed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
+import { isClosed, isOffer, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
 import type { CompleteJobPayload } from '../lib/api';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
@@ -98,6 +98,107 @@ function useShareLocation(booking: Booking, onLocationUpdate: Props['onLocationU
   return { message, retry: () => setAttempt(value => value + 1) };
 }
 
+const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const addDays = (days: number) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + days); return date; };
+const startOf = (item: Booking) => item.timeWindow ? item.timeWindow.split('-')[0] : item.time;
+
+/** Visits in the order they happen; offers (not yet the technician's) after every confirmed visit. */
+function byVisit(jobs: Booking[]): Booking[] {
+  return [...jobs].sort((a, b) => Number(isOffer(a)) - Number(isOffer(b)) || (a.date + startOf(a)).localeCompare(b.date + startOf(b)));
+}
+
+function dayTitle(date: string): { name: string; when: string; past: boolean } {
+  const today = dayKey(addDays(0)), tomorrow = dayKey(addDays(1));
+  const full = new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short' });
+  if (date === today) return { name: 'วันนี้', when: full, past: false };
+  if (date === tomorrow) return { name: 'พรุ่งนี้', when: full, past: false };
+  return { name: full, when: '', past: date < today };
+}
+
+/** "วันนี้ 2 งาน · พรุ่งนี้ 1 งาน", or the next day with work when today is free. */
+function summary(open: Booking[]): string {
+  const visits = open.filter(item => active.includes(item.status) || item.status === 'รอยืนยัน');
+  const today = visits.filter(item => item.date === dayKey(addDays(0))).length;
+  const tomorrow = visits.filter(item => item.date === dayKey(addDays(1))).length;
+  const parts = [today ? `วันนี้ ${today} งาน` : 'วันนี้ว่าง', tomorrow ? `พรุ่งนี้ ${tomorrow} งาน` : ''].filter(Boolean);
+  if (!today && !tomorrow) {
+    const next = visits.find(item => item.date > dayKey(addDays(1)));
+    if (next) parts.push(`งานถัดไป ${shortDate(next.date)}`);
+  }
+  return parts.join(' · ');
+}
+
+/** What a row says about where the job stands; the day and time are already the row's frame. */
+function rowState(item: Booking): { text: string; tone: 'act' | 'live' | 'calm' | 'wait' } {
+  switch (item.status) {
+    case 'รอยืนยัน': return { text: 'ลูกค้าเลือกคุณ · กดรับงาน', tone: 'act' };
+    case 'ยืนยันแล้ว': return { text: 'นัดแล้ว', tone: 'calm' };
+    case 'กำลังเดินทาง': return { text: 'กำลังเดินทาง', tone: 'live' };
+    case 'ถึงหน้างาน': case 'กำลังดำเนินการ': return { text: 'อยู่หน้างาน', tone: 'live' };
+    case 'รอชำระเงิน': return { text: 'รับเงินแล้วกดปิดงาน', tone: 'act' };
+    case 'มีปัญหาการชำระเงิน': return { text: 'ผู้ดูแลกำลังตรวจสอบ', tone: 'wait' };
+    default: return { text: 'รอลูกค้าเลือก', tone: 'wait' };
+  }
+}
+
+/** The open jobs as a diary: a week strip to see the busy days at a glance, then each day's visits by time. */
+function Schedule({ jobs, selectedId, onSelect }: { jobs: Booking[]; selectedId?: number; onSelect: (id: number) => void }) {
+  const visits = jobs.filter(item => !isOffer(item));
+  const offers = jobs.filter(isOffer);
+  const days = [...new Set(visits.map(item => item.date))];
+  const week = Array.from({ length: 7 }, (_, index) => addDays(index));
+  const jump = (date: string) => document.getElementById(`tj-day-${date}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  return <div className="tj-schedule">
+    <ol className="tj-week" aria-label="7 วันข้างหน้า">{week.map((date, index) => {
+      const key = dayKey(date);
+      const count = visits.filter(item => item.date === key).length;
+      return <li key={key}>
+        <button type="button" className={'tj-week-day' + (count ? ' busy' : '') + (index === 0 ? ' today' : '')} disabled={!count} onClick={() => jump(key)}
+          aria-label={`${date.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })} ${count ? count + ' งาน' : 'ไม่มีงาน'}`}>
+          <span>{index === 0 ? 'วันนี้' : date.toLocaleDateString('th-TH', { weekday: 'short' })}</span>
+          <strong>{date.getDate()}</strong>
+          <em aria-hidden="true">{count ? (count > 3 ? count : '•'.repeat(count)) : ''}</em>
+        </button>
+      </li>;
+    })}</ol>
+
+    {!visits.length && <p className="tj-free">ยังไม่มีงานที่ลูกค้ายืนยัน งานที่คุณเสนอราคาไว้อยู่ด้านล่าง</p>}
+
+    {days.map(date => {
+      const title = dayTitle(date);
+      const rows = visits.filter(item => item.date === date);
+      return <section key={date} id={`tj-day-${date}`} className={'tj-day' + (title.past ? ' past' : '')} aria-label={`${title.name} ${title.when}`}>
+        <h2 className="tj-day-head"><strong>{title.past ? `เลยวันนัด · ${title.name}` : title.name}</strong>{title.when && <span>{title.when}</span>}<small>{rows.length} งาน</small></h2>
+        <ul>{rows.map(item => <li key={item.id}><VisitRow item={item} active={selectedId === item.id} onSelect={onSelect}/></li>)}</ul>
+      </section>;
+    })}
+
+    {offers.length > 0 && <section className="tj-day tj-offers" aria-label="ข้อเสนอที่รอลูกค้าเลือก">
+      <h2 className="tj-day-head"><strong>รอลูกค้าเลือก</strong><span>ยังไม่ใช่งานของคุณ</span><small>{offers.length} งาน</small></h2>
+      <ul>{offers.map(item => <li key={item.id}><VisitRow item={item} active={selectedId === item.id} onSelect={onSelect} withDate/></li>)}</ul>
+    </section>}
+  </div>;
+}
+
+function VisitRow({ item, active: current, onSelect, withDate = false }: { item: Booking; active: boolean; onSelect: (id: number) => void; withDate?: boolean }) {
+  const [from, to] = item.timeWindow ? item.timeWindow.split('-') : [item.time, ''];
+  const state = rowState(item);
+  const quote = item.applicants?.[0]?.quote ?? item.price;
+  return <button type="button" className={`tj-visit tone-${state.tone}` + (current ? ' active' : '')} aria-current={current ? 'true' : undefined} onClick={() => onSelect(item.id)}>
+    <span className="tj-visit-time">
+      {withDate && <b>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</b>}
+      <strong>{from}</strong>{to && <span>ถึง {to}</span>}
+    </span>
+    <span className="tj-visit-main">
+      <strong className="tj-visit-place"><MapPin size={15} aria-hidden="true"/>{item.address || 'ยังไม่มีที่อยู่'}</strong>
+      <span>{item.service} · {item.unitCount || 1} เครื่อง · ฿{quote.toLocaleString()}</span>
+      <em className="tj-visit-state">{state.text}</em>
+    </span>
+    <ChevronRight size={18} aria-hidden="true"/>
+  </button>;
+}
+
 /** Technician's single place for their jobs: offers waiting on customers, jobs to go to, and closing a job. */
 export default function TechnicianJobsPage(props: Props) {
   const { bookings, focus, onFindJobs, onRefresh } = props;
@@ -106,7 +207,7 @@ export default function TechnicianJobsPage(props: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   /** The job just closed on this screen: shows the "done" summary and what to do next instead of the old job page. */
   const [finishedId, setFinishedId] = useState<number | null>(null);
-  const open = useMemo(() => sortByNeed(bookings.filter(item => !isClosed(item)), techNeedsAction), [bookings]);
+  const open = useMemo(() => byVisit(bookings.filter(item => !isClosed(item))), [bookings]);
   const closed = useMemo(() => bookings.filter(isClosed).sort((a, b) => b.id - a.id), [bookings]);
 
   useEffect(() => {
@@ -152,30 +253,26 @@ export default function TechnicianJobsPage(props: Props) {
   return <div className={'cj-page' + (selected && !wide ? ' cj-show-detail' : '')}>
     <section className="cj-list" aria-label="รายการงาน">
       <div className="cj-list-head">
-        <h1>งานของฉัน</h1>
-        {toGo > 0 && <span className="cj-action-pill">{toGo} งานที่ต้องไป</span>}
+        <div><h1>งานของฉัน</h1>{toGo > 0 && <p className="tj-summary">{summary(open)}</p>}</div>
       </div>
       <div className="cj-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>กำลังดำเนินการ <span>{open.length}</span></button>
         <button type="button" role="tab" aria-selected={tab === 'closed'} className={tab === 'closed' ? 'active' : ''} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span>{closed.length}</span></button>
       </div>
-      {shown.length === 0
-        ? <p className="cj-list-empty">{tab === 'open' ? 'ไม่มีงานที่กำลังดำเนินการ' : 'ยังไม่มีงานที่ปิดแล้ว'}</p>
-        : <ul>{shown.map(item => {
-          const offer = isOffer(item);
-          const quote = item.applicants?.[0]?.quote;
-          return <li key={item.id}>
-            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '') + (offer ? ' cj-row-offer' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
+      {tab === 'open'
+        ? (open.length === 0 ? <p className="cj-list-empty">ไม่มีงานที่กำลังดำเนินการ</p> : <Schedule jobs={open} selectedId={selected?.id} onSelect={setSelectedId}/>)
+        : closed.length === 0 ? <p className="cj-list-empty">ยังไม่มีงานที่ปิดแล้ว</p>
+        : <ul>{closed.map(item => <li key={item.id}>
+            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
               <span className="cj-row-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><span>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</span></span>
               <span className="cj-row-main">
                 <strong>{item.service} · {item.unitCount || 1} เครื่อง</strong>
-                <span className={techNeedsAction(item) ? 'cj-row-urgent' : ''}>{techGuide(item).short}</span>
-                <small>{offer ? `ข้อเสนอ ฿${(quote ?? item.price).toLocaleString()} · ${timeLabel(item)}` : active.includes(item.status) ? item.address : `${shortDate(item.date)} · ${timeLabel(item)}`}</small>
+                <span>{techGuide(item).short}</span>
+                <small>{shortDate(item.date)} · {timeLabel(item)}</small>
               </span>
               <ChevronRight size={18} aria-hidden="true"/>
             </button>
-          </li>;
-        })}</ul>}
+          </li>)}</ul>}
       <button type="button" className="cj-add" onClick={onFindJobs}><MapPin size={17}/> ดูงานใกล้ฉัน</button>
     </section>
 
