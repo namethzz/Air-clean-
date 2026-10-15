@@ -1,4 +1,4 @@
-import { AirVent, ClipboardList, Home, MapPin, Plus, UserCog, UserRound } from 'lucide-react';
+import { ClipboardList, History, Home, MapPin, Plus, UserCog, UserRound } from 'lucide-react';
 import type { PageKey, UserRole } from '../types';
 
 interface Props {
@@ -29,7 +29,7 @@ export default function BottomNav({ role, page, actionCount, onNavigate, onNewBo
     {item('overview', 'หน้าแรก', Home)}
     {item('bookings', 'งานของฉัน', ClipboardList, actionCount)}
     <button type="button" className="bn-add" onClick={onNewBooking}><span className="bn-add-dot"><Plus size={26} strokeWidth={2.4}/></span><span>ขอช่าง</span></button>
-    {item('passport', 'แอร์ของฉัน', AirVent)}
+    {item('history', 'ประวัติ', History)}
     {item('profile', 'บัญชี', UserRound)}
   </nav>;
 }

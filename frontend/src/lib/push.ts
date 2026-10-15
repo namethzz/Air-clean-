@@ -1,5 +1,18 @@
 import { fetchPushPublicKey, removePushSubscription, savePushSubscription } from './api';
 
+export type PushSupport = 'ready' | 'install' | 'inapp' | 'unsupported';
+
+export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/** What this device needs before it can show notifications: nothing, a Home Screen install (iPhone/iPad), another browser, or nothing will work. */
+export function pushSupport(): PushSupport {
+  if (/FBAN|FBAV|FB_IAB|Messenger|Line\/|Instagram|MicroMessenger|KAKAOTALK/i.test(navigator.userAgent)) return 'inapp';
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (isIOS() && !standalone) return 'install';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || !window.isSecureContext) return 'unsupported';
+  return 'ready';
+}
+
 /** Why push cannot be used here, in words the person can act on; null when it can. */
 export function pushUnavailableReason(): string | null {
   const ua = navigator.userAgent;

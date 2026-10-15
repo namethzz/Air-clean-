@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { ArrowRight, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
@@ -97,6 +97,8 @@ export default function TechnicianJobsPage(props: Props) {
   const wide = useIsWide();
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  /** The job just closed on this screen: shows the "done" summary and what to do next instead of the old job page. */
+  const [finishedId, setFinishedId] = useState<number | null>(null);
   const open = useMemo(() => sortByNeed(bookings.filter(item => !isClosed(item)), techNeedsAction), [bookings]);
   const closed = useMemo(() => bookings.filter(isClosed).sort((a, b) => b.id - a.id), [bookings]);
 
@@ -116,6 +118,14 @@ export default function TechnicianJobsPage(props: Props) {
   const shown = tab === 'open' ? open : closed;
   const selected = bookings.find(item => item.id === selectedId) ?? (wide ? shown[0] : undefined);
   const toGo = open.filter(item => active.includes(item.status)).length;
+  const finished = finishedId != null ? bookings.find(item => item.id === finishedId && item.status === 'เสร็จสิ้น') : undefined;
+  const nextJob = open.find(item => active.includes(item.status) || item.status === 'รอยืนยัน');
+  async function complete(id: number, payload: CompleteJobPayload) {
+    const ok = await props.onComplete(id, payload);
+    if (ok) { setFinishedId(id); setSelectedId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    return ok;
+  }
+  function openJob(id: number | null) { setFinishedId(null); setSelectedId(id); if (id != null) setTab('open'); }
 
   if (!bookings.length) {
     return <div className="cj-empty">
@@ -123,6 +133,12 @@ export default function TechnicianJobsPage(props: Props) {
       <h1>ยังไม่มีงาน</h1>
       <p>ดูงานใกล้ตัวแล้วกดสนใจ งานที่คุณเสนอราคาจะมาอยู่ที่นี่ทันที และเมื่อลูกค้าเลือกคุณ จะมีที่อยู่และปุ่มนำทาง</p>
       <button type="button" className="cj-primary" onClick={onFindJobs}><MapPin size={18}/> ดูงานใกล้ฉัน</button>
+    </div>;
+  }
+
+  if (finished) {
+    return <div className="cj-page tj-done-page">
+      <JobFinished booking={finished} bookings={bookings} next={nextJob} onOpen={openJob} onFindJobs={onFindJobs}/>
     </div>;
   }
 
@@ -157,7 +173,7 @@ export default function TechnicianJobsPage(props: Props) {
     </section>
 
     <section className="cj-detail" aria-label="รายละเอียดงาน">
-      {selected ? <JobDetail key={selected.id} {...props} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="cj-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
+      {selected ? <JobDetail key={selected.id} {...props} onComplete={complete} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="cj-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
     </section>
   </div>;
 }
@@ -230,6 +246,52 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
       </dl>
     </section>}
+  </article>;
+}
+
+function localDate(offsetDays = 0) {
+  const day = new Date(); day.setDate(day.getDate() + offsetDays);
+  return new Date(day.getTime() - day.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/** Right after closing a job: what was recorded, today's totals, and the next place to go (or finding new work). */
+function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking: Booking; bookings: Booking[]; next?: Booking; onOpen: (id: number | null) => void; onFindJobs: () => void }) {
+  const today = localDate();
+  const doneToday = bookings.filter(item => item.status === 'เสร็จสิ้น' && item.date === today);
+  const month = today.slice(0, 7);
+  const doneMonth = bookings.filter(item => item.status === 'เสร็จสิ้น' && item.date.startsWith(month));
+  const sum = (rows: Booking[]) => rows.reduce((total, item) => total + item.price, 0);
+  const nextWhen = next ? (next.date === today ? 'วันนี้' : next.date === localDate(1) ? 'พรุ่งนี้' : shortDate(next.date)) : '';
+  return <article className="tj-done" aria-live="polite">
+    <div className="tj-done-hero">
+      <span className="tj-done-icon"><CheckCircle2 size={34} strokeWidth={2.2}/></span>
+      <h1>ปิดงานเรียบร้อย</h1>
+      <p className="tj-done-amount">+฿{booking.price.toLocaleString()}</p>
+      <p className="tj-done-sub">{booking.paymentMethod === 'PromptPay' ? 'รับเงินโอน' : 'รับเงินสด'} · {booking.code} · {booking.customer}</p>
+    </div>
+    <ul className="tj-done-saved">
+      <li><Check size={16} strokeWidth={3}/> บันทึกการรับเงินแล้ว</li>
+      <li><Check size={16} strokeWidth={3}/> บันทึกประวัติการล้างแอร์ให้ลูกค้าแล้ว</li>
+      <li><Check size={16} strokeWidth={3}/> แจ้งลูกค้าให้ให้คะแนนคุณแล้ว</li>
+    </ul>
+    <dl className="tj-done-stats">
+      <div><dt>วันนี้</dt><dd>{doneToday.length} งาน · ฿{sum(doneToday).toLocaleString()}</dd></div>
+      <div><dt>เดือนนี้</dt><dd>{doneMonth.length} งาน · ฿{sum(doneMonth).toLocaleString()}</dd></div>
+    </dl>
+    {next
+      ? <section className="tj-done-next">
+        <h2>งานถัดไป · {nextWhen} {next.time} น.</h2>
+        <p className="tj-address">{next.address}</p>
+        <p className="cj-note">{next.customer} · {next.unitCount || 1} เครื่อง · ฿{next.price.toLocaleString()}</p>
+        <button type="button" className="cj-primary full" onClick={() => onOpen(next.id)}>ไปงานถัดไป <ArrowRight size={18}/></button>
+        <button type="button" className="cj-ghost" onClick={onFindJobs}><MapPin size={17}/> หางานเพิ่มใกล้ฉัน</button>
+      </section>
+      : <section className="tj-done-next">
+        <h2>ไม่มีงานที่ต้องไปต่อ</h2>
+        <p className="cj-note">ดูงานใหม่ใกล้ตัวแล้วส่งข้อเสนอได้เลย</p>
+        <button type="button" className="cj-primary full" onClick={onFindJobs}><MapPin size={18}/> หางานใหม่ใกล้ฉัน</button>
+      </section>}
+    <button type="button" className="cj-link tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={16}/> ดูงานทั้งหมด</button>
   </article>;
 }
 

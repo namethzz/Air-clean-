@@ -1,4 +1,4 @@
-export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues';
+export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues'|'history';
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
 export type PaymentMethod='Cash'|'PromptPay';

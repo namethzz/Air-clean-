@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AirVent, AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink,
+  AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, History,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
@@ -275,7 +275,7 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
     <div className="cj-next-clean"><CalendarClock size={20}/><div><strong>ล้างครั้งถัดไปแนะนำ {next.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong><span>ล้างทุก 6 เดือนช่วยให้แอร์เย็นเร็ว ประหยัดไฟ และลดฝุ่น</span></div></div>
     <div className="cj-after-actions">
       <button type="button" className="cj-primary" onClick={onNewBooking}><RotateCcw size={16}/> ขอช่างล้างแอร์อีกครั้ง</button>
-      <button type="button" className="cj-ghost" onClick={onOpenPassport}><AirVent size={16}/> {booking.airConditionerId ? 'ดูประวัติในแอร์ของฉัน' : 'บันทึกแอร์ไว้ในแอร์ของฉัน'}</button>
+      <button type="button" className="cj-ghost" onClick={onOpenPassport}><History size={16}/> ดูประวัติการล้างแอร์</button>
     </div>
     {booking.issue?.kind === 'Service' && !booking.issue.open && booking.issue.resolutionNote && !sent &&
       <p className="cj-done"><CheckCircle2 size={18}/> ผู้ดูแลปิดเรื่องที่คุณแจ้งแล้ว: {booking.issue.resolutionNote}</p>}
