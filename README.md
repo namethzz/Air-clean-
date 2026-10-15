@@ -1,202 +1,228 @@
 # AirClean
 
-**A marketplace that connects people who need their air conditioner cleaned with technicians nearby.**
-The customer posts one request. Technicians in the area send quotes. The customer compares them and picks one, and only then does that technician see the address.
+**ภาษาไทย** · [English](README.en.md)
+
+**แพลตฟอร์มจับคู่คนที่อยากล้างแอร์กับช่างแอร์ใกล้บ้าน**
+ลูกค้าส่งคำขอครั้งเดียว ช่างในพื้นที่เสนอราคาเข้ามา ลูกค้าเปรียบเทียบแล้วเลือกเอง และช่างจะเห็นที่อยู่จริงก็ต่อเมื่อลูกค้าเลือกช่างคนนั้นแล้วเท่านั้น
 
 [![Build](https://github.com/namethzz/Air-clean-/actions/workflows/build.yml/badge.svg)](https://github.com/namethzz/Air-clean-/actions/workflows/build.yml)
 
-Built for the Thai market, so the interface is in Thai. Full stack: React + TypeScript, ASP.NET Core 8, MongoDB.
+ใช้งานจริงที่ **[aircare-connect-web.onrender.com](https://aircare-connect-web.onrender.com)** (เซิร์ฟเวอร์ฟรีจะหลับเมื่อไม่มีคนใช้ เปิดครั้งแรกอาจรอ 30–60 วินาที)
+
+Full stack: React + TypeScript, ASP.NET Core 8, MongoDB · เก็บค่าสมาชิกจริงผ่าน PromptPay และตรวจสลิปกับธนาคารอัตโนมัติ
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/01-landing.png" alt="Landing page on a phone" width="200"></td>
-    <td><img src="docs/screenshots/02-location-privacy.png" alt="Address privacy explained on a phone" width="200"></td>
-    <td><img src="docs/screenshots/03-how-it-works.png" alt="How it works on a phone" width="200"></td>
-    <td><img src="docs/screenshots/04-sign-up.png" alt="Sign-up with role choice on a phone" width="200"></td>
+    <td><img src="docs/screenshots/05-customer-offers.png" alt="ลูกค้าเปรียบเทียบข้อเสนอพร้อมเวลานับถอยหลัง" width="190"></td>
+    <td><img src="docs/screenshots/06-customer-job.png" alt="งานที่ยืนยันแล้ว พร้อมปุ่มโทรหาช่าง" width="190"></td>
+    <td><img src="docs/screenshots/07-technician-schedule.png" alt="ตารางงานของช่างแยกตามวัน" width="190"></td>
+    <td><img src="docs/screenshots/08-technician-membership.png" alt="ช่างต่ออายุสมาชิกด้วย QR พร้อมเพย์" width="190"></td>
   </tr>
   <tr>
-    <td align="center">Landing</td>
-    <td align="center">Address privacy</td>
-    <td align="center">How it works</td>
-    <td align="center">Sign-up by role</td>
+    <td align="center">ลูกค้าเลือกช่างภายใน 1 ชม.</td>
+    <td align="center">งานที่ยืนยันแล้ว</td>
+    <td align="center">ตารางงานของช่าง</td>
+    <td align="center">ต่ออายุสมาชิกด้วย QR</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/09-booking-form.png" alt="ฟอร์มขอช่าง" width="190"></td>
+    <td><img src="docs/screenshots/10-building-rooms.png" alt="ผู้ดูแลอาคารจัดการรายห้อง" width="190"></td>
+    <td><img src="docs/screenshots/01-landing.png" alt="หน้าแรก" width="190"></td>
+    <td><img src="docs/screenshots/04-sign-up.png" alt="สมัครแยกตามบทบาท" width="190"></td>
+  </tr>
+  <tr>
+    <td align="center">ฟอร์มขอช่าง</td>
+    <td align="center">อาคารแบบรายห้อง</td>
+    <td align="center">หน้าแรก</td>
+    <td align="center">สมัครตามบทบาท</td>
   </tr>
 </table>
 
-These are the public pages, captured at phone width (390 px). The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data.
+<img src="docs/screenshots/11-admin-membership.png" alt="หน้าแอดมิน: ค่าสมาชิกช่างและการตรวจสลิป" width="780">
 
-## What it does
+ภาพจากหน้าจอจริงที่ความกว้างมือถือ (390 px) และเดสก์ท็อป ด้วยข้อมูลทดสอบ
 
-- **Four roles.** Customers, technicians, building managers (whole buildings, room by room) and administrators each get their own workspace.
-- **Quotes instead of a fixed price.** Nearby technicians see open jobs sorted by distance and send a quote. The customer has one hour from the first quote to choose; after that the offers lapse and the request can be reopened with one tap.
-- **A live job.** After confirmation the customer follows the technician on a map. The technician counts finished rooms, attaches before and after photos, and closes the job in one step.
-- **Cash on delivery.** The customer pays the technician directly. AirClean never holds money; both sides confirm, and a dispute goes to an admin queue.
-- **Aircon Passport.** Each finished job is written to the unit's service history, and the next cleaning is scheduled for six months later.
-- **Technician onboarding.** Applications need an ID card and are approved by an admin. After approval a technician gets a free trial and then pays a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
-- **Notifications.** An in-app bell plus Web Push, including iPhone when the app is added to the Home Screen.
-- **Sign-in.** Email and password, Google, and Apple. Password reset links are single-use and sign out the account's other devices.
+## ทำอะไรได้บ้าง
 
-The full feature list and every configuration setting are in [docs/REFERENCE.md](docs/REFERENCE.md). A walkthrough of the product in Thai is in [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md).
+- **ผู้ใช้ 4 บทบาท** ลูกค้า ช่างแอร์ ผู้ดูแลอาคาร (จัดการทั้งตึกแบบรายห้อง) และแอดมิน แต่ละบทบาทมีหน้าของตัวเอง
+- **ช่างเสนอราคาแทนราคาตายตัว** ช่างเห็นงานใกล้ตัวเรียงตามระยะทางแล้วเสนอราคา ลูกค้ามีเวลาเลือก 1 ชั่วโมงนับจากข้อเสนอแรก ถ้าหมดเวลา ข้อเสนอหมดอายุและเปิดรับใหม่ได้ในปุ่มเดียว
+- **ติดตามงานจริง** หลังยืนยันแล้ว ลูกค้าเห็นตำแหน่งช่างบนแผนที่ โทรหากันได้ เลื่อนวันนัดได้ ช่างติ๊กห้องที่ล้างเสร็จ แนบรูปก่อนและหลังล้าง แล้วปิดงานในขั้นตอนเดียว
+- **ตารางงานของช่าง** แยกตามวันพร้อมแถบ 7 วัน และเตือนเมื่อเวลานัดชนกัน
+- **เก็บเงินปลายทาง** ลูกค้าจ่ายช่างโดยตรง แพลตฟอร์มไม่ถือเงิน ทั้งสองฝ่ายยืนยัน และถ้ามีข้อโต้แย้งจะเข้าคิวให้แอดมินตัดสิน มีใบเสร็จพร้อมจำนวนเงินเป็นตัวอักษร
+- **รับช่างเข้าระบบ** ช่างส่งรูปบัตรประชาชนให้แอดมินตรวจก่อนอนุมัติ หลังอนุมัติใช้ฟรีช่วงทดลอง จากนั้นจ่ายค่าสมาชิกรายเดือนด้วย QR พร้อมเพย์ ระบบตรวจสลิปกับธนาคารผ่าน Slip2Go และต่ออายุให้ทันทีโดยไม่ต้องรอแอดมิน
+- **แจ้งเตือน** กระดิ่งในแอปและ Web Push รวมถึง iPhone เมื่อเพิ่มแอปไว้ที่หน้าจอหลัก มีเตือนล่วงหน้าวันนัด ครบรอบล้าง 6 เดือน และสมาชิกใกล้หมดอายุ
+- **เข้าสู่ระบบ** อีเมลและรหัสผ่าน, Google และ Apple ลิงก์ตั้งรหัสผ่านใหม่ใช้ได้ครั้งเดียวและออกจากระบบเครื่องอื่นทั้งหมด
 
-## Architecture
+รายการฟีเจอร์ทั้งหมดและการตั้งค่าทุกตัวอยู่ใน [docs/REFERENCE.md](docs/REFERENCE.md) และคำอธิบายผลิตภัณฑ์แบบละเอียดอยู่ใน [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md)
+
+## สถาปัตยกรรม
 
 ```mermaid
 flowchart LR
-  subgraph Client["Browser / installed PWA"]
-    SPA["React 18 + TypeScript + Vite<br/>Leaflet map, service worker"]
+  subgraph Client["เบราว์เซอร์ / PWA ที่ติดตั้งในมือถือ"]
+    SPA["React 18 + TypeScript + Vite<br/>แผนที่ Leaflet, service worker"]
   end
-  subgraph Render["Render, Docker"]
-    API["ASP.NET Core 8 Web API<br/>JWT, rate limiting, 16 controllers"]
-    BG["ReminderService<br/>background job, every 5 min"]
+  subgraph Render["Render (Docker)"]
+    API["ASP.NET Core 8 Web API<br/>JWT, rate limit, 15 controllers"]
+    BG["ReminderService<br/>รันเบื้องหลังทุก 5 นาที"]
   end
   DB[("MongoDB Atlas")]
   SPA -- "HTTPS + JWT" --> API
   API --> DB
   BG --> DB
-  API -- "ID token check" --> OIDC["Google and Apple sign-in"]
-  API -- "Web Push" --> PUSH["Browser push services<br/>FCM, Mozilla, Apple, Windows"]
+  API -- "ตรวจ ID token" --> OIDC["Google / Apple sign-in"]
+  API -- "Web Push" --> PUSH["บริการ push ของเบราว์เซอร์<br/>FCM, Mozilla, Apple, Windows"]
   PUSH -.-> SPA
-  API -- "HTTPS API" --> MAIL["Brevo<br/>password-reset email"]
-  API -- "slip check" --> SLIP["Slip2Go<br/>PromptPay slips"]
-  GHA["GitHub Actions<br/>CI + 30-minute cron"] -- "POST /api/cron/reminders" --> API
-  SPA --> OSM["OpenStreetMap tiles<br/>and Nominatim search"]
+  API -- "HTTPS API" --> MAIL["Brevo<br/>อีเมลรีเซ็ตรหัสผ่าน"]
+  API -- "ตรวจสลิป" --> SLIP["Slip2Go<br/>สลิปพร้อมเพย์"]
+  GHA["GitHub Actions<br/>CI + cron ทุก 30 นาที"] -- "POST /api/cron/reminders" --> API
+  SPA --> OSM["OpenStreetMap<br/>แผนที่และค้นหาที่อยู่"]
 ```
 
-### A job's life
+### เส้นทางของงานหนึ่งงาน
 
 ```mermaid
 stateDiagram-v2
-  [*] --> OpenForTechnicians: customer posts a request
-  OpenForTechnicians --> AwaitingCustomerSelection: first technician quote
-  AwaitingCustomerSelection --> Confirmed: customer picks a technician
-  AwaitingCustomerSelection --> OffersExpired: 1 hour after the first quote
-  OffersExpired --> OpenForTechnicians: customer reopens
-  Confirmed --> Traveling
-  Traveling --> Arrived
+  [*] --> OpenForTechnicians: ลูกค้าส่งคำขอ
+  OpenForTechnicians --> AwaitingCustomerSelection: ช่างคนแรกเสนอราคา
+  AwaitingCustomerSelection --> Confirmed: ลูกค้าเลือกช่าง
+  AwaitingCustomerSelection --> OffersExpired: ครบ 1 ชม. หลังข้อเสนอแรก
+  OffersExpired --> OpenForTechnicians: ลูกค้าเปิดรับใหม่
+  Confirmed --> Traveling: ช่างออกเดินทาง
+  Traveling --> Arrived: GPS ถึงหน้างาน
   Arrived --> InProgress
-  InProgress --> AwaitingPayment: cleaning done
-  AwaitingPayment --> Completed: both sides confirm payment
-  AwaitingPayment --> PaymentIssue: dispute
-  PaymentIssue --> Completed: admin settles as paid
-  PaymentIssue --> Cancelled: admin cancels
-  OpenForTechnicians --> Cancelled
-  AwaitingCustomerSelection --> Cancelled
-  OffersExpired --> Cancelled
-  Confirmed --> Cancelled
+  InProgress --> AwaitingPayment: ล้างเสร็จ
+  AwaitingPayment --> Completed: ยืนยันการจ่ายเงินครบสองฝ่าย
+  AwaitingPayment --> PaymentIssue: มีข้อโต้แย้ง
+  PaymentIssue --> Completed: แอดมินตัดสินว่าจ่ายแล้ว
+  PaymentIssue --> Cancelled: แอดมินยกเลิก
   Completed --> [*]
   Cancelled --> [*]
 ```
 
-A technician can also close a job in a single step from any active state (`POST /api/bookings/{id}/complete`), which records the payment, the service report and the passport history together.
+## ปัญหาที่น่าสนใจและเหตุผลที่เลือกวิธีนี้
 
-## Problems worth a closer look
+### 1. ให้ช่างเห็นงานใกล้ตัวโดยไม่เผยว่าลูกค้าอยู่ที่ไหน
 
-### 1. Showing jobs to technicians without revealing where the customer lives
+หน้างานใกล้ฉันต้องแสดงระยะทาง แต่ถ้าวัดจากหมุดจริง ช่างลองค้นจากหลายจุดก็คำนวณย้อนหาบ้านลูกค้าได้ ระบบจึงวัดระยะจากจุดที่ห่างจากหมุด 300–600 เมตร (`BlurredDistanceKm`) และปัดเป็นกิโลเมตรเต็ม จุดนี้คำนวณจากรหัสงาน ไม่ใช่ค่าสุ่ม การค้นซ้ำหลายครั้งจึงเฉลี่ยหาจุดจริงไม่ได้ ส่วน `OpenJobView` ตัดชื่อ ที่อยู่ พิกัด เบอร์โทร รายการห้อง และราคาของช่างคนอื่นออกจากข้อมูลที่ส่งให้ช่าง ข้อมูลเต็มจะเปิดให้หลังลูกค้ายืนยันช่างคนนั้นแล้วเท่านั้น
+ดู `ApiHelpers.cs` และ `BookingOffersController.cs` มีทั้ง unit test และ smoke test ตรวจเรื่องนี้
 
-A nearby-jobs feed has to show distance, but distance from an exact pin lets a technician work out the address by searching from a few places. Two things prevent that. `BlurredDistanceKm` measures to a point 300–600 m away from the pin, and that offset comes from the job's ID rather than a random number, so repeating the search cannot average the noise away. `OpenJobView` then strips the customer's name, address, coordinates, notes, room list and every other technician's quote from what the feed returns. The full details appear only after the customer confirms that technician.
-See `ApiHelpers.cs` and `BookingOffersController.cs`. The smoke test checks that the destination stays hidden before selection and that competing quotes are never visible.
+### 2. สองคนแก้งานเดียวกันพร้อมกัน โดยไม่ใช้ transaction
 
-### 2. Two people, one job: concurrency without transactions
+ระบบไม่ใช้ multi-document transaction แต่ใช้การอัปเดตทีละเอกสารแบบ atomic และ unique index แต่ละกรณีชนกันจึงมีคำตอบชัดเจน
 
-The app has no multi-document transactions. It relies on single-document atomic updates and unique indexes, so each race has one specific answer:
+- **สถานะงาน** การเปลี่ยนสถานะ การเสนอราคา และการยืนยันช่าง จะเขียนได้ก็ต่อเมื่อ `UpdatedAt` ยังเป็นค่าที่อ่านมา คำขอที่ช้ากว่าจะได้ `409` ให้โหลดใหม่ แทนที่จะเขียนทับอีกฝ่าย
+- **ลิงก์รีเซ็ตรหัสผ่าน** เงื่อนไขอัปเดตรวม hash ของ token ไว้ด้วย ลิงก์จึงใช้ได้ครั้งเดียวแม้มีสองคำขอมาพร้อมกัน
+- **ใบเสร็จ** ต้องเป็น `ReceiptNo == null` เท่านั้น กดสองครั้งก็ได้เลขเดียว
+- **ค่าสมาชิก** partial unique index ให้หนึ่งรายการโอนต่ออายุได้ครั้งเดียว และช่างหนึ่งคนมีสลิปรอตรวจได้ใบเดียว การต่ออายุเป็น update เดียวด้วย `$max` + `$dateAdd` ทำให้การอนุมัติกับการแจกวันฟรีที่เกิดพร้อมกันนับครบทั้งคู่
 
-- **Job state.** Status changes, quotes, technician confirmation and payment confirmation write only if `UpdatedAt` still holds the value that was read. The slower of two simultaneous requests matches nothing and gets a `409` asking it to reload, instead of overwriting the other change.
-- **Reset links.** The update filter includes the token hash, so a link works once even when two requests arrive together.
-- **Receipts.** The filter requires `ReceiptNo == null`, so a double tap issues one number.
-- **Saved addresses.** A unique index on user and name, plus handling of the duplicate-key error, turns two simultaneous saves into one entry.
-- **Payments.** Partial unique indexes allow one approved payment per bank transaction and one waiting slip per technician.
+### 3. Web Push โดยไม่ใช้ไลบรารี
 
-The smoke test runs overlapping quotes and simultaneous address saves and checks that nothing is lost.
+เขียนตามมาตรฐานโดยตรง RFC 8030 (ส่งข้อความ), RFC 8291 (เข้ารหัส `aes128gcm`) และ RFC 8292 (VAPID) ด้วย cryptography ที่มากับ .NET เท่านั้น (`WebPushSender.cs`) คู่กุญแจสร้างครั้งเดียวแล้วเก็บในฐานข้อมูล deploy ใหม่จึงไม่ต้องตั้งค่าอะไร และในโหมด production รับ endpoint เฉพาะโดเมนของบริการ push ที่รู้จัก กันไม่ให้ URL ที่ผู้ใช้ส่งมาสั่งให้เซิร์ฟเวอร์ยิงไปที่อื่น
+การตรวจการเข้ารหัสด้วยโค้ดของตัวเองพิสูจน์อะไรได้ไม่มาก `tests/fake_push.py` จึงทำตัวเป็นเบราว์เซอร์และบริการ push ที่ตรวจลายเซ็น VAPID และถอดรหัสข้อความแยกจากโค้ดหลัก
 
-### 3. Web Push with no push library
+### 4. กฎที่ขึ้นกับเวลา บนเซิร์ฟเวอร์ที่หลับได้
 
-Push is implemented directly from the standards: RFC 8030 for delivery, RFC 8291 for `aes128gcm` payload encryption, and RFC 8292 for VAPID, using only .NET's built-in cryptography (`WebPushSender.cs`). The key pair is generated once and kept in the database, so a new deployment needs no setup. In production the server accepts only known push-service hosts as subscription endpoints, so a user-supplied URL cannot make it call arbitrary addresses. Subscriptions the push service reports as gone are removed.
-Checking your own encryption with your own code proves little, so `tests/fake_push.py` acts as a browser and push service: it verifies the VAPID signature and decrypts the payload independently.
+ข้อเสนอต้องหมดอายุหลัง 1 ชั่วโมง และการแจ้งเตือนต้องออกตรงเวลา แต่เซิร์ฟเวอร์ฟรีหลับเมื่อไม่มีคนใช้ ระบบจึงไม่พึ่งตัวตั้งเวลาตัวเดียว
 
-### 4. Time-based rules on a server that goes to sleep
+- การหมดอายุถูกตรวจทุกครั้งที่มีการอ่านข้อมูลงาน (`OfferTimer.ExpireDueAsync`)
+- `ReminderService` รันทุก 5 นาทีระหว่างที่เซิร์ฟเวอร์ตื่น
+- GitHub Actions เรียก `POST /api/cron/reminders` ทุก 30 นาทีช่วง 07:00–21:00 ซึ่งปลุกเซิร์ฟเวอร์ไปด้วย endpoint นี้เทียบ key แบบ constant time และไม่มีอยู่เลยถ้าไม่ได้ตั้ง `CRON_KEY`
 
-Offers must lapse an hour after the first quote and reminders must go out on time, but the free hosting plan puts the server to sleep. The rules therefore do not depend on one scheduler:
+การแจ้งเตือนทุกรายการ "จอง" ในฐานข้อมูลด้วย conditional update ก่อนส่ง รันซ้อนกันก็ส่งแค่ครั้งเดียว
 
-- Expiry is applied lazily whenever jobs are read (`OfferTimer.ExpireDueAsync`).
-- `ReminderService` runs every 5 minutes while the server is awake.
-- A scheduled GitHub Actions workflow calls `POST /api/cron/reminders` every 30 minutes between 07:00 and 21:00 Thai time, which also wakes the server. The endpoint compares the key in constant time and does not exist unless `CRON_KEY` is set.
+### 5. ตรวจสลิปค่าสมาชิกให้แน่ใจว่าเงินเข้าจริง
 
-Every expiry and reminder is claimed with a conditional database update before anything is sent, so overlapping runs send once. Outside production the endpoint accepts a pretend clock (`?at=`), which is how the smoke test covers reminder timing.
+ช่างโอนผ่าน QR พร้อมเพย์ที่ระบบสร้างเองตามมาตรฐาน EMVCo (ตรวจกับไลบรารี `promptpay-qr` แล้วได้ผลตรงกัน) แล้วแนบสลิป เซิร์ฟเวอร์ส่งรูปไปที่ Slip2Go พร้อมเงื่อนไขครบชุด ได้แก่ ต้องเป็นรายการโอนจริง, เข้าพร้อมเพย์ของ AirClean, ยอดตรงทุกสตางค์, โอนไม่เกิน 2 วัน และไม่เคยใช้มาก่อน
+ผลแยกเป็น 3 แบบ: ผ่าน (ต่ออายุทันที), ไม่ผ่าน (บอกเหตุผล เช่น สลิปซ้ำ หรือโอนผิดบัญชี) และยังตัดสินไม่ได้ (ธนาคารยังไม่ยืนยัน หรือบริการล่ม) แบบสุดท้ายระบบตรวจซ้ำเองทุกไม่กี่นาที และแจ้งแอดมินเฉพาะเมื่อจำเป็น นอกจากนี้ยังเก็บ hash ของรูปและเลขรายการไว้กันสลิปซ้ำแม้แอดมินจะเป็นคนอนุมัติเอง
 
-## Tech stack
+## เทคโนโลยี
 
-| Layer | Technology |
+| ส่วน | เทคโนโลยี |
 |---|---|
-| Frontend | React 18, TypeScript, Vite, Leaflet and OpenStreetMap, an installable PWA with a service worker |
-| Backend | ASP.NET Core 8 Web API, JWT bearer authentication, ASP.NET Identity password hashing, sliding-window rate limits on sign-in and password reset |
-| Database | MongoDB (Atlas in production) with the official .NET driver |
-| Integrations | Google and Apple sign-in, Brevo email, Web Push (VAPID), Slip2Go slip verification, optional Google Places search |
-| Deployment | Render: a Docker web service for the API (defined in `render.yaml`) and a static site for the frontend |
-| CI | GitHub Actions: build both apps, then run the smoke test against a throwaway MongoDB |
+| Frontend | React 18, TypeScript, Vite, Leaflet + OpenStreetMap, PWA ที่ติดตั้งได้พร้อม service worker |
+| Backend | ASP.NET Core 8 Web API, JWT, ASP.NET Identity password hashing, rate limit แบบ sliding window ต่อผู้ใช้ |
+| Database | MongoDB (Atlas ใน production) กับ .NET driver ทางการ |
+| บริการภายนอก | Google/Apple sign-in, Brevo (อีเมล), Web Push (VAPID), Slip2Go (ตรวจสลิป) |
+| Deploy | Render: Docker สำหรับ API (กำหนดใน `render.yaml`) และ static site สำหรับ frontend |
+| CI | GitHub Actions: build ทั้งสองฝั่ง, unit test (xUnit + Vitest) และ smoke test กับ MongoDB ชั่วคราว |
 
-## Project layout
+## โครงสร้างโปรเจกต์
 
 ```
 backend/AirClean.Api
-  Controllers/   One controller per topic, all under /api:
+  Controllers/   หนึ่ง controller ต่อหนึ่งเรื่อง ทั้งหมดอยู่ใต้ /api:
                  Auth, Notifications, Addresses, Technicians, Bookings, BookingOffers,
                  JobCompletion, Issues, Receipts, JobPhotos, Dashboard, AirConditioners,
-                 BatchBookings, ServiceReports, Reviews, Membership.
-                 AirCleanControllerBase holds what they share (the database, the signed-in
-                 user, status e-mails); ApiHelpers holds pure rules (quotes, distance, windows).
+                 ServiceReports, Reviews, Membership
+                 AirCleanControllerBase เก็บสิ่งที่ใช้ร่วมกัน (ฐานข้อมูล ผู้ใช้ที่ล็อกอิน การแจ้งเตือนสถานะ)
+                 ApiHelpers เก็บกฎที่เป็น pure function (ราคา ระยะทาง ช่วงเวลา)
   Services/      Notifier, WebPushSender, EmailSender, SlipVerifier, ExternalIdentityValidator,
                  OfferTimer, ReminderService, Membership
-  Models/ DTOs/ Data/   Entities, request and response contracts, MongoStore and indexes
+  Models/ DTOs/ Data/   entity, สัญญา request/response, MongoStore และ index
+backend/AirClean.Api.Tests   unit test (xUnit)
 frontend/src
-  pages/         One page per screen and role; routing is a switch on a page key in App.tsx
-  components/    Shared UI: booking form, map picker, job stepper, notification bell
-  lib/           API client, PromptPay QR payload, Thai baht text, schedule-clash check
-tests/           End-to-end smoke test plus stand-ins for Google/Apple, push and Slip2Go
-docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), customer-ui.md, screenshots/
+  pages/         หนึ่งไฟล์ต่อหนึ่งหน้าจอ เลือกหน้าด้วย page key ใน App.tsx
+  components/    ส่วนที่ใช้ร่วมกัน: ฟอร์มขอช่าง แผนที่ ตัวเลือกเวลา กระดิ่งแจ้งเตือน
+  lib/           API client, QR พร้อมเพย์, จำนวนเงินเป็นตัวอักษร, ตรวจเวลานัดชน (+ unit test)
+tests/           smoke test แบบ end-to-end และตัวจำลอง Google/Apple, push, Brevo, Slip2Go
+docs/            REFERENCE.md (การตั้งค่า), PROJECT-SUMMARY.md, screenshots/
 ```
 
-## Run it locally
+## รันบนเครื่องตัวเอง
 
-You need the .NET 8 SDK, Node 20 and a MongoDB (a container is easiest).
+ต้องมี .NET 8 SDK, Node 20 และ MongoDB (ใช้ container สะดวกที่สุด)
 
 ```bash
-# 1. Database
+# 1. ฐานข้อมูล
 docker run -d --name airclean-mongo -p 27017:27017 mongo:7
 
-# 2. API on http://localhost:5080, with demo data
+# 2. API ที่ http://localhost:5080 พร้อมข้อมูลตัวอย่าง
 cd backend/AirClean.Api
 MONGODB_URI=mongodb://localhost:27017 MONGODB_DATABASE=airclean_demo \
 JWT_KEY="any-random-string-of-at-least-32-characters" \
 SEED_DEMO_DATA=true dotnet run
 
-# 3. Frontend on http://localhost:5173 (in another terminal)
+# 3. Frontend ที่ http://localhost:5173 (อีกหน้าต่าง)
 cd frontend
 cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-Demo accounts exist only in a database seeded this way, and the password for all of them is `Aircare123!`:
+บัญชีตัวอย่างมีเฉพาะในฐานข้อมูลที่ seed แบบนี้ รหัสผ่านทุกบัญชีคือ `Aircare123!`
 
-| Role | Email |
+| บทบาท | อีเมล |
 |---|---|
-| Customer | `customer@aircare.demo` |
-| Technician | `technician@aircare.demo` (also `technician2@…`, `technician3@…`) |
-| Building manager | `manager@aircare.demo` |
-| Admin | `admin@aircare.demo` |
+| ลูกค้า | `customer@aircare.demo` |
+| ช่าง | `technician@aircare.demo` (และ `technician2@…`, `technician3@…`) |
+| ผู้ดูแลอาคาร | `manager@aircare.demo` |
+| แอดมิน | `admin@aircare.demo` |
 
-Seeding runs only when the database has no users, and never when `ASPNETCORE_ENVIRONMENT` is `Production`, so these accounts cannot appear on a live deployment.
+การ seed ทำเฉพาะเมื่อฐานข้อมูลยังไม่มีผู้ใช้ และไม่ทำเลยเมื่อ `ASPNETCORE_ENVIRONMENT` เป็น `Production`
 
-## Tests
+## การทดสอบ
 
-`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google and Apple sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips and reminder timing. External services are replaced by local stand-ins in `tests/`.
+รันทุก pull request ใน CI มี 3 ชั้น
 
-```bash
-# with the API running against a disposable database (see .github/workflows/build.yml for the settings)
-python3 tests/marketplace_smoke.py
-```
+| ชั้น | อยู่ที่ | ทดสอบอะไร | คำสั่ง |
+|---|---|---|---|
+| Unit (backend) | `backend/AirClean.Api.Tests` | ตรวจสลิปกับ Slip2Go จำลอง (ทุกรหัสผลลัพธ์), ช่วงเวลานัด, ระยะทางแบบเบลอ, สถานะสมาชิก, ราคา, ชื่อย่อ | `dotnet test backend/AirClean.Api.Tests` |
+| Unit (frontend) | `frontend/src/lib/*.test.ts` | QR พร้อมเพย์, เวลานัดชน, รายการห้อง, เวลานับถอยหลัง, จำนวนเงินเป็นตัวอักษร | `npm test` ใน `frontend/` |
+| End-to-end | `tests/marketplace_smoke.py` | เรียก API จริงกับฐานข้อมูลชั่วคราว: สิทธิ์ข้อมูล, ความเป็นส่วนตัวของที่อยู่, การอนุมัติช่าง, การเขียนพร้อมกัน, รีเซ็ตรหัสผ่าน, Google/Apple, push, ข้อโต้แย้งการจ่ายเงิน, ใบเสร็จ, ค่าสมาชิก, เวลาแจ้งเตือน | `python3 tests/marketplace_smoke.py` |
 
-Never point it at a real database.
+smoke test ต้องรันกับฐานข้อมูลที่ทิ้งได้เท่านั้น (ดูค่าที่ใช้ใน `.github/workflows/build.yml`) ห้ามชี้ไปที่ฐานข้อมูลจริง
 
-## Status
+## วิธีพัฒนา
 
-Payment is cash on delivery between customer and technician, and the app holds no money. Before a public launch the remaining items are listed in [docs/REFERENCE.md](docs/REFERENCE.md#limitations-before-a-public-launch).
+โปรเจกต์นี้พัฒนาร่วมกับ AI coding assistant (Claude Code) ผู้พัฒนาเป็นคนกำหนดโจทย์และตัดสินใจเรื่องผลิตภัณฑ์ทั้งหมด เช่น บทบาทผู้ใช้ ให้ลูกค้าโทรคุยกับช่างแทนการขอเลื่อนนัดในระบบ เวลาเลือกช่าง 1 ชั่วโมง โมเดลค่าสมาชิกรายเดือน และการเลือก Slip2Go รวมถึงทดสอบกับผู้ใช้และเงินจริง ดูแล deploy และระบบที่รันอยู่ ทุกการเปลี่ยนแปลงผ่าน pull request ที่อธิบายเหตุผลไว้ และต้องผ่าน CI ก่อน merge
+
+## ข้อจำกัดที่ยังมี
+
+- รูปงาน รูปเอกสาร และสลิปเก็บใน MongoDB ถ้าใช้งานมากควรย้ายไป object storage
+- ยังไม่มีการยืนยันอีเมลตอนสมัคร
+- เซิร์ฟเวอร์ฟรีหลับเมื่อไม่มีคนใช้ ครั้งแรกจึงช้า
+
+รายการเต็มอยู่ใน [docs/REFERENCE.md](docs/REFERENCE.md#limitations-before-a-public-launch)
+
+> ชื่อแรกของโปรเจกต์คือ "AirCare Connect" ชื่อบริการบน Render (`aircare-connect-api`, `aircare-connect-web`), ชื่อฐานข้อมูล, issuer ของ JWT และ key ใน localStorage ยังใช้ชื่อเดิม เพราะถ้าเปลี่ยนจะทำให้ URL ที่ใช้งานอยู่เปลี่ยน หรือทำให้ผู้ใช้ทุกคนหลุดจากระบบ

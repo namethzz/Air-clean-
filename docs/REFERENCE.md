@@ -24,7 +24,7 @@ AirClean is a responsive air-conditioner service booking workspace built with Re
 - Saved addresses are stored in the account and appear on every device. Addresses saved by the earlier browser-only version move to the account the first time the booking form opens.
 - Map-based service address selection, privacy-protected nearby job discovery, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
 - Responsive layouts for mobile phones, tablets and desktop browsers.
-- Empty states appear when the database contains no technicians, bookings, air-conditioners, batch jobs or reports.
+- Empty states appear when the database contains no technicians, bookings, air-conditioners or reports.
 
 ## Technology
 
