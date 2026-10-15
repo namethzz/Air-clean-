@@ -61,6 +61,14 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
   const latest = useRef(value);
   latest.current = value;
   const autoAddress = useRef('');
+  // Grow the address box with its text (filled from the map, or typed), on browsers without CSS field-sizing too.
+  const addressBox = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const box = addressBox.current;
+    if (!box) return;
+    box.style.height = 'auto';
+    box.style.height = `${Math.max(92, box.scrollHeight + 2)}px`;
+  }, [value.address, mode]);
 
   useEffect(() => {
     let active = true;
@@ -211,7 +219,7 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
       <label className="form-field"><span>เลขห้อง</span><input value={value.room || ''} onChange={event => patch({ room: event.target.value })} placeholder="812"/></label>
     </div>}
     <label className="form-field"><span>{condo ? 'ที่อยู่' : 'บ้านเลขที่ / ที่อยู่'} *{lookingUp && <em className="lp-hint"> กำลังเติมจากแผนที่…</em>}</span>
-      <textarea rows={2} value={value.address} onChange={event => patch({ address: event.target.value })} placeholder={condo ? 'ระบบเติมให้จากหมุด' : 'เช่น 99/12 ซอยลาดพร้าว 71 (ระบบเติมถนน เขต จังหวัดให้จากหมุด)'} required autoComplete="street-address"/>
+      <textarea ref={addressBox} rows={3} value={value.address} onChange={event => patch({ address: event.target.value })} placeholder={condo ? 'ระบบเติมให้จากหมุด' : 'เช่น 99/12 ซอยลาดพร้าว 71 (ระบบเติมถนน เขต จังหวัดให้จากหมุด)'} required autoComplete="street-address"/>
       {!condo && value.address && value.address === autoAddress.current && <small className="lp-hint">เติมจากแผนที่แล้ว เพิ่มบ้านเลขที่ด้านหน้าให้ช่างหาเจอง่าย</small>}
     </label>
     <label className="form-field"><span>จุดสังเกต / วิธีเข้าพื้นที่ (ไม่บังคับ)</span><input value={value.note || ''} onChange={event => patch({ note: event.target.value })} placeholder="เช่น บ้านประตูสีเขียว, แลกบัตรที่ รปภ."/></label>
