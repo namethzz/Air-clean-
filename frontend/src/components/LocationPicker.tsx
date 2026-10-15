@@ -3,7 +3,7 @@ import { Building2, Check, Crosshair, Home, Loader2, MapPin, Pencil, Phone, Plus
 import type { PlaceType, SavedAddress } from '../types';
 import LocationMap from './LocationMap';
 import { deleteSavedAddress, fetchSavedAddresses, saveAddress as saveAddressToAccount } from '../lib/api';
-import { addressAt, googlePlacesEnabled, guessPlaceType, resolvePlace, searchPlaces, type PlaceResult } from '../lib/geocode';
+import { addressAt, guessPlaceType, resolvePlace, searchPlaces, type PlaceResult } from '../lib/geocode';
 
 export interface RememberChoice { on: boolean; label: string; }
 interface Props {
@@ -216,7 +216,7 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
       {searching ? <Loader2 size={18} className="lp-spin" aria-label="กำลังค้นหา"/> : query && <button type="button" className="lp-clear" onClick={() => { setQuery(''); setResults([]); }} aria-label="ล้างคำค้นหา"><X size={16}/></button>}
       {results.length > 0 && <ul className="lp-results" role="listbox" aria-label="ผลการค้นหา">{results.map((place, index) => <li key={index}>
         <button type="button" role="option" aria-selected="false" onClick={() => void pickResult(place)}><MapPin size={16}/><span><strong>{place.name}</strong><small>{place.address}</small></span></button>
-      </li>)}{googlePlacesEnabled && <li className="lp-attribution" aria-hidden="true">ผลการค้นหาจาก Google</li>}</ul>}
+      </li>)}{results.some(place => place.googleId) && <li className="lp-attribution" aria-hidden="true">ผลการค้นหาจาก Google</li>}</ul>}
     </div>
     <button type="button" className="lp-locate" onClick={useMyLocation} disabled={locating}>
       {locating ? <Loader2 size={18} className="lp-spin"/> : <Crosshair size={18}/>} {locating ? 'กำลังหาตำแหน่ง…' : 'ใช้ตำแหน่งปัจจุบันของฉัน'}

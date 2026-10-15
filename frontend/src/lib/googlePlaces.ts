@@ -31,6 +31,7 @@ function loadPlaces(): Promise<PlacesLibrary> {
     script.async = true;
     (window as unknown as Record<string, unknown>).__aircleanMaps = () => void ready();
     script.onerror = () => { library = null; reject(new Error('โหลดการค้นหาของ Google ไม่สำเร็จ')); };
+    (window as unknown as Record<string, unknown>).gm_authFailure = () => reject(new Error('Google ปฏิเสธ API key (ยังไม่ได้ผูกบัญชีเรียกเก็บเงิน หรือ key ถูกจำกัด)'));
     document.head.appendChild(script);
   });
   return library;

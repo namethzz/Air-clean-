@@ -7,6 +7,7 @@
 import { googlePlacesEnabled, googleResolve, googleSearch } from './googlePlaces';
 export { googlePlacesEnabled };
 const BASE = 'https://nominatim.openstreetmap.org';
+let googleFailed = false;
 
 export interface PlaceResult {
   name: string;
@@ -58,7 +59,14 @@ function toResult(place: NominatimPlace): PlaceResult {
 }
 
 export async function searchPlaces(query: string, near?: { latitude: number; longitude: number }, signal?: AbortSignal): Promise<PlaceResult[]> {
-  if (googlePlacesEnabled) return googleSearch(query, near, signal);
+  if (googlePlacesEnabled && !googleFailed) {
+    try { return await googleSearch(query, near, signal); }
+    catch (error) {
+      if ((error as Error).name === 'AbortError') throw error;
+      // A key without billing, a blocked key or a network problem: keep searching with the free service instead.
+      googleFailed = true;
+    }
+  }
   const params = new URLSearchParams({ q: query, countrycodes: 'th', limit: '6' });
   // Prefer results around the person (about 50 km) without excluding the rest of the country.
   if (near) params.set('viewbox', [near.longitude - 0.5, near.latitude + 0.5, near.longitude + 0.5, near.latitude - 0.5].join(','));
