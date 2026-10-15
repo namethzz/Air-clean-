@@ -1,93 +1,202 @@
 # AirClean
 
-AirClean is a responsive air-conditioner service booking workspace built with React, TypeScript, ASP.NET Core 8 and MongoDB Atlas.
+**A marketplace that connects people who need their air conditioner cleaned with technicians nearby.**
+The customer posts one request. Technicians in the area send quotes. The customer compares them and picks one, and only then does that technician see the address.
 
-## User-facing features
+[![Build](https://github.com/namethzz/Air-clean-/actions/workflows/build.yml/badge.svg)](https://github.com/namethzz/Air-clean-/actions/workflows/build.yml)
 
-- Customer account registration and login through the API.
-- Role-based navigation for customers, technicians, building managers and administrators.
-- Customers publish an unassigned service request with the address pin, property type, unit count, date and service details.
-- Nearby technicians can review open jobs by GPS distance and send interest with their proposed quote.
-- Customers compare interested technicians, ratings, job history and quotes, then confirm one technician before the booking becomes assigned.
-- Booking requests save through the API. Failed requests display an error and do not create local fake records.
-- After a job is completed the customer can rate the technician once (1–5 stars); the technician's rating, review count and completed-job count update automatically.
-- Customers can add air-conditioners to the optional Aircon Passport, link one to a request, and see the finished job recorded in that unit's history with the next service due in six months.
-- Technician sign-up is an application: phone, service area and experience are required, and the account sees no jobs until an administrator approves it on **ตรวจสอบช่าง**. A rejection carries a reason; the technician corrects the profile and it returns to the queue. Admins can also suspend an approved technician.
-- Payment is cash on delivery (เก็บเงินปลายทาง): the customer pays the technician directly in cash or by transfer. The technician closes the job with one press, "งานเสร็จและได้รับเงินแล้ว", which records the payment, the service report and the Aircon Passport history; the customer then rates the technician and sees the next recommended cleaning. AirClean does not collect money.
-- Technicians see their offers in "งานของฉัน" right after sending them, and once chosen get a "งานที่ต้องไป" view with the address, map and directions. Sharing the location while driving is optional, and arrival is detected from GPS (within about 150 m), so there is nothing to press until the end.
-- Password reset by email (single-use link, 30 minutes), change password on the profile page, and admin-created reset links (24 hours) for users without email access. Changing or resetting a password signs out the account's other sessions.
-- Sign in or sign up with Google or Apple. The API verifies the provider's ID token (signature, issuer, audience, expiry). A Google/Apple account with a verified email that matches an existing account is linked to it; otherwise the person picks a role (technicians add phone and area and wait for approval). Admin accounts stay password-only. Accounts created this way can set a password later on the profile page.
-- Job notifications are in-app and push only (no job emails; email is used for password resets). In-app notifications: a bell in the top bar lists every job and account event with an unread count; tapping one opens that job or page. It refreshes every 30 seconds and immediately when a push arrives.
-- Push notifications: people can turn on notifications per device on their profile; the API sends standard Web Push (aes128gcm, VAPID) to Chrome, Edge, Firefox and Safari, including iPhone when AirClean is added to the Home Screen (iOS 16.4+). In-app browsers such as Messenger or LINE cannot receive push and the profile says so. The VAPID key pair is created once and stored in the database (or set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT). Signing out removes the device's subscription.
-- Saved addresses are stored in the account and appear on every device. Addresses saved by the earlier browser-only version move to the account the first time the booking form opens.
-- Map-based service address selection, privacy-protected nearby job discovery, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
-- Responsive layouts for mobile phones, tablets and desktop browsers.
-- Empty states appear when the database contains no technicians, bookings, air-conditioners, batch jobs or reports.
+Built for the Thai market, so the interface is in Thai. Full stack: React + TypeScript, ASP.NET Core 8, MongoDB.
 
-## Technology
+<table>
+  <tr>
+    <td><img src="docs/screenshots/01-landing.png" alt="Landing page on a phone" width="200"></td>
+    <td><img src="docs/screenshots/02-location-privacy.png" alt="Address privacy explained on a phone" width="200"></td>
+    <td><img src="docs/screenshots/03-how-it-works.png" alt="How it works on a phone" width="200"></td>
+    <td><img src="docs/screenshots/04-sign-up.png" alt="Sign-up with role choice on a phone" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">Landing</td>
+    <td align="center">Address privacy</td>
+    <td align="center">How it works</td>
+    <td align="center">Sign-up by role</td>
+  </tr>
+</table>
 
-- Frontend: React 18, TypeScript and Vite
-- Maps: Leaflet and OpenStreetMap
-- Backend: ASP.NET Core 8 Web API
-- Database: MongoDB Atlas
-- Authentication: JWT bearer authentication and hashed passwords
-- Deployment: Render static site and Docker web service
+These are the public pages, captured at phone width (390 px). The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data.
 
-## Backend environment variables
+## What it does
 
-Configure these on the Render API service:
+- **Four roles.** Customers, technicians, building managers (whole buildings, room by room) and administrators each get their own workspace.
+- **Quotes instead of a fixed price.** Nearby technicians see open jobs sorted by distance and send a quote. The customer has one hour from the first quote to choose; after that the offers lapse and the request can be reopened with one tap.
+- **A live job.** After confirmation the customer follows the technician on a map. The technician counts finished rooms, attaches before and after photos, and closes the job in one step.
+- **Cash on delivery.** The customer pays the technician directly. AirClean never holds money; both sides confirm, and a dispute goes to an admin queue.
+- **Aircon Passport.** Each finished job is written to the unit's service history, and the next cleaning is scheduled for six months later.
+- **Technician onboarding.** Applications need an ID card and are approved by an admin. After approval a technician gets a free trial and then pays a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
+- **Notifications.** An in-app bell plus Web Push, including iPhone when the app is added to the Home Screen.
+- **Sign-in.** Email and password, Google, and Apple. Password reset links are single-use and sign out the account's other devices.
 
-- MONGODB_URI: MongoDB Atlas connection string
-- MONGODB_DATABASE: use aircareconnect_live for the clean production database defined in render.yaml
-- JWT_KEY: private random secret of at least 32 bytes
-- FRONTEND_ORIGIN: exact HTTPS origin of the frontend, without a trailing slash
-- INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD: optional first-admin credentials; set both together. Password must be at least 12 characters and use a new email.
-- INITIAL_ADMIN_NAME: optional administrator display name
-- BREVO_API_KEY and SMTP_FROM: send password reset emails through Brevo's HTTPS API. Use this on Render's free plan, which blocks outbound SMTP connections. Admins can check delivery with **ส่งอีเมลทดสอบ** on the ตรวจสอบช่าง page.
-- SMTP_HOST, SMTP_PORT (default 587), SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM: alternative SMTP mail server, used only when BREVO_API_KEY is empty. SMTP_ENABLE_SSL=false only for a local test server. Without SMTP, users are told a link was sent but nothing is delivered; an admin can create the link instead.
-- PASSWORD_RESET_URL: optional site address used in reset links; defaults to the first FRONTEND_ORIGIN
-- GOOGLE_CLIENT_ID: OAuth client ID (Web application) from Google Cloud Console; enables Sign in with Google
-- APPLE_CLIENT_ID: Services ID from the Apple Developer account; enables Sign in with Apple
-- GOOGLE_OIDC_AUTHORITY / APPLE_OIDC_AUTHORITY: test-only override for a local identity provider; ignored in Production
-- SEED_DEMO_DATA: demo fixtures are allowed only in non-production environments when explicitly set to true; production never seeds examples
+The full feature list and every configuration setting are in [docs/REFERENCE.md](docs/REFERENCE.md). A walkthrough of the product in Thai is in [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md).
 
-After deployment, open https://YOUR-API.onrender.com/health and confirm the response is healthy.
+## Architecture
 
-## Frontend environment
+```mermaid
+flowchart LR
+  subgraph Client["Browser / installed PWA"]
+    SPA["React 18 + TypeScript + Vite<br/>Leaflet map, service worker"]
+  end
+  subgraph Render["Render, Docker"]
+    API["ASP.NET Core 8 Web API<br/>JWT, rate limiting, 16 controllers"]
+    BG["ReminderService<br/>background job, every 5 min"]
+  end
+  DB[("MongoDB Atlas")]
+  SPA -- "HTTPS + JWT" --> API
+  API --> DB
+  BG --> DB
+  API -- "ID token check" --> OIDC["Google and Apple sign-in"]
+  API -- "Web Push" --> PUSH["Browser push services<br/>FCM, Mozilla, Apple, Windows"]
+  PUSH -.-> SPA
+  API -- "HTTPS API" --> MAIL["Brevo<br/>password-reset email"]
+  API -- "slip check" --> SLIP["Slip2Go<br/>PromptPay slips"]
+  GHA["GitHub Actions<br/>CI + 30-minute cron"] -- "POST /api/cron/reminders" --> API
+  SPA --> OSM["OpenStreetMap tiles<br/>and Nominatim search"]
+```
 
-For the Render Static Site:
+### A job's life
 
-- Build command: npm install && npm run build
-- Publish directory: dist
-- Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
-- Optional: VITE_CONTACT_EMAIL, the contact address shown on the privacy policy (/privacy.html) and terms (/terms.html) pages
-- Optional: VITE_GOOGLE_CLIENT_ID and VITE_APPLE_CLIENT_ID (same values as the API) to show the Google and Apple buttons; VITE_APPLE_REDIRECT_URI if the Apple Return URL is not the site's home page
+```mermaid
+stateDiagram-v2
+  [*] --> OpenForTechnicians: customer posts a request
+  OpenForTechnicians --> AwaitingCustomerSelection: first technician quote
+  AwaitingCustomerSelection --> Confirmed: customer picks a technician
+  AwaitingCustomerSelection --> OffersExpired: 1 hour after the first quote
+  OffersExpired --> OpenForTechnicians: customer reopens
+  Confirmed --> Traveling
+  Traveling --> Arrived
+  Arrived --> InProgress
+  InProgress --> AwaitingPayment: cleaning done
+  AwaitingPayment --> Completed: both sides confirm payment
+  AwaitingPayment --> PaymentIssue: dispute
+  PaymentIssue --> Completed: admin settles as paid
+  PaymentIssue --> Cancelled: admin cancels
+  OpenForTechnicians --> Cancelled
+  AwaitingCustomerSelection --> Cancelled
+  OffersExpired --> Cancelled
+  Confirmed --> Cancelled
+  Completed --> [*]
+  Cancelled --> [*]
+```
 
-The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
+A technician can also close a job in a single step from any active state (`POST /api/bookings/{id}/complete`), which records the payment, the service report and the passport history together.
 
-If the API address is missing or the server is unreachable, the interface reports the problem rather than showing sample data.
+## Problems worth a closer look
 
-## Adding live data
+### 1. Showing jobs to technicians without revealing where the customer lives
 
-The site intentionally starts with empty lists when the database has no records. Registration currently permits choosing Customer, Technician or Manager. Admin cannot be assigned through public registration. For production, Technician/Manager self-selection should be changed to an admin-approved process. Technician accounts get a pending profile at sign-up with a default base price of ฿550; technicians edit title, price, area, availability, skills, phone and experience on โปรไฟล์และราคา. Approval, ratings and job totals are system-managed. Technician profiles created before approvals existed and never marked verified start as pending, so review them after deploying this version; previously verified technicians stay approved. Never expose database credentials in the frontend.
+A nearby-jobs feed has to show distance, but distance from an exact pin lets a technician work out the address by searching from a few places. Two things prevent that. `BlurredDistanceKm` measures to a point 300–600 m away from the pin, and that offset comes from the job's ID rather than a random number, so repeating the search cannot average the noise away. `OpenJobView` then strips the customer's name, address, coordinates, notes, room list and every other technician's quote from what the feed returns. The full details appear only after the customer confirms that technician.
+See `ApiHelpers.cs` and `BookingOffersController.cs`. The smoke test checks that the destination stays hidden before selection and that competing quotes are never visible.
 
-Disabling the seeder prevents new demo records from being created in production, but does not automatically delete records already stored in MongoDB. Back up the database first, then remove old demo records manually or use a fresh production database before opening the site to customers.
+### 2. Two people, one job: concurrency without transactions
 
-## Limitations before a public launch
+The app has no multi-document transactions. It relies on single-document atomic updates and unique indexes, so each race has one specific answer:
 
-- Payment is cash on delivery between customer and technician; the app records both confirmations and offers a payment-issue report, but holds no money.
-- Service photos currently accept external image URLs; file-upload storage is not implemented.
-- Email address verification, push notifications and always-on background GPS are not included.
-- Nearby job discovery uses the technician's current GPS location and a configurable radius. Exact customer address and coordinates are hidden in the open-jobs feed and are intended to be shown after the customer confirms a technician.
-- Estimated quotes are calculated from technician base price and the selected service/unit count; final prices remain the technician's quoted price that the customer confirms.
-- The deployed Render services still need full end-to-end testing and a security/privacy review before use at scale.
+- **Job state.** Status changes, quotes, technician confirmation and payment confirmation write only if `UpdatedAt` still holds the value that was read. The slower of two simultaneous requests matches nothing and gets a `409` asking it to reload, instead of overwriting the other change.
+- **Reset links.** The update filter includes the token hash, so a link works once even when two requests arrive together.
+- **Receipts.** The filter requires `ReceiptNo == null`, so a double tap issues one number.
+- **Saved addresses.** A unique index on user and name, plus handling of the duplicate-key error, turns two simultaneous saves into one entry.
+- **Payments.** Partial unique indexes allow one approved payment per bank transaction and one waiting slip per technician.
 
-## Run locally
+The smoke test runs overlapping quotes and simultaneous address saves and checks that nothing is lost.
 
-Backend: configure MongoDB and JWT settings, then run dotnet restore and dotnet run from backend/AirCare.Api.
+### 3. Web Push with no push library
 
-Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, then run npm run dev.
+Push is implemented directly from the standards: RFC 8030 for delivery, RFC 8291 for `aes128gcm` payload encryption, and RFC 8292 for VAPID, using only .NET's built-in cryptography (`WebPushSender.cs`). The key pair is generated once and kept in the database, so a new deployment needs no setup. In production the server accepts only known push-service hosts as subscription endpoints, so a user-supplied URL cannot make it call arbitrary addresses. Subscriptions the push service reports as gone are removed.
+Checking your own encryption with your own code proves little, so `tests/fake_push.py` acts as a browser and push service: it verifies the VAPID signature and decrypts the payload independently.
 
-## Automated validation
+### 4. Time-based rules on a server that goes to sleep
 
-GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, Google/Apple token verification and account linking (against a local test identity provider), technician approval, saved-address sync, password reset and session sign-out, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.
+Offers must lapse an hour after the first quote and reminders must go out on time, but the free hosting plan puts the server to sleep. The rules therefore do not depend on one scheduler:
+
+- Expiry is applied lazily whenever jobs are read (`OfferTimer.ExpireDueAsync`).
+- `ReminderService` runs every 5 minutes while the server is awake.
+- A scheduled GitHub Actions workflow calls `POST /api/cron/reminders` every 30 minutes between 07:00 and 21:00 Thai time, which also wakes the server. The endpoint compares the key in constant time and does not exist unless `CRON_KEY` is set.
+
+Every expiry and reminder is claimed with a conditional database update before anything is sent, so overlapping runs send once. Outside production the endpoint accepts a pretend clock (`?at=`), which is how the smoke test covers reminder timing.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Leaflet and OpenStreetMap, an installable PWA with a service worker |
+| Backend | ASP.NET Core 8 Web API, JWT bearer authentication, ASP.NET Identity password hashing, sliding-window rate limits on sign-in and password reset |
+| Database | MongoDB (Atlas in production) with the official .NET driver |
+| Integrations | Google and Apple sign-in, Brevo email, Web Push (VAPID), Slip2Go slip verification, optional Google Places search |
+| Deployment | Render: a Docker web service for the API (defined in `render.yaml`) and a static site for the frontend |
+| CI | GitHub Actions: build both apps, then run the smoke test against a throwaway MongoDB |
+
+## Project layout
+
+```
+backend/AirCare.Api
+  Controllers/   One controller per topic, all under /api:
+                 Auth, Notifications, Addresses, Technicians, Bookings, BookingOffers,
+                 JobCompletion, Issues, Receipts, JobPhotos, Dashboard, AirConditioners,
+                 BatchBookings, ServiceReports, Reviews, Membership.
+                 AirCareControllerBase holds what they share (the database, the signed-in
+                 user, status e-mails); ApiHelpers holds pure rules (quotes, distance, windows).
+  Services/      Notifier, WebPushSender, EmailSender, SlipVerifier, ExternalIdentityValidator,
+                 OfferTimer, ReminderService, Membership
+  Models/ DTOs/ Data/   Entities, request and response contracts, MongoStore and indexes
+frontend/src
+  pages/         One page per screen and role; routing is a switch on a page key in App.tsx
+  components/    Shared UI: booking form, map picker, job stepper, notification bell
+  lib/           API client, PromptPay QR payload, Thai baht text, schedule-clash check
+tests/           End-to-end smoke test plus stand-ins for Google/Apple, push and Slip2Go
+docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), customer-ui.md, screenshots/
+```
+
+## Run it locally
+
+You need the .NET 8 SDK, Node 20 and a MongoDB (a container is easiest).
+
+```bash
+# 1. Database
+docker run -d --name airclean-mongo -p 27017:27017 mongo:7
+
+# 2. API on http://localhost:5080, with demo data
+cd backend/AirCare.Api
+MONGODB_URI=mongodb://localhost:27017 MONGODB_DATABASE=airclean_demo \
+JWT_KEY="any-random-string-of-at-least-32-characters" \
+SEED_DEMO_DATA=true dotnet run
+
+# 3. Frontend on http://localhost:5173 (in another terminal)
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Demo accounts exist only in a database seeded this way, and the password for all of them is `Aircare123!`:
+
+| Role | Email |
+|---|---|
+| Customer | `customer@aircare.demo` |
+| Technician | `technician@aircare.demo` (also `technician2@…`, `technician3@…`) |
+| Building manager | `manager@aircare.demo` |
+| Admin | `admin@aircare.demo` |
+
+Seeding runs only when the database has no users, and never when `ASPNETCORE_ENVIRONMENT` is `Production`, so these accounts cannot appear on a live deployment.
+
+## Tests
+
+`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google and Apple sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips and reminder timing. External services are replaced by local stand-ins in `tests/`.
+
+```bash
+# with the API running against a disposable database (see .github/workflows/build.yml for the settings)
+python3 tests/marketplace_smoke.py
+```
+
+Never point it at a real database.
+
+## Status
+
+Payment is cash on delivery between customer and technician, and the app holds no money. Before a public launch the remaining items are listed in [docs/REFERENCE.md](docs/REFERENCE.md#limitations-before-a-public-launch).
