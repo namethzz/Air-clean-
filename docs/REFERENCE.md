@@ -86,7 +86,7 @@ Disabling the seeder prevents new demo records from being created in production,
 
 ## Run locally
 
-Backend: configure MongoDB and JWT settings, then run dotnet restore and dotnet run from backend/AirCare.Api.
+Backend: configure MongoDB and JWT settings, then run dotnet restore and dotnet run from backend/AirClean.Api.
 
 Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, then run npm run dev.
 

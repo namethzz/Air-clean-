@@ -136,12 +136,12 @@ Every expiry and reminder is claimed with a conditional database update before a
 ## Project layout
 
 ```
-backend/AirCare.Api
+backend/AirClean.Api
   Controllers/   One controller per topic, all under /api:
                  Auth, Notifications, Addresses, Technicians, Bookings, BookingOffers,
                  JobCompletion, Issues, Receipts, JobPhotos, Dashboard, AirConditioners,
                  BatchBookings, ServiceReports, Reviews, Membership.
-                 AirCareControllerBase holds what they share (the database, the signed-in
+                 AirCleanControllerBase holds what they share (the database, the signed-in
                  user, status e-mails); ApiHelpers holds pure rules (quotes, distance, windows).
   Services/      Notifier, WebPushSender, EmailSender, SlipVerifier, ExternalIdentityValidator,
                  OfferTimer, ReminderService, Membership
@@ -163,7 +163,7 @@ You need the .NET 8 SDK, Node 20 and a MongoDB (a container is easiest).
 docker run -d --name airclean-mongo -p 27017:27017 mongo:7
 
 # 2. API on http://localhost:5080, with demo data
-cd backend/AirCare.Api
+cd backend/AirClean.Api
 MONGODB_URI=mongodb://localhost:27017 MONGODB_DATABASE=airclean_demo \
 JWT_KEY="any-random-string-of-at-least-32-characters" \
 SEED_DEMO_DATA=true dotnet run

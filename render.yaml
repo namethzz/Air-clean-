@@ -4,8 +4,8 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    dockerfilePath: ./backend/AirCare.Api/Dockerfile
-    dockerContext: ./backend/AirCare.Api
+    dockerfilePath: ./backend/AirClean.Api/Dockerfile
+    dockerContext: ./backend/AirClean.Api
     healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
