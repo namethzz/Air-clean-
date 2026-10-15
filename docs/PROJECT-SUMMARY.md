@@ -99,6 +99,7 @@ AirClean เป็นแพลตฟอร์มช่วยให้ลูก�
 - การคำนวณระยะทางเป็นเส้นตรง ยังไม่ใช่ระบบค้นหาเส้นทางตามถนนหรือ ETA แบบเรียลไทม์
 - เปิดใช้ Google: สร้าง OAuth Client ID ประเภท Web application ใน Google Cloud Console ใส่ Authorized JavaScript origins เป็นที่อยู่เว็บ แล้วตั้ง `GOOGLE_CLIENT_ID` (API) และ `VITE_GOOGLE_CLIENT_ID` (Static Site) เป็นค่าเดียวกัน
 - เปิดใช้ Apple: ต้องมี Apple Developer Program (เสียค่าบริการรายปี) สร้าง Services ID เปิด Sign in with Apple ใส่โดเมนและ Return URL ของเว็บ แล้วตั้ง `APPLE_CLIENT_ID` และ `VITE_APPLE_CLIENT_ID`
+- หน้านโยบายความเป็นส่วนตัว `/privacy.html` และข้อกำหนดการใช้งาน `/terms.html` มีลิงก์จากหน้าแรกและหน้าเข้าสู่ระบบ ใช้กรอกใน Google Auth Platform → Branding อีเมลติดต่อบนหน้านี้ตั้งด้วย `VITE_CONTACT_EMAIL` บน Static Site เนื้อหาเป็นร่างเริ่มต้น ควรตรวจทานก่อนเปิดใช้จริง
 - ตั้งค่า SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`) บน Render เพื่อให้อีเมลรีเซ็ตรหัสผ่านส่งได้จริง
 - หลัง deploy ให้ตรวจคิว **ตรวจสอบช่าง** เพราะโปรไฟล์ช่างเดิมที่ยังไม่เคยยืนยันจะกลายเป็น “รอตรวจสอบ”
 - บัญชีผู้ดูแลอาคาร (Manager) ยังเลือกสมัครได้เองตอนลงทะเบียน

@@ -110,6 +110,6 @@ export default function LandingPage({ onStart }: { onStart: Start }) {
         </div>
       </section>
     </main>
-    <footer className="acl-footer"><strong>AirClean</strong><span>ดูแลแอร์ ดูแลความสบายของคุณ</span><small>© {new Date().getFullYear()} AirClean</small></footer>
+    <footer className="acl-footer"><strong>AirClean</strong><span>ดูแลแอร์ ดูแลความสบายของคุณ</span><small><a href="/privacy.html">นโยบายความเป็นส่วนตัว</a> · <a href="/terms.html">ข้อกำหนดการใช้งาน</a> · © {new Date().getFullYear()} AirClean</small></footer>
   </div>;
 }
