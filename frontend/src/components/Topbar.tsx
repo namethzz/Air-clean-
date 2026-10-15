@@ -7,9 +7,11 @@ interface Props { role: UserRole; page: PageKey; title: string; searchQuery: str
 const searchHints: Partial<Record<PageKey, string>> = { technicians: 'ค้นหาช่าง...', bookings: 'ค้นหารายการจอง...' };
 
 export default function Topbar({ role, page, title, searchQuery, onSearchChange, onNewBooking }: Props) {
-  const hint = searchHints[page];
+  // Customers' job list is short and has its own tabs, so it has no search box.
+  const hint = role === 'customer' ? undefined : searchHints[page];
   // The overview already has its own single call to action.
-  const canBook = role !== 'technician' && page !== 'overview';
+  // Customers have the button in the sidebar and bottom bar already.
+  const canBook = role !== 'technician' && role !== 'customer' && page !== 'overview';
   return <header className="topbar">
     <div className="topbar-context"><div className="breadcrumb">AIRCLEAN <span>/</span> WORKSPACE</div><div className="topbar-title">{title}</div></div>
     <div className="topbar-actions">
