@@ -8,7 +8,8 @@ export const journeySteps = ['ส่งคำขอ', 'เลือกช่า�
 export function currentStep(booking: Booking): number {
   switch (booking.status) {
     case 'เปิดรับช่าง':
-    case 'รอเลือกช่าง': return 1;
+    case 'รอเลือกช่าง':
+    case 'หมดเวลาเลือกช่าง': return 1;
     case 'รอยืนยัน':
     case 'ยืนยันแล้ว':
     case 'กำลังเดินทาง': return 2;
@@ -21,7 +22,7 @@ export function currentStep(booking: Booking): number {
   }
 }
 
-export const isClosed = (booking: Booking) => booking.status === 'เสร็จสิ้น' || booking.status === 'ยกเลิก';
+export const isClosed = (booking: Booking) => booking.status === 'เสร็จสิ้น' || booking.status === 'ยกเลิก' || booking.status === 'หมดเวลาเลือกช่าง';
 
 /** Days since the appointment date (negative when it is still ahead). */
 function daysSince(date: string): number {
@@ -55,7 +56,9 @@ function rawGuide(booking: Booking): JobGuide {
     case 'เปิดรับช่าง':
       return { short: 'รอช่างเสนอราคา', title: 'กำลังรอช่างเสนอราคา', hint: 'ช่างใกล้บ้านเห็นคำขอของคุณแล้ว ข้อเสนอจะแสดงที่หน้านี้ ไม่ต้องทำอะไรในตอนนี้' };
     case 'รอเลือกช่าง':
-      return { short: offers ? `ช่าง ${offers} คนเสนอราคา` : 'มีช่างสนใจแล้ว', title: offers ? `มีช่าง ${offers} คนเสนอราคา` : 'มีช่างสนใจงานของคุณ', hint: 'เปรียบเทียบราคาและโปรไฟล์ แล้วเลือกช่างหนึ่งคน ที่อยู่เต็มของคุณจะเปิดให้เฉพาะช่างที่เลือก' };
+      return { short: offers ? `ช่าง ${offers} คนเสนอราคา` : 'มีช่างสนใจแล้ว', title: offers ? `มีช่าง ${offers} คนเสนอราคา` : 'มีช่างสนใจงานของคุณ', hint: 'เปรียบเทียบราคาและโปรไฟล์ แล้วเลือกช่างหนึ่งคนภายในเวลาที่กำหนด ที่อยู่เต็มของคุณจะเปิดให้เฉพาะช่างที่เลือก' };
+    case 'หมดเวลาเลือกช่าง':
+      return { short: 'หมดเวลาเลือกช่าง · เปิดรับใหม่ได้', title: 'หมดเวลาเลือกช่าง', hint: `ไม่ได้เลือกช่างภายใน 1 ชั่วโมงหลังมีข้อเสนอแรก ข้อเสนอเดิมจึงหมดอายุ ช่างที่เคยเสนอได้รับแจ้งแล้ว ถ้ายังต้องการช่าง กดเปิดรับข้อเสนออีกครั้ง` };
     case 'รอยืนยัน':
       return { short: `รอ${tech}ตอบรับ`, title: `รอ${tech}ตอบรับ`, hint: 'ช่างยังไม่ได้ยืนยันนัดหมาย' };
     case 'ยืนยันแล้ว':
@@ -80,6 +83,7 @@ function rawGuide(booking: Booking): JobGuide {
 
 /** True when the customer is the one who has to act next. */
 export function needsAction(booking: Booking, _reports: ServiceReportRecord[] = []): boolean {
+  if (booking.status === 'หมดเวลาเลือกช่าง') return true;
   if (booking.status === 'รอเลือกช่าง') return (booking.applicants?.length ?? 0) > 0;
   if (booking.status === 'รอชำระเงิน') return !booking.customerConfirmedPayment;
   if (booking.status === 'เสร็จสิ้น') return !booking.customerRating && !isClosedForCustomer(booking);
@@ -90,6 +94,8 @@ export function needsAction(booking: Booking, _reports: ServiceReportRecord[] = 
 export function sortJobs(bookings: Booking[], reports: ServiceReportRecord[]): Booking[] {
   return [...bookings].sort((a, b) => {
     const urgent = Number(needsAction(b, reports)) - Number(needsAction(a, reports));
+    // While choosing, the request whose time runs out first comes first.
+    if (!urgent && a.offerDeadline && b.offerDeadline) return a.offerDeadline.localeCompare(b.offerDeadline);
     if (urgent) return urgent;
     return (a.date + a.time).localeCompare(b.date + b.time);
   });
@@ -162,4 +168,10 @@ export function sortByNeed(bookings: Booking[], needs: (booking: Booking) => boo
     const urgent = Number(needs(b)) - Number(needs(a));
     return urgent || (a.date + a.time).localeCompare(b.date + b.time);
   });
+}
+
+/** Whole minutes left to pick a technician (0 when the time is up), or null when no clock is running. */
+export function minutesToPick(booking: Booking, now = Date.now()): number | null {
+  if (booking.status !== 'รอเลือกช่าง' || !booking.offerDeadline) return null;
+  return Math.max(0, Math.ceil((new Date(booking.offerDeadline).getTime() - now) / 60000));
 }

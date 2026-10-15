@@ -31,7 +31,7 @@ import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
-  approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
+  reopenBooking, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
   createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type AirConditionerPayload, type CompleteJobPayload, type CreateServiceReportPayload,
@@ -268,6 +268,11 @@ export default function App() {
       showNotice('เปลี่ยนวันนัดแล้ว อีกฝ่ายได้รับแจ้งแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'เลื่อนนัดไม่สำเร็จ'));return false;}
   }
+  async function reopenJob(id:number):Promise<boolean>{
+    try{const saved=await reopenBooking(id);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
+      showNotice('เปิดรับข้อเสนออีกครั้งแล้ว ช่างใกล้บ้านจะเห็นงานนี้');return true;}
+    catch(error){showNotice(errorMessage(error,'เปิดรับข้อเสนอไม่สำเร็จ'));void refreshBookings();return false;}
+  }
   async function saveProgress(id:number,unitsDone:number,roomsDone?:string[]):Promise<boolean>{
     try{const saved=await updateJobProgress(id,unitsDone,roomsDone);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));return true;}
     catch(error){showNotice(errorMessage(error,'บันทึกความคืบหน้าไม่สำเร็จ'));return false;}
@@ -302,7 +307,7 @@ export default function App() {
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')} onOpenMembership={()=>navigate('membership')} myJobs={state.bookings}/>;
       case 'membership':return user.role==='technician'||user.role==='admin'?<MembershipPage admin={user.role==='admin'} onNotice={showNotice}/>:null;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onRefresh={refreshBookings}/>;
-        if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
+        if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onReopen={reopenJob} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
       case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={(placeId,rooms)=>openBooking(undefined,placeId,rooms)} onOpenJob={openJob} onNotice={showNotice}/>:null;

@@ -18,7 +18,7 @@ export function formatPhone(phone: string): string {
 
 /** Who can move the visit now: the customer before a technician is chosen; either side before the technician leaves. */
 export function canReschedule(booking: Booking, side: RescheduleSide) {
-  if (side === 'customer') return ['เปิดรับช่าง', 'รอเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status);
+  if (side === 'customer') return ['เปิดรับช่าง', 'รอเลือกช่าง', 'หมดเวลาเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status);
   return ['รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status);
 }
 const chosen = (booking: Booking) => ['รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status);

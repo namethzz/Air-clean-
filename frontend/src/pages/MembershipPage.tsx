@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import qrcode from 'qrcode-generator';
-import { AlertCircle, BadgeCheck, CalendarClock, Check, CheckCircle2, Clock3, Copy, Gift, Loader2, Paperclip, RefreshCw, Save, Send, Wallet, XCircle } from 'lucide-react';
+import { ShieldCheck, AlertCircle, BadgeCheck, CalendarClock, Check, CheckCircle2, Clock3, Copy, Gift, Loader2, Paperclip, RefreshCw, Save, Send, Wallet, XCircle } from 'lucide-react';
 import type { AdminMembership, MemberRow, Membership, MembershipPayment, MembershipSettings, MembershipState } from '../types';
 import { fetchAdminMembership, fetchMyMembership, grantMembershipDays, payMembership, reviewMembershipPayment, saveMembershipSettings } from '../lib/api';
 import { promptPayPayload } from '../lib/promptpay';
@@ -52,26 +52,30 @@ function TechnicianMembership({ onNotice }: { onNotice: (message: string) => voi
     </section>
 
     {data.state !== 'NotApproved' && (data.pending
-      ? <PendingSlip payment={data.pending}/>
-      : <Renew data={data} onSent={payment => { setData({ ...data, pending: payment, history: [payment, ...data.history] }); onNotice('ส่งสลิปแล้ว ผู้ดูแลจะตรวจและต่ออายุให้'); }}/>)}
+      ? <PendingSlip payment={data.pending} auto={Boolean(data.autoCheck && data.pending.checkError)}/>
+      : <Renew data={data} onSent={payment => {
+        if (payment.status === 'Approved') { onNotice(`ตรวจสลิปผ่าน ต่ออายุถึง ${thaiDate(payment.coveredUntil)} แล้ว`); load(); return; }
+        setData({ ...data, pending: payment, history: [payment, ...data.history] });
+        onNotice(data.autoCheck ? 'ได้รับสลิปแล้ว ระบบจะตรวจกับธนาคารอีกครั้งอัตโนมัติ' : 'ส่งสลิปแล้ว ผู้ดูแลจะตรวจและต่ออายุให้');
+      }}/>)}
 
     {data.history.length > 0 && <section className="ms-card">
       <h2>ประวัติการชำระ</h2>
       <ul className="ms-history">{data.history.map(item => <li key={item.id}>
-        <div><strong>{item.months} เดือน · {baht(item.amount)}</strong><span>ส่งเมื่อ {thaiDateTime(item.createdAt)}{item.coveredUntil ? ` · ต่อถึง ${thaiDate(item.coveredUntil)}` : ''}</span>{item.status === 'Rejected' && item.note && <span className="ms-reason">เหตุผล: {item.note}</span>}</div>
+        <div><strong>{item.months} เดือน · {baht(item.amount)}</strong><span>ส่งเมื่อ {thaiDateTime(item.createdAt)}{item.coveredUntil ? ` · ต่อถึง ${thaiDate(item.coveredUntil)}` : ''}{item.checkedBy === 'auto' ? ' · ตรวจอัตโนมัติ' : item.checkedBy === 'admin' ? ' · ผู้ดูแลตรวจ' : ''}</span>{item.status === 'Rejected' && item.note && <span className="ms-reason">เหตุผล: {item.note}</span>}</div>
         <em className={'ms-pill ' + item.status.toLowerCase()}>{paymentLabel[item.status]}</em>
       </li>)}</ul>
     </section>}
   </div>;
 }
 
-function PendingSlip({ payment }: { payment: MembershipPayment }) {
+function PendingSlip({ payment, auto }: { payment: MembershipPayment; auto: boolean }) {
   const [viewing, setViewing] = useState<string | null>(null);
   return <section className="ms-card ms-pending">
     <Clock3 size={22}/>
     <div>
-      <h2>รอผู้ดูแลตรวจสลิป</h2>
-      <p>{payment.months} เดือน · {baht(payment.amount)} · ส่งเมื่อ {thaiDateTime(payment.createdAt)}<br/>เมื่อผ่านแล้วระบบจะต่ออายุและแจ้งเตือนให้ทันที</p>
+      <h2>{auto ? 'รอธนาคารยืนยันรายการ' : 'รอผู้ดูแลตรวจสลิป'}</h2>
+      <p>{payment.months} เดือน · {baht(payment.amount)} · ส่งเมื่อ {thaiDateTime(payment.createdAt)}<br/>{auto ? 'ระบบจะตรวจอีกครั้งอัตโนมัติทุกไม่กี่นาที ถ้ายังไม่ได้ ผู้ดูแลจะตรวจให้ ' : ''}เมื่อผ่านแล้วระบบจะต่ออายุและแจ้งเตือนให้ทันที</p>
     </div>
     <PrivateImage path={`/membership/payments/${payment.id}/slip`} alt="สลิปที่ส่ง" onOpen={setViewing}/>
     {viewing && <ImageViewer url={viewing} alt="สลิปที่ส่ง" onClose={() => setViewing(null)}/>}
@@ -80,6 +84,7 @@ function PendingSlip({ payment }: { payment: MembershipPayment }) {
 
 /** Pick months, scan the QR (the amount is filled in), attach the slip, send. */
 function Renew({ data, onSent }: { data: Membership; onSent: (payment: MembershipPayment) => void }) {
+  const [turnedDown, setTurnedDown] = useState('');
   const [months, setMonths] = useState(1);
   const [slip, setSlip] = useState('');
   const [busy, setBusy] = useState(false);
@@ -101,8 +106,13 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
     try { setSlip(await resizeForUpload(chosen, 1400)); } catch (reason) { setError(errorText(reason, 'เปิดรูปสลิปไม่ได้')); }
   }
   async function send() {
-    setBusy(true); setError('');
-    try { onSent(await payMembership(months, slip)); }
+    setBusy(true); setError(''); setTurnedDown('');
+    try {
+      const result = await payMembership(months, slip);
+      // A slip the bank check turned down stays on this form with the reason, ready for another slip.
+      if (result.status === 'Rejected') { setTurnedDown(result.note || 'สลิปนี้ใช้ต่ออายุไม่ได้'); setSlip(''); if (file.current) file.current.value = ''; setBusy(false); return; }
+      onSent(result);
+    }
     catch (reason) { setError(errorText(reason, 'ส่งสลิปไม่สำเร็จ')); setBusy(false); }
   }
   async function copy() {
@@ -144,9 +154,10 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
           </div>
         </li>
       </ol>
+      {turnedDown && <div className="ms-turned-down" role="alert"><XCircle size={18}/><div><strong>สลิปไม่ผ่านการตรวจ</strong><span>{turnedDown}</span></div></div>}
       {error && <div className="auth-error" role="alert">{error}</div>}
-      <button type="button" className="cj-primary full" disabled={!slip || busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="lp-spin"/> กำลังส่ง…</> : <><Send size={17}/> ส่งสลิป {baht(amount)}</>}</button>
-      <p className="ms-fine">ผู้ดูแลตรวจยอดเงินเข้าแล้วต่ออายุให้ ส่วนใหญ่ภายในวันเดียวกัน</p>
+      <button type="button" className="cj-primary full" disabled={!slip || busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="lp-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
+      <p className="ms-fine">{data.autoCheck ? <><ShieldCheck size={13}/> ระบบตรวจสลิปกับธนาคารทันที ถ้าเงินเข้าบัญชี AirClean ครบ ต่ออายุให้เลย สลิปปลอมหรือสลิปที่เคยใช้แล้วจะไม่ผ่าน</> : 'ผู้ดูแลตรวจยอดเงินเข้าแล้วต่ออายุให้ ส่วนใหญ่ภายในวันเดียวกัน'}</p>
     </>}
   </section>;
 }
@@ -170,6 +181,9 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
       <button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> โหลดใหม่</button>
     </div>
     <p className="ms-summary">{pending.length ? `${pending.length} สลิปรอตรวจ` : 'ไม่มีสลิปรอตรวจ'} · ช่าง {data.members.length} คน{expired ? ` · หมดอายุ ${expired} คน` : ''}</p>
+    <p className={'ms-auto' + (data.autoCheck ? ' on' : '')}>{data.autoCheck
+      ? <><ShieldCheck size={16}/> ตรวจสลิปอัตโนมัติเปิดอยู่: สลิปจริงที่ยอดและบัญชีผู้รับถูกต้องจะต่ออายุทันที ที่นี่จะเหลือเฉพาะสลิปที่ระบบตัดสินไม่ได้</>
+      : <><AlertCircle size={16}/> ยังไม่ได้เปิดตรวจสลิปอัตโนมัติ (ตั้งค่า SLIPOK_BRANCH_ID และ SLIPOK_API_KEY บนเซิร์ฟเวอร์) ทุกสลิปจึงรอคุณตรวจ</>}</p>
 
     {pending.length > 0 && <section aria-label="สลิปรอตรวจ" className="ms-slips">{pending.map(item => <SlipReview key={item.id} payment={item} onDone={() => { onNotice('บันทึกผลแล้ว'); load(); }}/>)}</section>}
 
@@ -181,7 +195,7 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
     {done.length > 0 && <section className="ms-card">
       <h2>ตรวจแล้วล่าสุด</h2>
       <ul className="ms-history">{done.slice(0, 20).map(item => <li key={item.id}>
-        <div><strong>{item.technicianName} · {item.months} เดือน · {baht(item.amount)}</strong><span>{thaiDateTime(item.reviewedAt)}{item.coveredUntil ? ` · ต่อถึง ${thaiDate(item.coveredUntil)}` : ''}{item.note ? ` · ${item.note}` : ''}</span></div>
+        <div><strong>{item.technicianName} · {item.months} เดือน · {baht(item.amount)}</strong><span>{thaiDateTime(item.reviewedAt)} · {item.checkedBy === 'auto' ? 'ตรวจอัตโนมัติ' : 'ผู้ดูแลตรวจ'}{item.coveredUntil ? ` · ต่อถึง ${thaiDate(item.coveredUntil)}` : ''}{item.note ? ` · ${item.note}` : ''}</span></div>
         <em className={'ms-pill ' + item.status.toLowerCase()}>{paymentLabel[item.status]}</em>
       </li>)}</ul>
     </section>}
@@ -205,6 +219,7 @@ function SlipReview({ payment, onDone }: { payment: MembershipPayment; onDone: (
       <strong>{payment.technicianName}</strong>
       <span className="ms-amount">{baht(payment.amount)}</span>
       <span>{payment.months} เดือน · ส่งเมื่อ {thaiDateTime(payment.createdAt)}</span>
+      {payment.checkError && <small className="ms-check-error">ตรวจอัตโนมัติไม่ได้: {payment.checkError}</small>}
       <small>ตรวจว่ายอดเงินเข้าบัญชีพร้อมเพย์ตรงกับสลิปก่อนกดยืนยัน</small>
       {rejecting
         ? <div className="ms-reject">

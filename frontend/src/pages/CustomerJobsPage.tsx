@@ -1,8 +1,8 @@
 import { timeLabel } from '../lib/time';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History, Phone,
-  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
+  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wind, Wrench,
 } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import { initialsOf } from '../lib/initials';
@@ -11,7 +11,7 @@ import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
-import { currentStep, guideFor, isClosedForCustomer, journeySteps, needsAction, sortJobs } from '../lib/jobFlow';
+import { currentStep, guideFor, isClosedForCustomer, journeySteps, minutesToPick, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
 import Stepper, { useIsWide } from '../components/JobStepper';
 import './CustomerJobs.css';
@@ -30,6 +30,7 @@ interface Props {
   onOpenPassport: () => void;
   onReview: (bookingId: number, rating: number, comment: string) => Promise<boolean>;
   onReschedule: (id: number, scheduledAt: string, timeWindow?: string, reason?: string) => Promise<boolean>;
+  onReopen: (id: number) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -70,6 +71,8 @@ export default function CustomerJobsPage(props: Props) {
   const shown = tab === 'open' ? open : closed;
   const selected = bookings.find(item => item.id === selectedId) ?? (wide ? shown[0] : undefined);
   const actionCount = open.filter(item => needsAction(item, reports)).length;
+  // Minutes left to pick a technician tick down on the list too.
+  const now = useNow(open.some(item => item.offerDeadline && item.status === 'รอเลือกช่าง') ? 30000 : 0);
 
   if (!bookings.length) {
     return <div className="cj-empty">
@@ -95,12 +98,13 @@ export default function CustomerJobsPage(props: Props) {
         : <ul>{shown.map(item => {
           const urgent = needsAction(item, reports);
           const guide = guideFor(item);
+          const left = minutesToPick(item, now);
           return <li key={item.id}>
             <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
               <span className="cj-row-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><span>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</span></span>
               <span className="cj-row-main">
                 <strong>{item.service}{item.unitCount && item.unitCount > 1 ? ` · ${item.unitCount} เครื่อง` : ''}</strong>
-                <span className={urgent ? 'cj-row-urgent' : ''}>{guide.short}</span>
+                <span className={urgent ? 'cj-row-urgent' : ''}>{left != null && (item.applicants?.length ?? 0) > 0 ? `${guide.short} · เลือกภายใน ${left} นาที` : guide.short}</span>
                 <small>{shortDate(item.date)} · {timeLabel(item)}</small>
               </span>
               <ChevronRight size={18} aria-hidden="true"/>
@@ -117,14 +121,15 @@ export default function CustomerJobsPage(props: Props) {
 }
 
 
-function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh, onReschedule, onReopen }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
   const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
   const cancelled = booking.status === 'ยกเลิก';
   const choosing = booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง';
-  const hasTech = !choosing && !cancelled && booking.technician && booking.technician !== '-';
-  const cancellable = choosing;
+  const hasTech = !choosing && !cancelled && booking.status !== 'หมดเวลาเลือกช่าง' && booking.technicianId > 0 && booking.technician && booking.technician !== '-';
+  const lapsed = booking.status === 'หมดเวลาเลือกช่าง';
+  const cancellable = choosing || lapsed;
 
   return <article className="cj-article">
     <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
@@ -143,7 +148,9 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
         <span>ช่างล้างไปแล้ว <strong>{booking.unitsDone}</strong> จาก {booking.unitCount} เครื่อง</span>
         <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, ((booking.unitsDone ?? 0) / Math.max(1, booking.unitCount ?? 1)) * 100)}%` }}/></div>
       </div>}
+      {booking.status === 'รอเลือกช่าง' && booking.offerDeadline && (booking.applicants?.length ?? 0) > 0 && <PickClock deadline={booking.offerDeadline} onTimeUp={onRefresh}/>}
       {choosing && <Offers booking={booking} onSelect={onSelectTechnician} onRefresh={onRefresh}/>}
+      {lapsed && <Reopen booking={booking} onReopen={() => onReopen(booking.id)} onNewDate={() => setMoving(true)}/>}
       {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
       {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
       {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> จ่ายแล้ว ฿{booking.price.toLocaleString()}{booking.paymentMethod ? ` · ${booking.paymentMethod === 'PromptPay' ? 'โอน' : 'เงินสด'}` : ''}</p>}
@@ -190,6 +197,54 @@ function TechnicianCard({ booking }: { booking: Booking }) {
       <Phone size={18}/><span>โทรหาช่าง</span><span className="cj-call-number">{formatPhone(booking.technicianPhone)}</span>
     </a>}
   </section>;
+}
+
+/** Re-renders every `every` ms (0 = not at all) and returns the current time. */
+function useNow(every: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!every) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), every);
+    return () => window.clearInterval(timer);
+  }, [every]);
+  return now;
+}
+
+const PICK_WINDOW_MS = 60 * 60 * 1000;
+
+/** The hour to choose, as a clock and a draining bar. Red in the last 10 minutes; refreshes the job when it runs out. */
+function PickClock({ deadline, onTimeUp }: { deadline: string; onTimeUp: () => void }) {
+  const now = useNow(1000);
+  const end = new Date(deadline).getTime();
+  const left = Math.max(0, end - now);
+  const done = useRef(false);
+  useEffect(() => { if (left === 0 && !done.current) { done.current = true; window.setTimeout(onTimeUp, 1500); } }, [left, onTimeUp]);
+  const minutes = Math.floor(left / 60000), seconds = Math.floor((left % 60000) / 1000);
+  const clock = new Date(end).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const low = left <= 10 * 60000;
+  return <div className={'cj-clock' + (low ? ' low' : '')} role="timer" aria-live="off" aria-label={`เหลือเวลาเลือกช่าง ${minutes} นาที`}>
+    <Timer size={20}/>
+    <div>
+      <strong>{left === 0 ? 'หมดเวลาแล้ว กำลังอัปเดต…' : <>เหลือเวลาเลือกช่าง <b>{minutes}:{String(seconds).padStart(2, '0')}</b></>}</strong>
+      <span>เลือกภายใน {clock} น. ไม่อย่างนั้นข้อเสนอจะหมดอายุ และช่างจะไปรับงานอื่น</span>
+      <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, (left / PICK_WINDOW_MS) * 100)}%` }}/></div>
+    </div>
+  </div>;
+}
+
+/** The offers lapsed: one tap opens the request again (a new date first if the old one has passed). */
+function Reopen({ booking, onReopen, onNewDate }: { booking: Booking; onReopen: () => Promise<boolean>; onNewDate: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const passed = new Date(booking.date + 'T00:00:00') < today;
+  return <div className="cj-reopen">
+    {passed
+      ? <><p className="cj-note"><CalendarClock size={15}/> วันนัดเดิม ({shortDate(booking.date)}) ผ่านไปแล้ว เลือกวันใหม่ก่อน แล้วค่อยเปิดรับข้อเสนอ</p>
+        <button type="button" className="cj-primary full" onClick={onNewDate}><CalendarClock size={17}/> เลือกวันนัดใหม่</button></>
+      : <><button type="button" className="cj-primary full" disabled={busy} onClick={async () => { setBusy(true); await onReopen(); setBusy(false); }}><RotateCcw size={17}/> {busy ? 'กำลังเปิดรับ…' : 'เปิดรับข้อเสนออีกครั้ง'}</button>
+        <p className="cj-note">ช่างใกล้บ้านจะเห็นงานนี้อีกครั้ง และเมื่อมีข้อเสนอแรก คุณมีเวลาเลือก 1 ชั่วโมง</p></>}
+  </div>;
 }
 
 function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: Props['onSelectTechnician']; onRefresh: () => void }) {

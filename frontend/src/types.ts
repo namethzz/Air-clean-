@@ -1,6 +1,6 @@
 export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues'|'history'|'buildings'|'membership';
 export type UserRole='customer'|'technician'|'manager'|'admin';
-export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
+export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก'|'หมดเวลาเลือกช่าง';
 export type PaymentMethod='Cash'|'PromptPay';
 export interface UserProfile{id:number;fullName:string;email:string;role:UserRole;hasPassword?:boolean;providers?:string[];emailNotifications?:boolean;phone?:string|null;}
 export type PlaceType='บ้าน'|'คอนโด'|'หอพัก'|'สำนักงาน'|'โรงแรม'|'อาคารอื่น';
@@ -13,7 +13,7 @@ export interface TechnicianApplication{id:number;userId:number;name:string;email
 export interface ServiceRecord{id:number;date:string;technician:string;service:string;price:number;summary:string;status:'เสร็จสิ้น'|'รอตรวจสอบ';}
 export interface AirConditioner{id:number;label:string;room:string;brand:string;model:string;type:string;lastServiceDate:string;nextServiceDate:string;health:'good'|'due'|'attention';serialNumber:string;services:ServiceRecord[];}
 export interface BookingApplicant{technicianId:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;quote:number;area:string;verified:boolean;selected:boolean;appliedAt:string;note?:string|null;}
-export interface Booking{id:number;code:string;customer:string;technicianId:number;technician:string;technicianInitials:string;service:string;unitLabel:string;address:string;date:string;time:string;price:number;status:BookingStatus;createdAt:string;latitude?:number|null;longitude?:number|null;technicianLatitude?:number|null;technicianLongitude?:number|null;locationAccuracy?:number|null;locationUpdatedAt?:string|null;travelStatus?:string;paymentMethod?:PaymentMethod|null;paymentStatus?:string;customerConfirmedPayment?:boolean;technicianConfirmedPayment?:boolean;propertyType?:string;unitCount?:number;applicants?:BookingApplicant[];currentTechnicianApplied?:boolean;distanceKm?:number|null;airConditionerId?:number|null;customerRating?:number|null;issue?:BookingIssue|null;timeWindow?:string|null;notes?:string|null;unitsDone?:number;placeId?:number|null;rooms?:{name:string;units:number;done:boolean}[]|null;customerPhone?:string|null;technicianPhone?:string|null;}
+export interface Booking{id:number;code:string;customer:string;technicianId:number;technician:string;technicianInitials:string;service:string;unitLabel:string;address:string;date:string;time:string;price:number;status:BookingStatus;createdAt:string;latitude?:number|null;longitude?:number|null;technicianLatitude?:number|null;technicianLongitude?:number|null;locationAccuracy?:number|null;locationUpdatedAt?:string|null;travelStatus?:string;paymentMethod?:PaymentMethod|null;paymentStatus?:string;customerConfirmedPayment?:boolean;technicianConfirmedPayment?:boolean;propertyType?:string;unitCount?:number;applicants?:BookingApplicant[];currentTechnicianApplied?:boolean;distanceKm?:number|null;airConditionerId?:number|null;customerRating?:number|null;issue?:BookingIssue|null;timeWindow?:string|null;notes?:string|null;unitsDone?:number;placeId?:number|null;rooms?:{name:string;units:number;done:boolean}[]|null;customerPhone?:string|null;technicianPhone?:string|null;offerDeadline?:string|null;}
 export type IssueKind='Payment'|'Service';
 export type IssueResolution='Paid'|'Cancelled'|'Closed';
 export interface BookingIssue{kind:IssueKind;reason:string;reportedBy:string;reportedAt:string;open:boolean;resolution?:IssueResolution|null;resolutionNote?:string|null;resolvedAt?:string|null;}
@@ -33,8 +33,8 @@ export interface Receipt{issued:boolean;number?:string|null;issuedAt?:string|nul
 export type DocumentKind='idcard'|'selfie'|'certificate';
 export interface TechnicianDocument{id:string;kind:DocumentKind;createdAt:string;}
 export type MembershipState='Trial'|'Active'|'Expired'|'NotApproved';
-export interface MembershipPayment{id:number;technicianId:number;technicianName:string;months:number;amount:number;status:'Pending'|'Approved'|'Rejected';note?:string|null;createdAt:string;reviewedAt?:string|null;coveredUntil?:string|null;}
-export interface Membership{state:MembershipState;memberUntil?:string|null;daysLeft:number;monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;pending?:MembershipPayment|null;history:MembershipPayment[];}
+export interface MembershipPayment{id:number;technicianId:number;technicianName:string;months:number;amount:number;status:'Pending'|'Approved'|'Rejected';note?:string|null;createdAt:string;reviewedAt?:string|null;coveredUntil?:string|null;checkedBy?:'auto'|'admin'|null;checkError?:string|null;}
+export interface Membership{state:MembershipState;memberUntil?:string|null;daysLeft:number;monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;pending?:MembershipPayment|null;history:MembershipPayment[];autoCheck?:boolean;}
 export interface MembershipSettings{monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;}
 export interface MemberRow{technicianId:number;name:string;phone:string;state:MembershipState;memberUntil?:string|null;daysLeft:number;}
-export interface AdminMembership{settings:MembershipSettings;payments:MembershipPayment[];members:MemberRow[];}
+export interface AdminMembership{settings:MembershipSettings;payments:MembershipPayment[];members:MemberRow[];autoCheck?:boolean;}

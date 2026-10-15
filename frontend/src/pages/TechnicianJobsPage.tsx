@@ -317,6 +317,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       })()}
       {offer && <div className="tj-offer">
         <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
+        {booking.offerDeadline && <p className="cj-note"><Clock3 size={15}/> ลูกค้าจะเลือกช่างภายใน {new Date(booking.offerDeadline).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. ถ้าไม่เลือก ข้อเสนอจะหมดอายุและคุณได้รับแจ้ง</p>}
         <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
       </div>}
       {canReschedule(booking, 'technician') && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวันนัด</button>}
