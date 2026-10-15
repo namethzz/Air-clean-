@@ -10,9 +10,9 @@ import { saveAddress } from '../lib/api';
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
   date:string; time:string; timeWindow?:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
-  notes?:string; placeId?:number; rooms?:string[];
+  notes?:string; placeId?:number; rooms?:string[]; contactPhone?:string;
 }
-interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; role?:UserRole; initialPlaceId?:string; initialRooms?:string[]; bookings?:Booking[]; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; role?:UserRole; initialPlaceId?:string; initialRooms?:string[]; bookings?:Booking[]; phone?:string|null; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
 function unitText(unit:AirConditioner):string { return [unit.label,unit.brand,unit.type].filter(Boolean).join(' · ').slice(0,180); }
 
 /** What a customer can tell by looking at the unit. Hanging and ceiling units take longer, so they cost more. */
@@ -34,7 +34,7 @@ function AcIcon({kind}:{kind:AcType}){
   </svg>;
 }
 
-export default function BookingModal({technicians,units=[],initialUnitId,role,initialPlaceId,initialRooms,bookings=[],onClose,onSubmit}:BookingModalProps) {
+export default function BookingModal({technicians,units=[],initialUnitId,role,initialPlaceId,initialRooms,bookings=[],phone,onClose,onSubmit}:BookingModalProps) {
   const manager=role==='manager';
   // Homes book up to 30 units; building managers book whole buildings.
   const maxUnits=manager?300:30;
@@ -79,6 +79,8 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
   const dueNames=useMemo(()=>roster.length&&place.id!=='new'?dueRooms(roster,lastCleaned(place.id,bookings)).map(room=>room.name):[],[roster,place.id,bookings]);
   const unitCount=roster.length?Math.max(1,roster.filter(room=>selectedRooms.includes(room.name)).reduce((sum,room)=>sum+room.units,0)):typedCount;
   const [visit,setVisit]=useState<Visit>(defaultVisit);
+  const [contactPhone,setContactPhone]=useState(phone??'');
+  const phoneOk=/^\+?[\d\s-]{9,15}$/.test(contactPhone.trim())&&(contactPhone.match(/\d/g)?.length??0)>=9;
   const [submitted,setSubmitted]=useState(false);
   const [submitting,setSubmitting]=useState(false);
   const [formError,setFormError]=useState('');
@@ -96,6 +98,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
     if(!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
     if(roster.length&&!selectedRooms.length) { setFormError('เลือกห้องที่จะล้างอย่างน้อย 1 ห้อง'); return; }
     const when=visitPayload(visit);
+    if(!phoneOk) { setFormError('กรอกเบอร์โทรให้ช่างโทรนัดได้ เช่น 081-234-5678'); return; }
     if(!when) { setFormError('กรุณาเลือกวันและเวลาที่ช่างมาได้'); return; }
     setSubmitting(true);
     // Keep a new or edited place first, so the job is linked to it (a building's history); a failure here must not stop the request.
@@ -109,7 +112,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
     const success=await onSubmit({
       service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
       date:visit.date,time:when.time,timeWindow:when.timeWindow,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
-      notes,placeId:Number.isFinite(placeId)?placeId:undefined,rooms:roster.length?selectedRooms:undefined,
+      notes,placeId:Number.isFinite(placeId)?placeId:undefined,rooms:roster.length?selectedRooms:undefined,contactPhone:contactPhone.trim(),
     });
     setSubmitting(false);
     if(success)setSubmitted(true);
@@ -174,6 +177,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
         {manager
           ?<label className="form-field"><span>รายละเอียดสำหรับช่าง (ไม่บังคับ)</span><textarea rows={3} maxLength={800} value={details} onChange={event=>setDetails(event.target.value)} placeholder="เช่น ห้อง 101–120 และ 201–210, จอดรถชั้น B1, เข้าทำงานได้ 9:00–17:00"/></label>
           :<label className="form-field"><span>บอกช่างเพิ่มเติม (ไม่บังคับ)</span><input value={unitNote} onChange={event=>setUnitNote(event.target.value)} maxLength={80} placeholder="เช่น น้ำหยด มีกลิ่น ห้องนอน 2 ห้องนั่งเล่น 1"/></label>}
+        <label className="form-field"><span>เบอร์โทรของคุณ <em className="bk-hint">ช่างโทรนัดก่อนเข้า และใช้เมื่อต้องเลื่อนนัด</em></span><input type="tel" inputMode="tel" autoComplete="tel" value={contactPhone} onChange={event=>setContactPhone(event.target.value)} placeholder="081-234-5678" maxLength={20}/></label>
         <div className="marketplace-estimate">
           <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>
           <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง · เก็บเงินปลายทางเมื่อล้างเสร็จ ไม่ต้องจ่ายล่วงหน้า</small>

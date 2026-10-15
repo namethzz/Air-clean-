@@ -61,7 +61,7 @@ other_customer = account('customer')
 # Marketplace requests must be possible even before any technician creates a profile.
 payload = {'service': 'ล้างแอร์มาตรฐาน', 'unitLabel': 'แอร์ห้องนอน', 'propertyType': 'บ้านเดี่ยว', 'unitCount': 2,
            'address': 'PRIVATE-HOUSE-123', 'scheduledAt': (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-           'price': 0, 'latitude': 13.7563, 'longitude': 100.5018}
+           'price': 0, 'latitude': 13.7563, 'longitude': 100.5018, 'contactPhone': '081-000-0000'}
 # Aircon Passport units are optional, owned by one account, and can be linked to a request.
 unit = call('/air-conditioners', 'POST', {'label': 'แอร์ห้องนอน', 'brand': 'Daikin', 'type': 'ติดผนัง'}, customer, 201)
 assert unit['health'] == 'due' and unit['services'] == []
@@ -580,30 +580,39 @@ second = call(f"/bookings/{by_room['id']}/receipt", 'POST', {'payer': {'name': '
 assert second['number'] != issued['number'] and second['rooms'] == ['202', 'ล็อบบี้']
 unpaid = call('/bookings', 'POST', payload, customer, 201)
 call(f"/bookings/{unpaid['id']}/receipt", token=customer, expected=409)
-# Rescheduling: before a technician is chosen the customer just moves it; after that one side asks and the other agrees.
+# Rescheduling: people agree a new time by phone, then either side changes it and the other side is told.
 later = (datetime.now() + timedelta(days=5)).strftime('%Y-%m-%d')
+no_phone = account('Customer')
+call('/bookings', 'POST', {**payload, 'contactPhone': None}, no_phone, 400)
+call('/bookings', 'POST', {**payload, 'contactPhone': 'โทรมา'}, no_phone, 400)
+call('/bookings', 'POST', {**payload, 'contactPhone': '089-555-1212'}, no_phone, 201)
+assert call('/auth/me', token=no_phone)['phone'] == '089-555-1212'
+assert call('/bookings', 'POST', {**payload, 'contactPhone': None}, no_phone, 201)['customerPhone'] == '089-555-1212'
 moved = call('/bookings', 'POST', payload, customer, 201)
 call(f"/bookings/{moved['id']}/applications", 'POST', {}, tech)
+offer_seen = next(row for row in call('/bookings', token=tech) if row['id'] == moved['id'])
+assert offer_seen['customerPhone'] is None and offer_seen['technicianPhone'] is None
 call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '13:00-17:00'}, tech, 403)
 call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '12:00-17:00'}, customer, 400)
 call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': '2020-01-01T10:00:00'}, customer, 400)
 direct_move = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '13:00-17:00'}, customer)
-assert direct_move['date'] == later and direct_move['timeWindow'] == '13:00-17:00' and direct_move['reschedule'] is None
-call(f"/bookings/{moved['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
+assert direct_move['date'] == later and direct_move['timeWindow'] == '13:00-17:00'
+confirmed_move = call(f"/bookings/{moved['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
+assert confirmed_move['technicianPhone'] == call('/technicians/me', token=tech)['phone']
+assert call(f"/bookings/{moved['id']}", token=tech)['customerPhone'] == '081-000-0000'
 call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T09:00:00'}, other_customer, 403)
-asked = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T09:00:00', 'reason': 'ติดธุระ'}, customer)
-assert asked['reschedule']['by'] == 'customer' and asked['reschedule']['time'] == '09:00' and asked['date'] == later and asked['time'] == '13:00'
-call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer, 400)
-kept = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': False}, tech)
-assert kept['reschedule'] is None and kept['time'] == '13:00'
-call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer, 409)
+by_customer = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T09:00:00'}, customer)
+assert by_customer['time'] == '09:00' and by_customer['timeWindow'] is None
 next_day = (datetime.now() + timedelta(days=6)).strftime('%Y-%m-%d')
-call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T08:00:00', 'timeWindow': '08:00-12:00', 'reason': 'ติดงานก่อนหน้า'}, tech)
-agreed = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer)
-assert agreed['date'] == next_day and agreed['timeWindow'] == '08:00-12:00' and agreed['reschedule'] is None
-call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T10:00:00'}, customer)
-withdrawn = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': False}, customer)
-assert withdrawn['reschedule'] is None and withdrawn['date'] == next_day
+by_tech = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T08:00:00', 'timeWindow': '08:00-12:00'}, tech)
+assert by_tech['date'] == next_day and by_tech['timeWindow'] == '08:00-12:00'
+assert 'เปลี่ยนวันนัด' in notice(customer, 'ช่างเปลี่ยนวันนัด')['title'] if brevo_port else True
 call(f"/bookings/{moved['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, tech, 204)
 call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T15:00:00'}, customer, 409)
+# A technician can cancel a confirmed job they cannot do; the customer is told.
+dropped = call('/bookings', 'POST', payload, customer, 201)
+call(f"/bookings/{dropped['id']}/applications", 'POST', {}, tech)
+call(f"/bookings/{dropped['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
+call(f"/bookings/{dropped['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, tech, 204)
+assert call(f"/bookings/{dropped['id']}", token=customer)['status'] == 'ยกเลิก'
 print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation.')

@@ -510,8 +510,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         at.ToString("ddd d MMM", new System.Globalization.CultureInfo("th-TH")) + " " + (window is null ? at.ToString("HH:mm") + " น." : window.Replace("-", "–") + " น.");
 
     /// <summary>
-    /// Changing the visit. Before a technician is chosen the customer just changes it (offers stay, and those
-    /// technicians are told). After that, either side asks and the other side agrees or declines.
+    /// Changing the visit. People settle a new time by phone; then either side changes it here and the other side
+    /// is told. Before a technician is chosen only the customer changes it, and technicians who offered are told.
     /// </summary>
     [Authorize(Roles = "Customer,Manager,Technician"), HttpPost("bookings/{id:int}/reschedule")]
     public async Task<IActionResult> Reschedule(int id, RescheduleRequestDto request)
@@ -526,60 +526,24 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         // Times are the customer's local time (the app keeps them at least an hour ahead); the server only checks the day.
         if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "เลือกวันตั้งแต่วันนี้เป็นต้นไป" });
         if (!ValidWindow(request.TimeWindow, request.ScheduledAt, out var window)) return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
+        var open = booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection;
+        if (!open && booking.Status is not (BookingStates.Pending or BookingStates.Confirmed))
+            return Conflict(new { message = "เปลี่ยนวันนัดได้ก่อนช่างออกเดินทางเท่านั้น" });
+        if (open && technician) return Conflict(new { message = "ลูกค้ายังไม่ได้เลือกช่าง" });
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        var before = VisitText(booking.ScheduledAt, booking.TimeWindow);
         var when = VisitText(request.ScheduledAt, window);
-
-        if (booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection) {
-            if (technician) return Conflict(new { message = "ลูกค้ายังไม่ได้เลือกช่าง" });
-            var previous = booking.ScheduledAt;
-            var update = Builders<Booking>.Update.Set(x => x.ScheduledAt, request.ScheduledAt).Set(x => x.TimeWindow, window).Set(x => x.UpdatedAt, DateTime.UtcNow)
-                .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status, Notes = $"ลูกค้าเปลี่ยนวันนัดเป็น {when}", CreatedAt = DateTime.UtcNow });
-            await store.Bookings.UpdateOneAsync(x => x.Id == id, update);
+        var who = technician ? "ช่าง" : "ลูกค้า";
+        await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update
+            .Set(x => x.ScheduledAt, request.ScheduledAt).Set(x => x.TimeWindow, window).Set(x => x.UpdatedAt, DateTime.UtcNow)
+            .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status,
+                Notes = $"{who}เปลี่ยนนัดจาก {before} เป็น {when}{(reason is null ? "" : " เหตุผล: " + reason)}", CreatedAt = DateTime.UtcNow }));
+        var detail = $"นัดใหม่ {when} (เดิม {before}){(reason is null ? "" : "\nเหตุผล: " + reason)}";
+        if (open)
             foreach (var applicant in booking.Applicants)
-                notify.ToTechnician(applicant.TechnicianId, $"ลูกค้าเปลี่ยนวันนัด {booking.Code}", $"งานที่คุณเสนอราคาไว้ เปลี่ยนจาก {VisitText(previous, booking.TimeWindow)} เป็น {when} ถ้าไม่สะดวก ถอนข้อเสนอได้ที่ “งานของฉัน”", NotificationLink.Job(id));
-            return Ok(DtoMapper.ToDto(await store.Bookings.Find(x => x.Id == id).FirstAsync()));
-        }
-        if (booking.Status is not (BookingStates.Pending or BookingStates.Confirmed))
-            return Conflict(new { message = "เลื่อนนัดได้ก่อนช่างออกเดินทางเท่านั้น" });
-        var ask = new RescheduleRequest { ProposedAt = request.ScheduledAt, TimeWindow = window, ByUserId = CurrentUserId, ByRole = technician ? AppRoles.Technician : AppRoles.Customer, Reason = reason, CreatedAt = DateTime.UtcNow };
-        await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update.Set(x => x.Reschedule, ask)
-            .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status, Notes = $"{(technician ? "ช่าง" : "ลูกค้า")}ขอเลื่อนนัดเป็น {when}{(reason is null ? "" : " เหตุผล: " + reason)}", CreatedAt = DateTime.UtcNow }));
-        var text = $"ขอเลื่อนจาก {VisitText(booking.ScheduledAt, booking.TimeWindow)} เป็น {when}{(reason is null ? "" : "\nเหตุผล: " + reason)}\nกดตกลงหรือไม่สะดวกได้ที่งานนี้";
-        if (technician) notify.ToUser(booking.CustomerId, $"ช่างขอเลื่อนนัด {booking.Code}", text, NotificationLink.Job(id));
-        else notify.ToTechnician(booking.TechnicianId, $"ลูกค้าขอเลื่อนนัด {booking.Code}", text, NotificationLink.Job(id));
-        return Ok(DtoMapper.ToDto(await store.Bookings.Find(x => x.Id == id).FirstAsync()));
-    }
-
-    /// <summary>The other side agrees (the visit moves) or declines (the old time stays). The asker can withdraw.</summary>
-    [Authorize(Roles = "Customer,Manager,Technician"), HttpPost("bookings/{id:int}/reschedule/answer")]
-    public async Task<IActionResult> AnswerReschedule(int id, RescheduleAnswerDto request)
-    {
-        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
-        if (booking is null) return NotFound(new { message = "ไม่พบงานนี้" });
-        var technician = CurrentRole == AppRoles.Technician;
-        if (technician) {
-            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-            if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
-        } else if (booking.CustomerId != CurrentUserId) return Forbid();
-        var ask = booking.Reschedule;
-        if (ask is null) return Conflict(new { message = "ไม่มีคำขอเลื่อนนัดที่รออยู่" });
-        var mine = ask.ByUserId == CurrentUserId;
-        if (mine && request.Accept) return BadRequest(new { message = "รออีกฝ่ายตอบคำขอของคุณ" });
-        if (booking.Status is not (BookingStates.Pending or BookingStates.Confirmed)) return Conflict(new { message = "งานเริ่มแล้ว เลื่อนนัดไม่ได้" });
-        var when = VisitText(ask.ProposedAt, ask.TimeWindow);
-        var update = Builders<Booking>.Update.Set(x => x.Reschedule, null).Set(x => x.UpdatedAt, DateTime.UtcNow);
-        string note;
-        if (request.Accept) { update = update.Set(x => x.ScheduledAt, ask.ProposedAt).Set(x => x.TimeWindow, ask.TimeWindow); note = $"ตกลงเลื่อนนัดเป็น {when}"; }
-        else note = mine ? "ถอนคำขอเลื่อนนัด" : $"ไม่สะดวกเลื่อนเป็น {when} ใช้นัดเดิม";
-        await store.Bookings.UpdateOneAsync(x => x.Id == id && x.Reschedule != null, update.Push(x => x.Events,
-            new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status, Notes = note, CreatedAt = DateTime.UtcNow }));
-        if (!mine) {
-            var (title, body) = request.Accept
-                ? ($"เลื่อนนัดแล้ว {booking.Code}", $"นัดใหม่ {when}")
-                : ($"ไม่สะดวกเลื่อนนัด {booking.Code}", $"ยังใช้นัดเดิม {VisitText(booking.ScheduledAt, booking.TimeWindow)} ถ้ามาไม่ได้จริง ติดต่ออีกฝ่ายหรือยกเลิกงาน");
-            if (technician) notify.ToUser(booking.CustomerId, title, body, NotificationLink.Job(id));
-            else notify.ToTechnician(booking.TechnicianId, title, body, NotificationLink.Job(id));
-        }
+                notify.ToTechnician(applicant.TechnicianId, $"ลูกค้าเปลี่ยนวันนัด {booking.Code}", detail + "\nถ้าไม่สะดวก ถอนข้อเสนอได้ที่ “งานของฉัน”", NotificationLink.Job(id));
+        else if (technician) notify.ToUser(booking.CustomerId, $"ช่างเปลี่ยนวันนัด {booking.Code}", detail + "\nถ้าไม่ได้ตกลงกันไว้ โทรหาช่างได้ที่หน้างานนี้", NotificationLink.Job(id));
+        else notify.ToTechnician(booking.TechnicianId, $"ลูกค้าเปลี่ยนวันนัด {booking.Code}", detail + "\nถ้าไม่ได้ตกลงกันไว้ โทรหาลูกค้าได้ที่หน้างานนี้", NotificationLink.Job(id));
         return Ok(DtoMapper.ToDto(await store.Bookings.Find(x => x.Id == id).FirstAsync()));
     }
 
@@ -740,6 +704,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             rows = rows.Where(x => x.Status == normalized).ToList();
         }
         var technicianId = CurrentRole == AppRoles.Technician ? (await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync())?.Id : null;
+        await FillPhonesAsync(rows);
         return Ok(rows.OrderByDescending(x => x.ScheduledAt).Select(x =>
             technicianId is int techId && IsOpenOffer(x, techId) ? OpenJobView(DtoMapper.ToDto(x, techId), techId) : DtoMapper.ToDto(x)).ToList());
     }
@@ -754,7 +719,23 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
+        await FillPhonesAsync([booking]);
         return Ok(DtoMapper.ToDto(booking));
+    }
+
+    /// <summary>Jobs from before phones were stored on the job: take them from the profiles (shown, not saved).</summary>
+    private async Task FillPhonesAsync(List<Booking> rows)
+    {
+        var techIds = rows.Where(x => x.TechnicianId > 0 && x.TechnicianPhone is null).Select(x => x.TechnicianId).Distinct().ToList();
+        if (techIds.Count > 0) {
+            var phones = (await store.Technicians.Find(Builders<TechnicianProfile>.Filter.In(x => x.Id, techIds)).ToListAsync()).ToDictionary(x => x.Id, x => x.Phone);
+            foreach (var row in rows) if (row.TechnicianPhone is null && phones.TryGetValue(row.TechnicianId, out var phone) && !string.IsNullOrWhiteSpace(phone)) row.TechnicianPhone = phone;
+        }
+        var customerIds = rows.Where(x => x.CustomerPhone is null).Select(x => x.CustomerId).Distinct().ToList();
+        if (customerIds.Count > 0) {
+            var phones = (await store.Users.Find(Builders<AppUser>.Filter.In(x => x.Id, customerIds)).ToListAsync()).ToDictionary(x => x.Id, x => x.Phone);
+            foreach (var row in rows) if (row.CustomerPhone is null && phones.TryGetValue(row.CustomerId, out var phone)) row.CustomerPhone = phone;
+        }
     }
 
     [Authorize(Roles = "Customer,Manager,Admin"), HttpPost("bookings")]
@@ -778,6 +759,11 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             if (rooms.Sum(x => x.Units) > 300) return BadRequest(new { message = "เลือกได้ไม่เกิน 300 เครื่องต่องาน แบ่งเป็นหลายงานได้" });
         }
         var unitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : request.UnitCount;
+        // The technician calls this number to agree the visit; it is remembered for the next booking.
+        var me = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
+        var phone = string.IsNullOrWhiteSpace(request.ContactPhone) ? me?.Phone : request.ContactPhone.Trim();
+        if (CurrentRole != AppRoles.Admin && !IsPhone(phone)) return BadRequest(new { message = "กรอกเบอร์โทรให้ช่างติดต่อ เช่น 081-234-5678" });
+        if (me is not null && phone is not null && phone != me.Phone) await store.Users.UpdateOneAsync(x => x.Id == me.Id, Builders<AppUser>.Update.Set(x => x.Phone, phone));
         if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || request.Latitude is null || request.Longitude is null)
             return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
@@ -798,7 +784,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             PropertyType = request.PropertyType.Trim(), UnitCount = unitCount, Rooms = rooms, AirConditionerId = request.AirConditionerId,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
-            ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
+            ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, CustomerPhone = phone, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };
@@ -838,7 +824,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         Customer = "ลูกค้าในพื้นที่",
         Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
         Latitude = null, Longitude = null, TechnicianLatitude = null, TechnicianLongitude = null,
-        AirConditionerId = null, Notes = null, PlaceId = null, Rooms = null,
+        AirConditionerId = null, Notes = null, PlaceId = null, Rooms = null, CustomerPhone = null,
         Applicants = dto.Applicants.Where(x => x.TechnicianId == technicianId).ToList()
     };
 
@@ -890,6 +876,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.TechnicianId = chosen.TechnicianId;
         booking.TechnicianName = chosen.Name;
         booking.TechnicianInitials = chosen.Initials;
+        booking.TechnicianPhone = (await store.Technicians.Find(x => x.Id == chosen.TechnicianId).FirstOrDefaultAsync())?.Phone;
         booking.Price = chosen.Quote;
         foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
         booking.Status = BookingStates.Confirmed;
@@ -1410,7 +1397,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     }
 
     private static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
-        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray(), user.EmailNotifications);
+        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray(), user.EmailNotifications, user.Phone);
 
     /// <summary>Public sign-up can choose customer, technician or manager. It never grants Admin.</summary>
     private static string PublicRole(string? role) => (role ?? "").Trim().ToLowerInvariant() switch {

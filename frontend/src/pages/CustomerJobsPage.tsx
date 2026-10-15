@@ -1,10 +1,10 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History,
+  AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History, Phone,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
-import { RescheduleBanner, RescheduleSheet, canReschedule } from '../components/Reschedule';
+import { RescheduleSheet, canReschedule, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
@@ -29,7 +29,6 @@ interface Props {
   onOpenPassport: () => void;
   onReview: (bookingId: number, rating: number, comment: string) => Promise<boolean>;
   onReschedule: (id: number, scheduledAt: string, timeWindow?: string, reason?: string) => Promise<boolean>;
-  onAnswerReschedule: (id: number, accept: boolean) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -117,7 +116,7 @@ export default function CustomerJobsPage(props: Props) {
 }
 
 
-function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh, onReschedule, onAnswerReschedule }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
   const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
@@ -135,7 +134,6 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
 
     {!cancelled && <Stepper labels={journeySteps} step={currentStep(booking)}/>}
 
-    <RescheduleBanner booking={booking} side="customer" onAnswer={accept => onAnswerReschedule(booking.id, accept)}/>
     <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
       <p>{guide.hint}</p>
@@ -155,6 +153,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
 
     {hasTech && <section className="cj-block">
       <h3>ช่างของคุณ</h3>
+      {booking.technicianPhone && !['เสร็จสิ้น', 'ยกเลิก'].includes(booking.status) && <div className="cj-call"><a className="cj-primary" href={telLink(booking.technicianPhone)}><Phone size={17}/> โทรหาช่าง {booking.technicianPhone}</a></div>}
       <div className="cj-person"><span className="cj-avatar">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong>{booking.applicants?.find(item => item.selected) && <small>{booking.applicants.find(item => item.selected)!.title}</small>}</div></div>
     </section>}
 
@@ -170,7 +169,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
         {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="cj-pre">{booking.notes}</dd></div>}
         <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>
-      {canReschedule(booking, 'customer') && !booking.reschedule && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวัน / เวลานัด</button>}
+      {canReschedule(booking, 'customer') && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวัน / เวลานัด</button>}
       {moving && <RescheduleSheet booking={booking} side="customer" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
       {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
     </section>
