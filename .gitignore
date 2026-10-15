@@ -6,3 +6,4 @@ frontend/.env.local
 backend/AirCare.Api/aircare.db
 .vscode/
 .idea/
+__pycache__/
