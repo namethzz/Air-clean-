@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using AirCare.Api.Data;
 using AirCare.Api.DTOs;
@@ -15,14 +16,15 @@ namespace AirCare.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration) : ControllerBase
+public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity) : ControllerBase
 {
     [AllowAnonymous, HttpPost("auth/login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
-        if (user is null || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+        // Accounts created with Google or Apple have no password until the user sets one.
+        if (user is null || string.IsNullOrEmpty(user.PasswordHash) || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return Ok(CreateLoginResponse(user));
     }
@@ -33,16 +35,62 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var email = request.Email.Trim().ToLowerInvariant();
         if (await store.Users.Find(x => x.Email == email).AnyAsync())
             return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" });
-        var requestedRole = request.Role.Trim().ToLowerInvariant() switch {
-            "technician" or "ช่างแอร์" => AppRoles.Technician,
-            "manager" or "ผู้ดูแลอาคาร" => AppRoles.Manager,
-            _ => AppRoles.Customer
-        };
-        // Never allow public registration to grant Admin privileges.
+        var requestedRole = PublicRole(request.Role);
+        var phone = request.Phone?.Trim() ?? "";
+        var serviceArea = request.ServiceArea?.Trim() ?? "";
+        if (TechnicianApplicationError(requestedRole, phone, serviceArea) is { } invalid) return BadRequest(new { message = invalid });
         var user = new AppUser { Id = await store.NextIdAsync("users"), FullName = request.FullName.Trim(), Email = email, Role = requestedRole, CreatedAt = DateTime.UtcNow };
         user.PasswordHash = hasher.HashPassword(user, request.Password);
         try { await store.Users.InsertOneAsync(user); }
         catch (MongoWriteException) { return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" }); }
+        if (requestedRole == AppRoles.Technician)
+            await CreateTechnicianProfileAsync(user, phone, serviceArea, request.ExperienceYears ?? 0);
+        return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
+    }
+
+    [AllowAnonymous, HttpPost("auth/external")]
+    public async Task<IActionResult> ExternalLogin(ExternalLoginRequest request)
+    {
+        var providerName = request.Provider.Trim().ToLowerInvariant();
+        var label = providerName == "apple" ? "Apple" : "Google";
+        if (!externalIdentity.IsEnabled(providerName)) return BadRequest(new { message = $"ยังไม่ได้เปิดใช้การเข้าสู่ระบบด้วย {label}" });
+        var identity = await externalIdentity.ValidateAsync(providerName, request.IdToken);
+        if (identity is null) return Unauthorized(new { message = $"ยืนยันตัวตนกับ {label} ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
+
+        // 1. This Google/Apple account is already linked.
+        var user = await store.Users.Find(x => x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
+        if (user is not null) return Ok(CreateLoginResponse(user));
+
+        // 2. Same verified email as an existing account: link it. Admin accounts keep password-only sign-in.
+        if (identity.Email is not null && identity.EmailVerified) {
+            var existing = await store.Users.Find(x => x.Email == identity.Email).FirstOrDefaultAsync();
+            if (existing is not null) {
+                if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
+                await LinkExternalLoginAsync(existing, identity);
+                return Ok(CreateLoginResponse(existing));
+            }
+        }
+
+        // 3. No account yet: the client asks the person for a role (and technician details), then calls again.
+        var suggestedName = request.FullName?.Trim() is { Length: >= 2 } given ? given : identity.Name?.Trim() ?? "";
+        if (!request.CreateAccount)
+            return NotFound(new { code = "signup_required", message = "ยังไม่มีบัญชี AirClean สำหรับบัญชีนี้ เลือกบทบาทเพื่อสร้างบัญชี", email = identity.Email, fullName = suggestedName });
+        if (identity.Email is null || !identity.EmailVerified)
+            return BadRequest(new { message = $"{label} ไม่ได้ส่งอีเมลที่ยืนยันแล้วมาให้ กรุณาสมัครด้วยอีเมลและรหัสผ่าน" });
+        if (await store.Users.Find(x => x.Email == identity.Email).AnyAsync())
+            return Conflict(new { message = "อีเมลนี้มีบัญชีแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่าน" });
+        var role = PublicRole(request.Role);
+        var phone = request.Phone?.Trim() ?? "";
+        var serviceArea = request.ServiceArea?.Trim() ?? "";
+        if (TechnicianApplicationError(role, phone, serviceArea) is { } invalid) return BadRequest(new { message = invalid });
+        var fullName = suggestedName.Length >= 2 ? suggestedName[..Math.Min(120, suggestedName.Length)] : identity.Email.Split('@')[0];
+        user = new AppUser {
+            Id = await store.NextIdAsync("users"), FullName = fullName, Email = identity.Email, Role = role, PasswordHash = "", CreatedAt = DateTime.UtcNow,
+            ExternalLogins = [new ExternalLogin { Provider = identity.Provider, Subject = identity.Subject, Email = identity.Email, LinkedAt = DateTime.UtcNow }]
+        };
+        try { await store.Users.InsertOneAsync(user); }
+        catch (MongoWriteException) { return Conflict(new { message = "บัญชีนี้ถูกสร้างไปแล้ว กรุณาเข้าสู่ระบบอีกครั้ง" }); }
+        if (role == AppRoles.Technician) await CreateTechnicianProfileAsync(user, phone, serviceArea, request.ExperienceYears ?? 0);
         return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
     }
 
@@ -50,7 +98,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     public async Task<IActionResult> Me()
     {
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
-        return user is null ? NotFound() : Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return user is null ? NotFound() : Ok(ToAuthUser(user));
     }
 
     [Authorize, HttpPatch("auth/profile")]
@@ -66,14 +114,123 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         user.FullName = request.FullName.Trim();
         user.Email = email;
         await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
-        return Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return Ok(ToAuthUser(user));
+    }
+
+    [AllowAnonymous, HttpPost("auth/forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        var address = request.Email.Trim().ToLowerInvariant();
+        var user = await store.Users.Find(x => x.Email == address).FirstOrDefaultAsync();
+        // One email per minute per account; the answer is the same whether or not the account exists.
+        if (user is not null && (user.PasswordResetRequestedAt is null || DateTime.UtcNow - user.PasswordResetRequestedAt > TimeSpan.FromMinutes(1))) {
+            var link = await IssueResetLinkAsync(user, TimeSpan.FromMinutes(30));
+            if (email.IsConfigured)
+                _ = Task.Run(() => email.SendAsync(user.Email, "ตั้งรหัสผ่านใหม่สำหรับ AirClean",
+                    $"สวัสดี {user.FullName}\n\nมีคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี AirClean ของคุณ เปิดลิงก์นี้ภายใน 30 นาที:\n{link}\n\nหากคุณไม่ได้ขอ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้"));
+            else if (environment.IsDevelopment())
+                logger.LogWarning("SMTP is not configured. Development password reset link: {Link}", link);
+            else
+                logger.LogWarning("SMTP is not configured; a password reset email could not be sent. An admin can create a reset link instead.");
+        }
+        return Ok(new { message = "หากอีเมลนี้มีบัญชีในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ให้แล้ว ลิงก์ใช้ได้ 30 นาที" });
+    }
+
+    [AllowAnonymous, HttpPost("auth/reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var hash = HashToken(request.Token.Trim());
+        var user = await store.Users.Find(x => x.PasswordResetTokenHash == hash).FirstOrDefaultAsync();
+        if (user is null || user.PasswordResetExpiresAt is null || user.PasswordResetExpiresAt < DateTime.UtcNow)
+            return BadRequest(new { message = "ลิงก์ตั้งรหัสผ่านหมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่" });
+        var update = Builders<AppUser>.Update
+            .Set(x => x.PasswordHash, hasher.HashPassword(user, request.NewPassword))
+            .Inc(x => x.SessionVersion, 1)
+            .Unset(x => x.PasswordResetTokenHash).Unset(x => x.PasswordResetExpiresAt);
+        // Matching on the hash makes the link single-use even when two requests race.
+        var write = await store.Users.UpdateOneAsync(x => x.Id == user.Id && x.PasswordResetTokenHash == hash, update);
+        if (write.ModifiedCount == 0) return BadRequest(new { message = "ลิงก์ตั้งรหัสผ่านหมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่" });
+        return Ok(new { message = "ตั้งรหัสผ่านใหม่แล้ว กรุณาเข้าสู่ระบบอีกครั้ง" });
+    }
+
+    [Authorize, HttpPost("auth/change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
+        if (user is null) return Unauthorized();
+        // Google/Apple-only accounts may set a first password without a current one.
+        if (!string.IsNullOrEmpty(user.PasswordHash) && (string.IsNullOrEmpty(request.CurrentPassword)
+            || hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed))
+            return BadRequest(new { message = "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+        user.PasswordHash = hasher.HashPassword(user, request.NewPassword);
+        user.SessionVersion += 1;
+        user.PasswordResetTokenHash = null; user.PasswordResetExpiresAt = null;
+        await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
+        // Other devices are signed out; this one continues with a fresh token.
+        return Ok(CreateLoginResponse(user));
+    }
+
+    [Authorize(Roles = "Admin"), HttpPost("admin/password-reset-links")]
+    public async Task<IActionResult> CreatePasswordResetLink(AdminResetLinkRequest request)
+    {
+        var address = request.Email.Trim().ToLowerInvariant();
+        var user = await store.Users.Find(x => x.Email == address).FirstOrDefaultAsync();
+        if (user is null) return NotFound(new { message = "ไม่พบบัญชีที่ใช้อีเมลนี้" });
+        if (user.Role == AppRoles.Admin) return BadRequest(new { message = "บัญชีผู้ดูแลระบบต้องใช้ “ลืมรหัสผ่าน” ด้วยอีเมลของตนเอง" });
+        var expires = TimeSpan.FromHours(24);
+        var link = await IssueResetLinkAsync(user, expires);
+        return Ok(new { link, expiresAt = DateTime.UtcNow.Add(expires), fullName = user.FullName });
+    }
+
+    [Authorize, HttpGet("me/addresses")]
+    public async Task<IActionResult> MyAddresses()
+    {
+        var rows = await store.SavedAddresses.Find(x => x.UserId == CurrentUserId).SortByDescending(x => x.UpdatedAt).ToListAsync();
+        return Ok(rows.Select(DtoMapper.ToDto).ToList());
+    }
+
+    [Authorize, HttpPost("me/addresses")]
+    public async Task<IActionResult> SaveAddress(SaveAddressRequest request)
+    {
+        if (request.PlaceType is not ("บ้าน" or "คอนโด" or "หอพัก")) return BadRequest(new { message = "ประเภทสถานที่ไม่ถูกต้อง" });
+        if (string.IsNullOrWhiteSpace(request.Address) || string.IsNullOrWhiteSpace(request.Label)) return BadRequest(new { message = "กรุณากรอกชื่อและที่อยู่" });
+        var label = request.Label.Trim();
+        // Saving under an existing name replaces that entry, as the picker always has.
+        var existing = await store.SavedAddresses.Find(x => x.UserId == CurrentUserId && x.Label == label).FirstOrDefaultAsync();
+        if (existing is null && await store.SavedAddresses.CountDocumentsAsync(x => x.UserId == CurrentUserId) >= 20)
+            return Conflict(new { message = "บันทึกที่อยู่ได้สูงสุด 20 รายการ กรุณาลบรายการที่ไม่ใช้ก่อน" });
+        string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        var record = new SavedAddressRecord {
+            Id = existing?.Id ?? 0, UserId = CurrentUserId, Label = label,
+            PlaceType = request.PlaceType, Address = request.Address.Trim(), Building = Clean(request.Building), Floor = Clean(request.Floor),
+            Room = Clean(request.Room), Note = Clean(request.Note), Latitude = request.Latitude, Longitude = request.Longitude, UpdatedAt = DateTime.UtcNow
+        };
+        if (existing is null) {
+            record.Id = await store.NextIdAsync("savedAddresses");
+            try { await store.SavedAddresses.InsertOneAsync(record); return Ok(DtoMapper.ToDto(record)); }
+            // Two devices saved the same name at once: keep one entry and update it instead.
+            catch (MongoWriteException error) when (error.WriteError.Category == ServerErrorCategory.DuplicateKey) {
+                existing = await store.SavedAddresses.Find(x => x.UserId == CurrentUserId && x.Label == label).FirstOrDefaultAsync();
+                if (existing is null) throw;
+                record.Id = existing.Id;
+            }
+        }
+        await store.SavedAddresses.ReplaceOneAsync(x => x.Id == record.Id && x.UserId == CurrentUserId, record);
+        return Ok(DtoMapper.ToDto(record));
+    }
+
+    [Authorize, HttpDelete("me/addresses/{id:int}")]
+    public async Task<IActionResult> DeleteAddress(int id)
+    {
+        var result = await store.SavedAddresses.DeleteOneAsync(x => x.Id == id && x.UserId == CurrentUserId);
+        return result.DeletedCount == 0 ? NotFound(new { message = "ไม่พบที่อยู่นี้" }) : NoContent();
     }
 
     [Authorize(Roles = "Technician"), HttpGet("technicians/me")]
     public async Task<IActionResult> MyTechnicianProfile()
     {
         var profile = await EnsureCurrentTechnicianProfileAsync();
-        return profile is null ? NotFound() : Ok(DtoMapper.ToDto(profile));
+        return profile is null ? NotFound() : Ok(DtoMapper.ToApplicationDto(profile, User.FindFirstValue(ClaimTypes.Email) ?? ""));
     }
 
     [Authorize(Roles = "Technician"), HttpPatch("technicians/me")]
@@ -84,26 +241,63 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Area)
             || string.IsNullOrWhiteSpace(request.AvailableText) || string.IsNullOrWhiteSpace(request.Skills))
             return BadRequest(new { message = "กรุณากรอกข้อมูลบริการให้ครบ" });
+        var phone = request.Phone?.Trim() ?? profile.Phone;
+        if (!IsPhone(phone)) return BadRequest(new { message = "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)" });
         // Update only editable fields; verification, reviews and job totals remain system-managed.
         var update = Builders<TechnicianProfile>.Update
             .Set(x => x.Title, request.Title.Trim()).Set(x => x.Area, request.Area.Trim())
             .Set(x => x.BasePrice, request.BasePrice).Set(x => x.AvailableText, request.AvailableText.Trim())
-            .Set(x => x.SkillsCsv, string.Join(",", request.Skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Distinct()));
+            .Set(x => x.SkillsCsv, string.Join(",", request.Skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Distinct()))
+            .Set(x => x.Phone, phone).Set(x => x.ExperienceYears, request.ExperienceYears ?? profile.ExperienceYears);
+        // A rejected application goes back to the admin queue once the technician corrects it.
+        if (profile.Status == VerificationStates.Rejected)
+            update = update.Set(x => x.VerificationStatus, VerificationStates.Pending).Set(x => x.IsVerified, false).Set(x => x.AppliedAt, DateTime.UtcNow);
         var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Where(x => x.Id == profile.Id && x.UserId == CurrentUserId),
             update, new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
-        return saved is null ? NotFound() : Ok(DtoMapper.ToDto(saved));
+        return saved is null ? NotFound() : Ok(DtoMapper.ToApplicationDto(saved, User.FindFirstValue(ClaimTypes.Email) ?? ""));
     }
 
     [AllowAnonymous, HttpGet("technicians")]
     public async Task<IActionResult> Technicians([FromQuery] string? area, [FromQuery] string? service, [FromQuery] string? q)
     {
         var rows = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync();
-        var query = rows.AsEnumerable();
+        // Only approved technicians are listed publicly; admins review the rest under admin/technicians.
+        var query = rows.Where(x => x.Status == VerificationStates.Approved);
         if (!string.IsNullOrWhiteSpace(area)) query = query.Where(x => x.Area.Contains(area, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(service)) query = query.Where(x => x.SkillsCsv.Contains(service, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(q)) query = query.Where(x => x.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || x.Area.Contains(q, StringComparison.OrdinalIgnoreCase) || x.SkillsCsv.Contains(q, StringComparison.OrdinalIgnoreCase));
         var result = query.OrderByDescending(x => x.Rating).Select(x => DtoMapper.ToDto(x, area)).ToList();
         return Ok(result);
+    }
+
+    [Authorize(Roles = "Admin"), HttpPatch("technicians/{id:int}/verification")]
+    public async Task<IActionResult> SetTechnicianVerification(int id, TechnicianVerificationRequest request)
+    {
+        // Approval is the admin's review of a technician's identity, contact, price and service area.
+        var note = request.Note?.Trim();
+        if (!request.Verified && string.IsNullOrWhiteSpace(note))
+            return BadRequest(new { message = "กรุณาระบุเหตุผลเพื่อให้ช่างแก้ไขข้อมูลได้" });
+        var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Eq(x => x.Id, id),
+            Builders<TechnicianProfile>.Update.Set(x => x.IsVerified, request.Verified)
+                .Set(x => x.VerificationStatus, request.Verified ? VerificationStates.Approved : VerificationStates.Rejected)
+                .Set(x => x.VerificationNote, request.Verified ? null : note).Set(x => x.ReviewedAt, DateTime.UtcNow),
+            new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
+        if (saved is null) return NotFound(new { message = "ไม่พบโปรไฟล์ช่าง" });
+        var account = await store.Users.Find(x => x.Id == saved.UserId).FirstOrDefaultAsync();
+        return Ok(DtoMapper.ToApplicationDto(saved, account?.Email ?? ""));
+    }
+
+    [Authorize(Roles = "Admin"), HttpGet("admin/technicians")]
+    public async Task<IActionResult> TechnicianApplications([FromQuery] string? status)
+    {
+        var profiles = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync();
+        if (!string.IsNullOrWhiteSpace(status)) profiles = profiles.Where(x => string.Equals(x.Status, status, StringComparison.OrdinalIgnoreCase)).ToList();
+        var userIds = profiles.Select(x => x.UserId).Distinct().ToList();
+        var emails = (await store.Users.Find(Builders<AppUser>.Filter.In(x => x.Id, userIds)).ToListAsync()).ToDictionary(x => x.Id, x => x.Email);
+        return Ok(profiles
+            .OrderBy(x => x.Status == VerificationStates.Pending ? 0 : x.Status == VerificationStates.Rejected ? 1 : 2)
+            .ThenBy(x => x.AppliedAt ?? DateTime.MinValue)
+            .Select(x => DtoMapper.ToApplicationDto(x, emails.GetValueOrDefault(x.UserId, ""))).ToList());
     }
 
     [Authorize, HttpGet("dashboard")]
@@ -120,7 +314,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             bookings = technician is null ? [] : bookings.Where(x => x.TechnicianId == technician.Id).ToList();
             units = [];
         }
-        var upcoming = bookings.Count(x => x.Status is BookingStates.Pending or BookingStates.Confirmed or BookingStates.InProgress);
+        var upcoming = bookings.Count(x => x.Status is not (BookingStates.Completed or BookingStates.Cancelled or BookingStates.PaymentIssue));
         var spent = bookings.Where(x => x.Status == BookingStates.Completed).Sum(x => x.Price);
         var completion = units.Count == 0 ? 0 : (int)Math.Round(units.Count(x => x.Services.Count > 0) * 100.0 / units.Count);
         return Ok(new { totalUnits = units.Count, upcomingBookings = upcoming, serviceCompletion = completion, totalSpent = spent });
@@ -143,6 +337,30 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (unit is null) return NotFound();
         if ((CurrentRole == AppRoles.Customer || CurrentRole == AppRoles.Manager) && unit.OwnerId != CurrentUserId) return Forbid();
         return Ok(DtoMapper.ToDto(unit));
+    }
+
+    [Authorize(Roles = "Customer,Manager"), HttpPost("air-conditioners")]
+    public async Task<IActionResult> CreateAirConditioner(CreateAirConditionerRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Label)) return BadRequest(new { message = "กรุณาตั้งชื่อเครื่อง เช่น แอร์ห้องนอน" });
+        var last = request.LastServiceDate?.Date;
+        if (last > DateTime.UtcNow.Date) return BadRequest(new { message = "วันที่ล้างล่าสุดต้องไม่เป็นวันในอนาคต" });
+        var next = last?.AddMonths(6);
+        var unit = new AirConditioner {
+            Id = await store.NextIdAsync("airConditioners"), OwnerId = CurrentUserId, Label = request.Label.Trim(),
+            Room = request.Room?.Trim() ?? "", Brand = request.Brand?.Trim() ?? "", Model = request.Model?.Trim() ?? "",
+            Type = request.Type?.Trim() ?? "", SerialNumber = request.SerialNumber?.Trim() ?? "",
+            LastServiceDate = last, NextServiceDate = next, Health = HealthFor(next), Services = []
+        };
+        await store.AirConditioners.InsertOneAsync(unit);
+        return Created($"/api/air-conditioners/{unit.Id}/passport", DtoMapper.ToDto(unit));
+    }
+
+    [Authorize(Roles = "Customer,Manager"), HttpDelete("air-conditioners/{id:int}")]
+    public async Task<IActionResult> DeleteAirConditioner(int id)
+    {
+        var result = await store.AirConditioners.DeleteOneAsync(x => x.Id == id && x.OwnerId == CurrentUserId);
+        return result.DeletedCount == 0 ? NotFound(new { message = "ไม่พบเครื่องปรับอากาศของคุณ" }) : NoContent();
     }
 
     [Authorize, HttpGet("bookings")]
@@ -184,7 +402,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         if (user is null) return Unauthorized();
-        var technicians = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync();
+        // Linking a Passport unit is optional; when given it must belong to the requester.
+        if (request.AirConditionerId.HasValue &&
+            !await store.AirConditioners.Find(x => x.Id == request.AirConditionerId.Value && x.OwnerId == user.Id).AnyAsync())
+            return BadRequest(new { message = "ไม่พบเครื่องปรับอากาศนี้ในสมุดประวัติของคุณ" });
+        var technicians = (await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync())
+            .Where(x => x.Status == VerificationStates.Approved).ToList();
         var cheapest = technicians.OrderBy(x => CalculateQuote(x, request.Service, request.UnitCount)).FirstOrDefault()
             ?? new TechnicianProfile { BasePrice = 550m };
         var estimatedPrice = CalculateQuote(cheapest, request.Service, request.UnitCount);
@@ -192,7 +415,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var booking = new Booking {
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
             TechnicianId = 0, TechnicianName = "รอช่างรับงาน", TechnicianInitials = "—",
-            PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount,
+            PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount, AirConditionerId = request.AirConditionerId,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
             ScheduledAt = request.ScheduledAt, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
@@ -212,21 +435,27 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return BadRequest(new { message = "ระยะค้นหาต้องอยู่ระหว่าง 1 ถึง 100 กิโลเมตร" });
         var technician = await EnsureCurrentTechnicianProfileAsync();
         if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
+        if (technician.Status != VerificationStates.Approved) return NotApprovedResult(technician);
         var rows = await store.Bookings.Find(x => x.Status == BookingStates.OpenForTechnicians || x.Status == BookingStates.AwaitingCustomerSelection).ToListAsync();
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
             .Select(x => new { Booking = x, DistanceKm = DistanceKm(latitude, longitude, x.Latitude!.Value, x.Longitude!.Value) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => (DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)) with {
-                Customer = "ลูกค้าในพื้นที่",
-                Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
-                Latitude = null,
-                Longitude = null
-            }))
+            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, Math.Round(x.DistanceKm, 1)), technician.Id))
             .ToList();
         return Ok(nearby);
     }
+
+    /// <summary>What a technician may see of a job that has not been assigned to them yet:
+    /// no customer identity, exact address or coordinates, and no competing technicians' quotes.</summary>
+    private static BookingDto OpenJobView(BookingDto dto, int technicianId) => dto with {
+        Customer = "ลูกค้าในพื้นที่",
+        Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
+        Latitude = null, Longitude = null, TechnicianLatitude = null, TechnicianLongitude = null,
+        AirConditionerId = null,
+        Applicants = dto.Applicants.Where(x => x.TechnicianId == technicianId).ToList()
+    };
 
     [Authorize(Roles = "Technician"), HttpPost("bookings/{id:int}/applications")]
     public async Task<IActionResult> ApplyForBooking(int id, ApplyForBookingRequest request)
@@ -238,6 +467,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return Conflict(new { message = "งานนี้ปิดรับความสนใจแล้ว" });
         var technician = await EnsureCurrentTechnicianProfileAsync();
         if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
+        if (technician.Status != VerificationStates.Approved) return NotApprovedResult(technician);
         booking.Applicants ??= [];
         if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
             return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });
@@ -254,10 +484,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = "ช่างส่งความสนใจรับงาน: " + technician.Name, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
-        return Ok(DtoMapper.ToDto(booking, technician.Id) with {
-            Customer = "ลูกค้าในพื้นที่", Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
-            Latitude = null, Longitude = null, TechnicianLatitude = null, TechnicianLongitude = null
-        });
+        return Ok(OpenJobView(DtoMapper.ToDto(booking, technician.Id), technician.Id));
     }
 
     [Authorize(Roles = "Customer,Manager,Admin"), HttpPost("bookings/{id:int}/confirm-technician")]
@@ -450,6 +677,8 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        if (booking.Status == BookingStates.Completed && previousStatus != BookingStates.Completed)
+            await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
         return Ok(DtoMapper.ToDto(booking));
     }
 
@@ -527,6 +756,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             if (tech is null || booking.TechnicianId != tech.Id) return Forbid();
         }
         if (booking.Status is not (BookingStates.InProgress or BookingStates.AwaitingPayment)) return Conflict(new { message = "ต้องเริ่มงานก่อนส่งรายงาน" });
+        if (await store.ServiceReports.Find(x => x.BookingId == booking.Id).AnyAsync()) return Conflict(new { message = "ส่งรายงานบริการของงานนี้แล้ว" });
         var reportId = await store.NextIdAsync("serviceReports");
         var report = new ServiceReport { Id = reportId, BookingId = booking.Id, BookingCode = booking.Code, CustomerId = booking.CustomerId, TechnicianId = booking.TechnicianId, Summary = request.Summary.Trim(), CleanedFilter = request.CleanedFilter, CleanedCoil = request.CleanedCoil, CheckedDrain = request.CheckedDrain, CheckedCooling = request.CheckedCooling, BeforePhotoUrl = request.BeforePhotoUrl, AfterPhotoUrl = request.AfterPhotoUrl, CreatedAt = DateTime.UtcNow };
         await store.ServiceReports.InsertOneAsync(report);
@@ -558,7 +788,9 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (booking.Status != BookingStates.Completed) return Conflict(new { message = "รีวิวได้หลังบริการเสร็จเท่านั้น" });
         if (await store.Reviews.Find(x => x.BookingId == bookingId && x.CustomerId == CurrentUserId).AnyAsync()) return Conflict(new { message = "รีวิวรายการนี้แล้ว" });
         var review = new Review { Id = await store.NextIdAsync("reviews"), BookingId = bookingId, CustomerId = CurrentUserId, TechnicianId = booking.TechnicianId, Rating = request.Rating, Comment = (request.Comment ?? "").Trim(), CreatedAt = DateTime.UtcNow };
-        await store.Reviews.InsertOneAsync(review);
+        try { await store.Reviews.InsertOneAsync(review); }
+        catch (MongoWriteException) { return Conflict(new { message = "รีวิวรายการนี้แล้ว" }); }
+        await store.Bookings.UpdateOneAsync(x => x.Id == bookingId, Builders<Booking>.Update.Set(x => x.CustomerRating, request.Rating));
         var reviews = await store.Reviews.Find(x => x.TechnicianId == booking.TechnicianId).ToListAsync();
         var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
         if (tech is not null && reviews.Count > 0) { tech.ReviewCount = reviews.Count; tech.Rating = Math.Round((decimal)reviews.Average(x => x.Rating), 2); await store.Technicians.ReplaceOneAsync(x => x.Id == tech.Id, tech); }
@@ -573,24 +805,22 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         if (user is null || user.Role != AppRoles.Technician) return null;
 
-        // Create a simple unverified profile for newly registered technicians so they can browse jobs.
-        // The initial price is a default; profile verification and editable service details should be handled separately.
+        // Accounts created before technician applications existed get a pending profile to complete.
+        return await CreateTechnicianProfileAsync(user, "", "ยังไม่ระบุพื้นที่ให้บริการ", 0);
+    }
+
+    private async Task<TechnicianProfile?> CreateTechnicianProfileAsync(AppUser user, string phone, string area, int experienceYears)
+    {
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var last = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty)
                 .SortByDescending(x => x.Id).FirstOrDefaultAsync();
             var profile = new TechnicianProfile
             {
-                Id = (last?.Id ?? 0) + 1,
-                UserId = user.Id,
-                Name = user.FullName,
-                Title = "ช่างแอร์",
-                BasePrice = 550m,
-                Area = "ยังไม่ระบุพื้นที่ให้บริการ",
-                IsVerified = false,
-                AvailableText = "รับคำขอผ่าน AirClean",
-                SkillsCsv = "ล้างแอร์มาตรฐาน,ล้างแอร์ผนัง",
-                Accent = "sage"
+                Id = (last?.Id ?? 0) + 1, UserId = user.Id, Name = user.FullName, Title = "ช่างแอร์", BasePrice = 550m,
+                Area = area, Phone = phone, ExperienceYears = experienceYears, IsVerified = false,
+                VerificationStatus = VerificationStates.Pending, AppliedAt = DateTime.UtcNow,
+                AvailableText = "รับคำขอผ่าน AirClean", SkillsCsv = "ล้างแอร์มาตรฐาน,ล้างแอร์ผนัง", Accent = "sage"
             };
             try
             {
@@ -599,12 +829,67 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             }
             catch (MongoWriteException)
             {
-                technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
-                if (technician is not null) return technician;
+                var existing = await store.Technicians.Find(x => x.UserId == user.Id).FirstOrDefaultAsync();
+                if (existing is not null) return existing;
             }
         }
 
         return null;
+    }
+
+    private static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
+        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray());
+
+    /// <summary>Public sign-up can choose customer, technician or manager. It never grants Admin.</summary>
+    private static string PublicRole(string? role) => (role ?? "").Trim().ToLowerInvariant() switch {
+        "technician" or "ช่างแอร์" => AppRoles.Technician,
+        "manager" or "ผู้ดูแลอาคาร" => AppRoles.Manager,
+        _ => AppRoles.Customer
+    };
+
+    private static string? TechnicianApplicationError(string role, string phone, string serviceArea) =>
+        role != AppRoles.Technician ? null
+        : !IsPhone(phone) ? "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)"
+        : serviceArea.Length < 2 ? "กรุณาระบุพื้นที่ให้บริการ เช่น ลาดพร้าว จตุจักร"
+        : null;
+
+    private Task LinkExternalLoginAsync(AppUser user, ExternalIdentity identity)
+    {
+        var login = new ExternalLogin { Provider = identity.Provider, Subject = identity.Subject, Email = identity.Email, LinkedAt = DateTime.UtcNow };
+        (user.ExternalLogins ??= []).Add(login);
+        return store.Users.UpdateOneAsync(x => x.Id == user.Id, Builders<AppUser>.Update.Push(x => x.ExternalLogins, login));
+    }
+
+    private ObjectResult NotApprovedResult(TechnicianProfile technician) => StatusCode(StatusCodes.Status403Forbidden, new {
+        message = technician.Status == VerificationStates.Rejected
+            ? "ผู้ดูแลระบบยังไม่อนุมัติบัญชีช่าง: " + (technician.VerificationNote ?? "กรุณาแก้ไขข้อมูลในโปรไฟล์")
+            : "บัญชีช่างอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบ จะรับงานได้หลังได้รับอนุมัติ",
+        verificationStatus = technician.Status
+    });
+
+    private async Task<string> IssueResetLinkAsync(AppUser user, TimeSpan lifetime)
+    {
+        var token = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        await store.Users.UpdateOneAsync(x => x.Id == user.Id, Builders<AppUser>.Update
+            .Set(x => x.PasswordResetTokenHash, HashToken(token))
+            .Set(x => x.PasswordResetExpiresAt, DateTime.UtcNow.Add(lifetime))
+            .Set(x => x.PasswordResetRequestedAt, DateTime.UtcNow));
+        var origin = configuration["PASSWORD_RESET_URL"]?.Trim().TrimEnd('/')
+            ?? (configuration["FRONTEND_ORIGIN"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(x => x != "*")?.TrimEnd('/')
+            ?? "http://localhost:5173";
+        return origin + "/?reset=" + token;
+    }
+
+    private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    private static string Base64UrlEncode(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    private static bool IsPhone(string? value) => value is not null && value.Count(char.IsAsciiDigit) is >= 9 and <= 15
+        && value.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or ' ');
+
+    private static string HealthFor(DateTime? nextService)
+    {
+        if (nextService is null) return "due";
+        var today = DateTime.UtcNow.Date;
+        return nextService < today ? "attention" : nextService <= today.AddDays(30) ? "due" : "good";
     }
 
     private static decimal CalculateQuote(TechnicianProfile technician, string service, int unitCount)
@@ -639,11 +924,12 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role),
+            new Claim("sv", user.SessionVersion.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(jwt["Issuer"] ?? "AirCareConnect", jwt["Audience"] ?? "AirCareConnect.Web", claims, expires: expires, signingCredentials: credentials);
-        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToAuthUser(user));
     }
 }

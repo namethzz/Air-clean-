@@ -21,6 +21,7 @@ interface Props {
   onPaymentConfirm: (id: number, method: PaymentMethod) => void;
   onPaymentIssue: (id: number, reason: string) => void;
   onApproveReport: (id: number) => Promise<boolean>;
+  onReview: (bookingId: number, rating: number, comment: string) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -108,7 +109,7 @@ export default function CustomerJobsPage(props: Props) {
 }
 
 
-function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onApproveReport, onRefresh }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onApproveReport, onReview, onRefresh }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
   const report = reports.find(item => item.bookingId === booking.id);
   const cancelled = booking.status === 'ยกเลิก';
@@ -132,6 +133,7 @@ function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChang
       {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
       {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
       {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ชำระแล้ว ฿{booking.price.toLocaleString()}</p>}
+      {booking.status === 'เสร็จสิ้น' && <Review booking={booking} onReview={onReview}/>}
     </section>
 
     {hasTech && <section className="cj-block">
@@ -146,7 +148,7 @@ function JobDetail({ booking, reports, onBack, onSelectTechnician, onStatusChang
       <dl className="cj-facts">
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · ชำระหน้างาน</dd></div>
+        <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>
       {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
     </section>
@@ -222,9 +224,9 @@ function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
   const techGotIt = Boolean(booking.technicianConfirmedPayment);
   return <div className="cj-pay">
     <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
-    {!underReview && !youPaid && <div className="cj-methods" role="group" aria-label="วิธีชำระเงิน">
+    {!underReview && !youPaid && <div className="cj-methods" role="group" aria-label="วิธีจ่ายเงินปลายทาง">
       <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
-      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> PromptPay</button>
+      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> โอนให้ช่าง</button>
     </div>}
     <ul className="cj-checks">
       <li className={youPaid ? 'ok' : ''}><CheckCircle2 size={17}/> {youPaid ? 'คุณยืนยันว่าชำระแล้ว' : 'รอคุณยืนยันการชำระเงิน'}</li>
@@ -238,7 +240,7 @@ function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
         <div><button type="button" className="cj-primary" disabled={!reason.trim()} onClick={() => { onIssue(booking.id, reason.trim()); setReporting(false); }}>ส่งให้ผู้ดูแลตรวจสอบ</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
       </div>
       : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>)}
-    <p className="cj-note">ระบบบันทึกการยืนยันจากลูกค้าและช่างเท่านั้น ยังไม่ได้ตรวจยอดโอน PromptPay กับธนาคาร</p>
+    <p className="cj-note">เก็บเงินปลายทาง: จ่ายให้ช่างโดยตรงเมื่อล้างเสร็จ AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง หากโอน ให้ตรวจชื่อบัญชีช่างก่อนโอน</p>
   </div>;
 }
 
@@ -261,6 +263,29 @@ function ReportBlock({ report, onApprove }: { report: ServiceReportRecord; onApp
       : <button type="button" className="cj-primary full" disabled={busy} onClick={() => void approve()}>{busy ? 'กำลังยืนยัน...' : 'ยืนยันว่าตรวจรายงานแล้ว'} <ShieldCheck size={16}/></button>}
     {failed && <p className="cj-error" role="alert">ยืนยันรายงานไม่สำเร็จ ลองอีกครั้ง</p>}
   </section>;
+}
+
+function Review({ booking, onReview }: { booking: Booking; onReview: Props['onReview'] }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (booking.customerRating) {
+    return <p className="cj-done"><Star size={18} fill="currentColor"/> คุณให้คะแนนช่าง {booking.customerRating} จาก 5 ดาวแล้ว</p>;
+  }
+  async function send() {
+    setBusy(true);
+    await onReview(booking.id, rating, comment);
+    setBusy(false);
+  }
+  return <div className="cj-review">
+    <p className="cj-review-ask">ให้คะแนน {booking.technician} เพื่อช่วยลูกค้าคนอื่นเลือกช่าง</p>
+    <div className="cj-stars" role="radiogroup" aria-label="คะแนนช่าง">
+      {[1, 2, 3, 4, 5].map(value => <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} ดาว`} className={value <= rating ? 'on' : ''} onClick={() => setRating(value)}><Star size={26} fill={value <= rating ? 'currentColor' : 'none'}/></button>)}
+    </div>
+    <label htmlFor={`review-${booking.id}`} className="cj-review-label">ความเห็นเพิ่มเติม (ไม่บังคับ)</label>
+    <textarea id={`review-${booking.id}`} rows={3} maxLength={1000} value={comment} onChange={event => setComment(event.target.value)} placeholder="เช่น มาตรงเวลา ทำความสะอาดเรียบร้อย"/>
+    <button type="button" className="cj-primary full" disabled={!rating || busy} onClick={() => void send()}>{busy ? 'กำลังส่ง...' : 'ส่งคะแนน'}</button>
+  </div>;
 }
 
 function CancelRequest({ onConfirm }: { onConfirm: () => void }) {

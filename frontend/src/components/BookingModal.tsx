@@ -1,23 +1,31 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, CalendarDays, Check, Wind, X } from 'lucide-react';
-import type { SavedAddress, Technician } from '../types';
+import type { AirConditioner, SavedAddress, Technician } from '../types';
 import LocationPicker from './LocationPicker';
 
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
-  date:string; time:string; price:number; latitude:number; longitude:number;
+  date:string; time:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
 }
-interface BookingModalProps { technicians:Technician[]; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+function unitText(unit:AirConditioner):string { return [unit.label,unit.brand,unit.type].filter(Boolean).join(' · ').slice(0,180); }
 function localDate() {
   const now=new Date();
   return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
 }
 const today=localDate();
 
-export default function BookingModal({technicians,onClose,onSubmit}:BookingModalProps) {
+export default function BookingModal({technicians,units=[],initialUnitId,onClose,onSubmit}:BookingModalProps) {
+  const initialUnit=units.find(unit=>unit.id===initialUnitId);
+  const [unitId,setUnitId]=useState<number|undefined>(initialUnit?.id);
   const [service,setService]=useState('ล้างแอร์มาตรฐาน');
   const [unitCount,setUnitCount]=useState(1);
-  const [unitLabel,setUnitLabel]=useState('แอร์ห้องนอน 12,000 BTU');
+  const [unitLabel,setUnitLabel]=useState(initialUnit?unitText(initialUnit):'แอร์ห้องนอน 12,000 BTU');
+  function pickUnit(value:string){
+    const unit=units.find(item=>String(item.id)===value);
+    setUnitId(unit?.id);
+    if(unit)setUnitLabel(unitText(unit));
+  }
   const [place,setPlace]=useState<SavedAddress>({
     id:'new',label:'สถานที่ให้บริการ',placeType:'บ้าน',address:'',
     latitude:13.7563,longitude:100.5018,locationSelected:false,
@@ -42,7 +50,7 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
     setSubmitting(true);
     const success=await onSubmit({
       service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
-      date,time,price,latitude:place.latitude,longitude:place.longitude,
+      date,time,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
     });
     setSubmitting(false);
     if(success) setSubmitted(true);
@@ -66,6 +74,7 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
           <label className="form-field"><span>ประเภทบริการ</span><select value={service} onChange={event=>setService(event.target.value)}><option>ล้างแอร์มาตรฐาน</option><option>ล้างแอร์ + ตรวจเช็ก</option><option>ล้างแอร์แบบแขวน</option></select></label>
           <label className="form-field"><span>จำนวนเครื่อง</span><input type="number" min={1} max={30} step={1} value={unitCount} onChange={event=>setUnitCount(Math.max(1,Math.min(30,Number(event.target.value)||1)))} required/></label>
         </div>
+        {units.length>0&&<label className="form-field"><span>เครื่องจากสมุดประวัติ (ไม่บังคับ)</span><select value={unitId??''} onChange={event=>pickUnit(event.target.value)}><option value="">ไม่ระบุเครื่อง</option>{units.map(unit=><option key={unit.id} value={unit.id}>{unitText(unit)}</option>)}</select></label>}
         <label className="form-field"><span>รายละเอียดเครื่อง</span><input value={unitLabel} onChange={event=>setUnitLabel(event.target.value)} required maxLength={180} placeholder="เช่น แอร์ห้องนอน 12,000 BTU หรือแอร์ห้องนั่งเล่น 18,000 BTU"/></label>
         <div className="form-grid-two">
           <label className="form-field"><span>วันที่สะดวก</span><div className="input-with-icon"><CalendarDays size={16}/><input type="date" min={today} value={date} onChange={event=>setDate(event.target.value)} required/></div></label>
@@ -73,7 +82,7 @@ export default function BookingModal({technicians,onClose,onSubmit}:BookingModal
         </div>
         <div className="marketplace-estimate">
           <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>
-          <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง</small>
+          <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง · เก็บเงินปลายทางเมื่อล้างเสร็จ ไม่ต้องจ่ายล่วงหน้า</small>
         </div>
         {formError&&<div className="auth-error" role="alert">{formError}</div>}
         <button type="submit" className="primary-button full-width" disabled={submitting}>{submitting?'กำลังส่งคำขอ...':'ส่งคำขอให้ช่างใกล้เคียง'} <ArrowRight size={17}/></button>

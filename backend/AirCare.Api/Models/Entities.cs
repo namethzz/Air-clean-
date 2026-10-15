@@ -1,6 +1,7 @@
 using MongoDB.Bson.Serialization.Attributes;
 namespace AirCare.Api.Models;
 
+public static class VerificationStates { public const string Pending="Pending"; public const string Approved="Approved"; public const string Rejected="Rejected"; }
 public static class AppRoles { public const string Customer="Customer"; public const string Technician="Technician"; public const string Manager="Manager"; public const string Admin="Admin"; }
 public static class BookingStates {
  public const string OpenForTechnicians="OpenForTechnicians"; public const string AwaitingCustomerSelection="AwaitingCustomerSelection";
@@ -12,10 +13,21 @@ public static class BookingStates {
 [BsonIgnoreExtraElements]
 public class AppUser {
  [BsonId] public int Id {get;set;} public string FullName {get;set;}=""; public string Email {get;set;}=""; public string PasswordHash {get;set;}=""; public string Role {get;set;}=AppRoles.Customer; public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+ /// <summary>Raised on every password change or reset; tokens carrying an older value stop working.</summary>
+ public int SessionVersion {get;set;}
+ /// <summary>SHA-256 of the single active reset token. The token itself is never stored.</summary>
+ public string? PasswordResetTokenHash {get;set;} public DateTime? PasswordResetExpiresAt {get;set;} public DateTime? PasswordResetRequestedAt {get;set;}
+ /// <summary>Google or Apple accounts linked to this user. Accounts created this way have an empty password hash.</summary>
+ public List<ExternalLogin> ExternalLogins {get;set;}=[];
 }
+public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
 [BsonIgnoreExtraElements]
 public class TechnicianProfile {
  [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Name {get;set;}=""; public string Title {get;set;}="ช่างแอร์"; public decimal Rating {get;set;} public int ReviewCount {get;set;} public int JobsCompleted {get;set;} public decimal BasePrice {get;set;} public string Area {get;set;}=""; public bool IsVerified {get;set;} public string AvailableText {get;set;}=""; public string SkillsCsv {get;set;}=""; public string Accent {get;set;}="sage";
+ public string Phone {get;set;}=""; public int ExperienceYears {get;set;}
+ /// <summary>Admin review of the technician application. Older records without it fall back to <see cref="IsVerified"/>.</summary>
+ public string? VerificationStatus {get;set;} public string? VerificationNote {get;set;} public DateTime? AppliedAt {get;set;} public DateTime? ReviewedAt {get;set;}
+ public string Status => VerificationStatus ?? (IsVerified ? VerificationStates.Approved : VerificationStates.Pending);
 }
 [BsonIgnoreExtraElements]
 public class AirConditioner {
@@ -38,6 +50,7 @@ public class Booking {
  public DateTime? LocationUpdatedAt {get;set;} public string TravelStatus {get;set;}="NotStarted";
  public string? PaymentMethod {get;set;} public string PaymentStatus {get;set;}="Unpaid";
  public bool CustomerConfirmedPayment {get;set;} public bool TechnicianConfirmedPayment {get;set;}
+ public int? CustomerRating {get;set;}
  public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[]; public List<BookingApplicant> Applicants {get;set;}=[];
 }
 [BsonIgnoreExtraElements]
@@ -51,5 +64,11 @@ public class ServiceReport {
 [BsonIgnoreExtraElements]
 public class Review {
  [BsonId] public int Id {get;set;} public int BookingId {get;set;} public int CustomerId {get;set;} public int TechnicianId {get;set;} public int Rating {get;set;} public string Comment {get;set;}=""; public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+}
+[BsonIgnoreExtraElements]
+public class SavedAddressRecord {
+ [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Label {get;set;}=""; public string PlaceType {get;set;}="บ้าน"; public string Address {get;set;}="";
+ public string? Building {get;set;} public string? Floor {get;set;} public string? Room {get;set;} public string? Note {get;set;}
+ public double Latitude {get;set;} public double Longitude {get;set;} public DateTime UpdatedAt {get;set;}=DateTime.UtcNow;
 }
 public class SequenceCounter { [BsonId] public string Id {get;set;}=""; public long Value {get;set;} }

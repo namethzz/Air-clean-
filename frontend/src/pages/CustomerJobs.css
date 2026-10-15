@@ -169,3 +169,13 @@
 .cj-track .cj-ghost{width:100%}
 @media(min-width:640px){.cj-checkgrid{grid-template-columns:1fr 1fr}}
 .nearby-job-toolbar .select-control span{white-space:nowrap}
+
+/* Rating after a finished job */
+.cj-review{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding:14px;border-radius:12px;background:var(--ac-blue-tint)}
+.cj-review-ask{margin:0;font-size:15px;font-weight:600;color:var(--ac-ink)}
+.cj-stars{display:flex;gap:4px}
+.cj-stars button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:transparent;color:var(--ac-ink-3);cursor:pointer}
+.cj-stars button.on{color:var(--ac-amber)}
+.cj-stars button:focus-visible{outline:2px solid var(--ac-focus);outline-offset:2px}
+.cj-review-label{font-size:14px;color:var(--ac-ink-2)}
+.cj-review textarea{width:100%;padding:10px 12px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;color:var(--ac-ink);font:inherit;font-size:15px;resize:vertical}

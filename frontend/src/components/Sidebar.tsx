@@ -1,4 +1,4 @@
-import { AirVent, CalendarDays, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
+import { AirVent, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -24,6 +24,7 @@ const navItems:Item[]=[
   {key:'passport',label:'ประวัติแอร์',icon:AirVent,roles:['manager','admin']},
   {key:'batch',label:'งานหลายเครื่อง',icon:Users,roles:['manager','admin']},
   {key:'reports',label:'รายงานบริการ',icon:ClipboardCheck},
+  {key:'approvals',label:'ตรวจสอบช่าง',icon:ShieldCheck,roles:['admin']},
 ];
 function initials(name:string):string{return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.slice(0,1)).join('')||'AC';}
 export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking,actionCount=0}:Props){

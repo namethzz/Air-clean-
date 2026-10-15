@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using System.Text;
 using AirCare.Api.Data;
 using AirCare.Api.Models;
+using AirCare.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +14,8 @@ if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls("http://0.0.0.0:" 
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<MongoStore>();
+builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddSingleton<ExternalIdentityValidator>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var configuredOrigins = (builder.Configuration["FRONTEND_ORIGIN"] ?? "")
@@ -31,12 +35,25 @@ if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32
 
 var jwt = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters {
+    .AddJwtBearer(options => {
+    options.TokenValidationParameters = new TokenValidationParameters {
         ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
         ValidIssuer = jwt["Issuer"] ?? "AirCareConnect",
         ValidAudience = jwt["Audience"] ?? "AirCareConnect.Web",
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.FromSeconds(30)
+    };
+    options.Events = new JwtBearerEvents {
+        // A password change or reset raises the account's session version and signs out older tokens.
+        OnTokenValidated = async context => {
+            var principal = context.Principal!;
+            if (!int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)) { context.Fail("Invalid account."); return; }
+            var tokenVersion = int.TryParse(principal.FindFirstValue("sv"), out var parsed) ? parsed : 0;
+            var store = context.HttpContext.RequestServices.GetRequiredService<MongoStore>();
+            var current = await store.Users.Find(x => x.Id == userId).Project(x => (int?)x.SessionVersion).FirstOrDefaultAsync();
+            if (current != tokenVersion) context.Fail("Session expired.");
+        }
+    };
     });
 builder.Services.AddAuthorization();
 

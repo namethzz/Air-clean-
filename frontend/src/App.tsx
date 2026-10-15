@@ -18,18 +18,19 @@ import BatchPage from './pages/BatchPage';
 import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
+import ApprovalsPage from './pages/ApprovalsPage';
 import './pages/WorkspaceTheme.css';
 import {
-  approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBatchBooking, createBooking,
-  createServiceReport, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
+  approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
+  createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
-  type CreateServiceReportPayload,
+  type AirConditionerPayload, type CreateServiceReportPayload,
 } from './lib/api';
 import type { AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', passport:'แอร์ของฉัน', profile:'บัญชีของฉัน' };
@@ -65,6 +66,7 @@ export default function App() {
   const [state,setState] = useState<AppState>(emptyState);
   const [searchQuery,setSearchQuery] = useState('');
   const [bookingModalOpen,setBookingModalOpen] = useState(false);
+  const [bookingUnitId,setBookingUnitId] = useState<number|undefined>();
   const [notice,setNotice] = useState('');
   const [apiConnected,setApiConnected] = useState(false);
   const [mobileNavOpen,setMobileNavOpen] = useState(false);
@@ -72,6 +74,9 @@ export default function App() {
   const [isLoading,setIsLoading] = useState(false);
   const [dataError,setDataError] = useState('');
   const [sessionError,setSessionError] = useState('');
+  // A password reset link opens the app with ?reset=<token>.
+  const [resetToken,setResetToken] = useState(()=>new URLSearchParams(window.location.search).get('reset')??'');
+  const [authInfo,setAuthInfo] = useState('');
   const showNotice = useCallback((message:string) => { setNotice(message); window.setTimeout(()=>setNotice(''),3600); },[]);
 
   useEffect(()=>{
@@ -119,13 +124,13 @@ export default function App() {
   function openJob(id?:number){setPage('bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
   function profileUpdated(nextUser:UserProfile){setUser(nextUser);showNotice('อัปเดตโปรไฟล์เรียบร้อยแล้ว');}
   function onAuthenticated(nextUser:UserProfile){
-    setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
+    setAuthInfo('');setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
   }
   function logout(){
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');
   }
-  function openBooking(_technicianId?:number){setBookingModalOpen(true);}
+  function openBooking(unitId?:number){setBookingUnitId(unitId);setBookingModalOpen(true);}
 
   async function bookingSubmit(payload:BookingPayload):Promise<boolean>{
     if(!user)return false;
@@ -133,6 +138,7 @@ export default function App() {
       const saved=await createBooking({
         service:payload.service,unitLabel:payload.unitLabel,propertyType:payload.propertyType,unitCount:payload.unitCount,address:payload.address,
         scheduledAt:payload.date+'T'+payload.time+':00',price:payload.price,latitude:payload.latitude,longitude:payload.longitude,
+        airConditionerId:payload.airConditionerId,
       });
       setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       openJob(saved.id);showNotice('ส่งคำขอแล้ว รอช่างใกล้เคียงเสนอราคา');return true;
@@ -185,6 +191,27 @@ export default function App() {
       setState(previous=>({...previous,batchBookings:[created,...previous.batchBookings]}));showNotice('บันทึกคำของานหลายเครื่องแล้ว');return true;
     }catch(error){showNotice(errorMessage(error,'สร้างคำของานไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
+  async function addUnit(payload:AirConditionerPayload){
+    try{
+      const created=await createAirConditioner(payload);
+      setState(previous=>{const airConditioners=[...previous.airConditioners,created];return {...previous,airConditioners,summary:summarize(airConditioners,previous.bookings)};});
+      showNotice('เพิ่มเครื่องในสมุดประวัติแล้ว');return created;
+    }catch(error){showNotice(errorMessage(error,'เพิ่มเครื่องไม่สำเร็จ กรุณาลองใหม่'));return null;}
+  }
+  async function removeUnit(id:number):Promise<boolean>{
+    try{
+      await deleteAirConditioner(id);
+      setState(previous=>{const airConditioners=previous.airConditioners.filter(item=>item.id!==id);return {...previous,airConditioners,summary:summarize(airConditioners,previous.bookings)};});
+      showNotice('ลบเครื่องออกจากสมุดประวัติแล้ว');return true;
+    }catch(error){showNotice(errorMessage(error,'ลบเครื่องไม่สำเร็จ'));return false;}
+  }
+  async function reviewJob(bookingId:number,rating:number,comment:string):Promise<boolean>{
+    try{
+      await createReview(bookingId,rating,comment);
+      setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===bookingId?{...item,customerRating:rating}:item)}));
+      showNotice('ขอบคุณสำหรับคะแนน');return true;
+    }catch(error){showNotice(errorMessage(error,'ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่'));return false;}
+  }
   async function createReport(payload:CreateServiceReportPayload):Promise<boolean>{
     try{await createServiceReport(payload);await refreshData();showNotice('บันทึกรายงานบริการเรียบร้อยแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'บันทึกรายงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
@@ -199,24 +226,31 @@ export default function App() {
     switch(page){
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
       case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
-      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob}/>;
+      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onCreateReport={createReport} onRefresh={refreshBookings}/>;
-        if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onApproveReport={approveReport} onRefresh={refreshBookings}/>;
+        if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onApproveReport={approveReport} onReview={reviewJob} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
-      case 'passport':return <PassportPage units={state.airConditioners}/>;
+      case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
+      case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout}/>;
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
   const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosed(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:0;
 
+  function finishReset(message?:string){
+    const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);
+    setResetToken('');setVisitorScreen('login');
+    if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
+  }
+  if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
   if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><Activity size={23}/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
   if(!user) {
     if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
-    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
+    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
   }
 
   const customer = user.role==='customer'||user.role==='technician'; // both get the phone bottom bar
@@ -233,7 +267,7 @@ export default function App() {
       <footer className="app-footer"><span>© 2026 AirClean</span>{!apiConnected&&<span className="footer-center" role="status"><WifiOff size={13}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>
     </main>
     {customer&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
-    {bookingModalOpen&&<BookingModal technicians={state.technicians} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
+    {bookingModalOpen&&<BookingModal technicians={state.technicians} units={state.airConditioners} initialUnitId={bookingUnitId} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
     {notice&&<div className="toast-notice" role="status"><div className="toast-check"><CheckCircle2 size={17}/></div><span>{notice}</span><button className="icon-button" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={15}/></button></div>}
     {isLoading&&<div className="loading-indicator"><span/>กำลังโหลดข้อมูล...</div>}
   </div>;
