@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import PrivateImage, { ImageViewer } from '../components/PrivateImage';
+import '../pages/Membership.css';
 import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
-import type { TechnicianApplication, VerificationStatus } from '../types';
-import { createPasswordResetLink, fetchTechnicianApplications, sendTestEmail, setTechnicianVerification } from '../lib/api';
+import type { TechnicianApplication, TechnicianDocument, VerificationStatus } from '../types';
+import { createPasswordResetLink, fetchTechnicianApplications, fetchTechnicianDocuments, sendTestEmail, setTechnicianVerification } from '../lib/api';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
 const tabs: { key: VerificationStatus; label: string }[] = [
   { key: 'Pending', label: 'รอตรวจสอบ' }, { key: 'Rejected', label: 'ไม่ผ่าน' }, { key: 'Approved', label: 'อนุมัติแล้ว' },
 ];
+const docLabel = { idcard: 'บัตรประชาชน', selfie: 'รูปถือบัตร', certificate: 'ใบรับรอง' } as const;
 function when(value?: string | null) {
   return value ? new Date(value).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 }
@@ -31,7 +34,7 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
 
   return <div className="page-stack">
     <div className="page-heading-row">
-      <div><div className="eyebrow">TECHNICIAN APPROVAL</div><h1>ตรวจสอบช่าง</h1><p className="page-subtitle">ช่างที่สมัครใหม่จะยังไม่เห็นงานจนกว่าคุณอนุมัติ ตรวจชื่อ เบอร์โทร พื้นที่ และราคา และโทรยืนยันตัวตนก่อนอนุมัติ</p></div>
+      <div><div className="eyebrow">TECHNICIAN APPROVAL</div><h1>ตรวจสอบช่าง</h1><p className="page-subtitle">ช่างที่สมัครใหม่จะยังไม่เห็นงานจนกว่าคุณอนุมัติ เทียบชื่อและรูปในบัตรประชาชนกับข้อมูลที่สมัคร ตรวจเบอร์โทร พื้นที่ และราคา แล้วโทรยืนยันก่อนอนุมัติ</p></div>
       <button type="button" className="outline-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
     </div>
     <div className="approval-tabs" role="tablist" aria-label="สถานะการตรวจสอบ">
@@ -49,6 +52,11 @@ function ApplicationCard({ row, onSaved, onNotice }: { row: TechnicianApplicatio
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [documents, setDocuments] = useState<TechnicianDocument[] | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  useEffect(() => { fetchTechnicianDocuments(row.id).then(setDocuments).catch(() => setDocuments([])); }, [row.id, row.appliedAt]);
+  const hasIdCard = Boolean(documents?.some(item => item.kind === 'idcard'));
+  const approved = row.verificationStatus === 'Approved';
   async function decide(verified: boolean) {
     setBusy(true);
     try {
@@ -70,16 +78,23 @@ function ApplicationCard({ row, onSaved, onNotice }: { row: TechnicianApplicatio
       {row.verificationStatus === 'Approved' && <div><dt>ผลงาน</dt><dd>{row.jobsCompleted} งาน · ★ {row.rating.toFixed(1)} ({row.reviewCount} รีวิว)</dd></div>}
       {row.verificationNote && <div><dt>เหตุผล</dt><dd>{row.verificationNote}</dd></div>}
     </dl>
+    <div className="approval-docs">
+      <strong>เอกสาร</strong>
+      {documents === null ? <span className="page-subtitle">กำลังโหลด…</span>
+        : documents.length === 0 ? <span className="approval-docs-none">ยังไม่ได้ส่งเอกสาร</span>
+        : <div>{documents.map(item => <figure key={item.id}><PrivateImage path={'/technician-documents/' + item.id} alt={docLabel[item.kind]} onOpen={setViewing}/><figcaption>{docLabel[item.kind]}</figcaption></figure>)}</div>}
+      {viewing && <ImageViewer url={viewing} alt="เอกสารของช่าง" onClose={() => setViewing(null)}/>}
+    </div>
     {rejecting
       ? <div className="approval-reject">
         <label className="form-field"><span>{row.verificationStatus === 'Approved' ? 'เหตุผลที่ระงับ (ช่างจะเห็นข้อความนี้)' : 'เหตุผลที่ไม่ผ่าน (ช่างจะเห็นข้อความนี้)'}</span><textarea rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น โทรติดต่อไม่ได้ กรุณาตรวจเบอร์โทร"/></label>
         <div><button type="button" className="primary-button danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="outline-button" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
       </div>
       : <footer>
-        {row.verificationStatus !== 'Approved' && <button type="button" className="primary-button" disabled={busy || !row.phone} onClick={() => void decide(true)}><CheckCircle2 size={15}/> อนุมัติ</button>}
+        {!approved && <button type="button" className="primary-button" disabled={busy || !row.phone || !hasIdCard} onClick={() => void decide(true)}><CheckCircle2 size={15}/> อนุมัติ</button>}
         <button type="button" className="outline-button" disabled={busy} onClick={() => setRejecting(true)}><XCircle size={15}/> {row.verificationStatus === 'Approved' ? 'ระงับการรับงาน' : row.verificationStatus === 'Rejected' ? 'แก้เหตุผล' : 'ไม่ผ่าน'}</button>
       </footer>}
-    {!row.phone && row.verificationStatus !== 'Approved' && <p className="page-subtitle">ยังอนุมัติไม่ได้จนกว่าช่างจะเพิ่มเบอร์โทรในโปรไฟล์</p>}
+    {!approved && (!row.phone || (documents && !hasIdCard)) && <p className="page-subtitle">ยังอนุมัติไม่ได้ ต้องให้ช่าง{[!row.phone && 'เพิ่มเบอร์โทร', documents && !hasIdCard && 'แนบรูปบัตรประชาชน'].filter(Boolean).join('และ')}ที่หน้าโปรไฟล์ก่อน</p>}
   </article>;
 }
 

@@ -2,6 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, KeyRound, LogOut, Mail, Save, ShieldCheck, UserRound } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types';
 import TechnicianProfileSettings from '../components/TechnicianProfileSettings';
+import TechnicianDocuments from '../components/TechnicianDocuments';
+import { MembershipStrip } from './MembershipPage';
+import { fetchMyMembership } from '../lib/api';
+import type { Membership } from '../types';
 import PushSettings from '../components/PushSettings';
 import { changePassword, updateMyProfile } from '../lib/api';
 
@@ -10,11 +14,12 @@ interface Props {
   onUpdated: (user: UserProfile) => void;
   /** Shown on phones, where the sidebar with its sign-out button is hidden. */
   onLogout?: () => void;
+  onOpenMembership?: () => void;
 }
 const roleLabels: Record<UserRole,string> = {
   customer: 'ลูกค้า', technician: 'ช่างแอร์', manager: 'ผู้ดูแลอาคาร', admin: 'ผู้ดูแลระบบ',
 };
-export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
+export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembership }: Props) {
   const [fullName,setFullName] = useState(user.fullName);
   const [email,setEmail] = useState(user.email);
   const [saving,setSaving] = useState(false);
@@ -22,6 +27,8 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
   const [saved,setSaved] = useState(false);
 
   useEffect(() => { setFullName(user.fullName); setEmail(user.email); },[user.fullName,user.email]);
+  const [membership,setMembership] = useState<Membership|null>(null);
+  useEffect(() => { if (user.role === 'technician') fetchMyMembership().then(setMembership).catch(() => setMembership(null)); },[user.role]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,6 +65,8 @@ export default function ProfilePage({ user, onUpdated, onLogout }: Props) {
         </form>
       </section>
     </div>
+    {user.role === 'technician' && membership && onOpenMembership && <MembershipStrip data={membership} onOpen={onOpenMembership} always/>}
+    {user.role === 'technician' && <TechnicianDocuments/>}
     {user.role === 'technician' && <TechnicianProfileSettings/>}
     <PushSettings/>
     <ChangePasswordPanel hasPassword={user.hasPassword !== false} onChanged={updated => onUpdated(updated)}/>

@@ -1,6 +1,6 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { CalendarX2, ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
@@ -9,6 +9,8 @@ import Stepper, { useIsWide } from '../components/JobStepper';
 import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
 import { RoomBoard } from '../components/Rooms';
 import { isClosed, isOffer, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
+import { clashesWith } from '../lib/clash';
+import './Membership.css';
 import type { CompleteJobPayload } from '../lib/api';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
@@ -170,7 +172,7 @@ function Schedule({ jobs, selectedId, onSelect }: { jobs: Booking[]; selectedId?
       const rows = visits.filter(item => item.date === date);
       return <section key={date} id={`tj-day-${date}`} className={'tj-day' + (title.past ? ' past' : '')} aria-label={`${title.name} ${title.when}`}>
         <h2 className="tj-day-head"><strong>{title.past ? `เลยวันนัด · ${title.name}` : title.name}</strong>{title.when && <span>{title.when}</span>}<small>{rows.length} งาน</small></h2>
-        <ul>{rows.map(item => <li key={item.id}><VisitRow item={item} active={selectedId === item.id} onSelect={onSelect}/></li>)}</ul>
+        <ul>{rows.map(item => <li key={item.id}><VisitRow item={item} active={selectedId === item.id} onSelect={onSelect} clash={clashesWith(item, visits).some(found => !found.soft)}/></li>)}</ul>
       </section>;
     })}
 
@@ -181,7 +183,7 @@ function Schedule({ jobs, selectedId, onSelect }: { jobs: Booking[]; selectedId?
   </div>;
 }
 
-function VisitRow({ item, active: current, onSelect, withDate = false }: { item: Booking; active: boolean; onSelect: (id: number) => void; withDate?: boolean }) {
+function VisitRow({ item, active: current, onSelect, withDate = false, clash = false }: { item: Booking; active: boolean; onSelect: (id: number) => void; withDate?: boolean; clash?: boolean }) {
   const [from, to] = item.timeWindow ? item.timeWindow.split('-') : [item.time, ''];
   const state = rowState(item);
   const quote = item.applicants?.[0]?.quote ?? item.price;
@@ -193,7 +195,7 @@ function VisitRow({ item, active: current, onSelect, withDate = false }: { item:
     <span className="tj-visit-main">
       <strong className="tj-visit-place"><MapPin size={15} aria-hidden="true"/>{item.address || 'ยังไม่มีที่อยู่'}</strong>
       <span>{item.service} · {item.unitCount || 1} เครื่อง · ฿{quote.toLocaleString()}</span>
-      <em className="tj-visit-state">{state.text}</em>
+      <span className="tj-visit-tags"><em className="tj-visit-state">{state.text}</em>{clash && <b className="tj-clash"><CalendarX2 size={13}/> เวลาชน</b>}</span>
     </span>
     <ChevronRight size={18} aria-hidden="true"/>
   </button>;
@@ -282,7 +284,7 @@ export default function TechnicianJobsPage(props: Props) {
   </div>;
 }
 
-function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
   const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
@@ -307,6 +309,12 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     <section className={'cj-now' + (techNeedsAction(booking) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
       <p>{guide.hint}</p>
+      {(booking.status === 'รอยืนยัน' || booking.status === 'ยืนยันแล้ว') && (() => {
+        const clashes = clashesWith(booking, bookings);
+        if (!clashes.length) return null;
+        const hard = clashes.some(item => !item.soft);
+        return <p className={'clash-note' + (hard ? ' hard' : '')}><CalendarX2 size={16}/><span><strong>{hard ? 'เวลาชนกับงานอื่นของคุณ' : 'อาจชนกับงานอื่นของคุณ'}</strong> {clashes.map(item => `${item.job.code} ${timeLabel(item.job)}`).join(', ')}{booking.status === 'รอยืนยัน' ? ' · โทรคุยกับลูกค้าเพื่อเลื่อนเวลา หรือยกเลิกถ้าไปไม่ได้' : ''}</span></p>;
+      })()}
       {offer && <div className="tj-offer">
         <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
         <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>

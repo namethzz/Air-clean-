@@ -4,9 +4,15 @@ import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, 
 import type { Booking, TechnicianApplication } from '../types';
 import { VerificationBanner } from '../components/TechnicianProfileSettings';
 import StatusBadge from '../components/StatusBadge';
-import { fetchMyTechnicianProfile, fetchNearbyJobs } from '../lib/api';
+import { fetchMyMembership, fetchMyTechnicianProfile, fetchNearbyJobs } from '../lib/api';
+import TechnicianDocuments from '../components/TechnicianDocuments';
+import { MembershipStrip } from './MembershipPage';
+import { clashesWith, sameDay } from '../lib/clash';
+import type { Membership } from '../types';
+import { CalendarX2 } from 'lucide-react';
+import './Membership.css';
 
-interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; }
+interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; onOpenMembership:()=>void; myJobs:Booking[]; }
 function prettyDate(date:string) {
   return new Date(date+'T00:00:00').toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short'});
 }
@@ -14,7 +20,7 @@ function messageOf(error:unknown) {
   return error instanceof Error?error.message:'โหลดงานใกล้เคียงไม่สำเร็จ';
 }
 /** Technicians reach the job feed only after an admin approves their application. */
-export default function NearbyJobsPage({onApply,onOpenProfile}:Props) {
+export default function NearbyJobsPage({onApply,onOpenProfile,onOpenMembership,myJobs}:Props) {
   const [profile,setProfile]=useState<TechnicianApplication|null>(null);
   const [profileError,setProfileError]=useState('');
   const [attempt,setAttempt]=useState(0);
@@ -28,12 +34,17 @@ export default function NearbyJobsPage({onApply,onOpenProfile}:Props) {
   if(profile.verificationStatus!=='Approved')return <div className="page-stack">
     <div className="page-heading-row"><div><div className="eyebrow">LOCAL JOB MARKETPLACE</div><h1>งานใกล้ฉัน</h1><p className="page-subtitle">เพื่อความปลอดภัยของลูกค้า ผู้ดูแลระบบตรวจสอบช่างทุกคนก่อนเปิดให้เห็นงานและส่งข้อเสนอ</p></div></div>
     <VerificationBanner profile={profile}/>
+    <TechnicianDocuments/>
     <button type="button" className="primary-button" onClick={onOpenProfile}><UserCog size={16}/> {profile.verificationStatus==='Rejected'?'แก้ไขข้อมูลและส่งตรวจอีกครั้ง':'ตรวจข้อมูลโปรไฟล์ของฉัน'}</button>
   </div>;
-  return <NearbyJobs onApply={onApply}/>;
+  return <NearbyJobs onApply={onApply} onOpenMembership={onOpenMembership} myJobs={myJobs}/>;
 }
 
-function NearbyJobs({onApply}:{onApply:Props['onApply']}) {
+function NearbyJobs({onApply,onOpenMembership,myJobs}:{onApply:Props['onApply'];onOpenMembership:()=>void;myJobs:Booking[]}) {
+  const [membership,setMembership]=useState<Membership|null>(null);
+  useEffect(()=>{fetchMyMembership().then(setMembership).catch(()=>setMembership(null));},[]);
+  const lapsed=membership?.state==='Expired';
+  const [confirming,setConfirming]=useState<number|null>(null);
   const [jobs,setJobs]=useState<Booking[]>([]);
   const [radiusKm,setRadiusKm]=useState(25);
   const [loading,setLoading]=useState(false);
@@ -76,12 +87,16 @@ function NearbyJobs({onApply}:{onApply:Props['onApply']}) {
       <div className="nearby-location-status"><MapPin size={17}/><div><strong>{locationLabel}</strong><span>ระบบใช้ตำแหน่ง GPS ของคุณเพื่อคำนวณระยะทาง</span></div></div>
       <label className="select-control"><Navigation size={15}/><span>ระยะค้นหา</span><select value={radiusKm} onChange={event=>setRadiusKm(Number(event.target.value))}><option value={5}>5 กม.</option><option value={10}>10 กม.</option><option value={25}>25 กม.</option><option value={50}>50 กม.</option><option value={100}>100 กม.</option></select></label>
     </div>
+    {membership&&<MembershipStrip data={membership} onOpen={onOpenMembership}/>}
     {error&&<div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="outline-button" onClick={()=>void loadNearby()}><RefreshCw size={15}/> ลองอีกครั้ง</button></div>}
     {!error&&<div className="nearby-results-line"><strong>{jobs.length} งาน</strong><span>ที่อยู่ในระยะค้นหาปัจจุบัน · เรียงจากใกล้ไปไกล</span></div>}
     {loading&&jobs.length===0?<section className="panel nearby-empty"><RefreshCw size={23}/><strong>กำลังค้นหางานในบริเวณใกล้เคียง</strong><span>โปรดอนุญาตการเข้าถึงตำแหน่งเมื่อเบราว์เซอร์ร้องขอ</span></section>:
       jobs.length===0&&!error?<section className="panel nearby-empty"><Wind size={26}/><strong>ยังไม่มีงานในระยะนี้</strong><span>ลองขยายระยะค้นหา หรือกลับมาตรวจสอบอีกครั้งเมื่อมีคำขอใหม่</span></section>:
       <div className="nearby-job-grid">{jobs.map(job=>{
         const applied=Boolean(job.currentTechnicianApplied);
+        const clashes=clashesWith(job,myJobs);
+        const hard=clashes.some(item=>!item.soft);
+        const dayCount=sameDay(job.date,myJobs);
         return <article className="nearby-job-card" key={job.id}>
           <div className="nearby-job-card-top"><span className="booking-code">{job.code}</span><StatusBadge status={job.status}/></div>
           <h2>{job.service}</h2>
@@ -94,8 +109,12 @@ function NearbyJobs({onApply}:{onApply:Props['onApply']}) {
           <div className="nearby-job-description"><Wrench size={15}/><span>{job.unitLabel}</span></div>
           <div className="nearby-job-privacy"><ShieldCheck size={14}/><span>แสดงเฉพาะพื้นที่โดยประมาณ ที่อยู่เต็มจะแสดงหลังลูกค้ายืนยันช่าง</span></div>
           <div className="nearby-job-price"><div><span>ราคาประเมินเริ่มต้น</span><strong>฿{job.price.toLocaleString()}</strong></div><small>{job.applicants?.length||0} ช่างสนใจแล้ว</small></div>
+          {!applied&&clashes.length>0&&<p className={'clash-note'+(hard?' hard':'')}><CalendarX2 size={16}/><span><strong>{hard?'เวลาชนกับงานที่รับไว้':'อาจชนกับงานที่รับไว้'}</strong> {clashes.map(item=>`${item.job.code} ${timeLabel(item.job)}`).join(', ')}</span></p>}
+          {!applied&&!clashes.length&&dayCount>0&&<p className="nearby-day-count">วันนั้นคุณมีงานแล้ว {dayCount} งาน</p>}
           {applied?<div className="nearby-applied-state"><CheckCircle2 size={17}/><div><strong>ส่งความสนใจแล้ว</strong><span>ลูกค้าจะเห็นโปรไฟล์และราคาที่คุณเสนอเพื่อใช้ตัดสินใจ</span></div></div>:
-          <button className="primary-button full-width" onClick={()=>void apply(job.id)} disabled={applyingId!==null || job.status==='ยืนยันแล้ว'}>{applyingId===job.id?'กำลังส่งความสนใจ...':'สนใจรับงานนี้'} <Navigation size={15}/></button>}
+          lapsed?<button className="outline-button full-width" onClick={onOpenMembership}>ต่ออายุสมาชิกเพื่อส่งข้อเสนอ</button>:
+          confirming===job.id?<div className="nearby-confirm"><span>ยืนยันส่งข้อเสนอทั้งที่เวลาชน?</span><button className="primary-button" onClick={()=>{setConfirming(null);void apply(job.id);}} disabled={applyingId!==null}>ส่งเลย</button><button className="outline-button" onClick={()=>setConfirming(null)}>ไม่ส่ง</button></div>:
+          <button className="primary-button full-width" onClick={()=>hard?setConfirming(job.id):void apply(job.id)} disabled={applyingId!==null || job.status==='ยืนยันแล้ว'}>{applyingId===job.id?'กำลังส่งความสนใจ...':'สนใจรับงานนี้'} <Navigation size={15}/></button>}
         </article>;
       })}</div>}
     <div className="nearby-market-note"><ShieldCheck size={18}/><div><strong>ลูกค้าเป็นผู้ยืนยันช่างก่อนเริ่มงาน</strong><span>การส่งความสนใจยังไม่ถือว่าได้รับมอบหมายงาน และยังไม่เปิดเผยบ้านเลขที่หรือพิกัดปลายทางจนกว่าลูกค้าจะเลือกคุณ</span></div></div>
