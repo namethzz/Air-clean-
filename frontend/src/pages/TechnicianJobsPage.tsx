@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertTriangle, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, MapPin, Navigation, Smartphone, Wrench } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
-import { isClosed, sortByNeed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
-import type { CreateServiceReportPayload } from '../lib/api';
-import type { Booking, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
+import { isClosed, isOffer, sortByNeed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
+import type { CompleteJobPayload } from '../lib/api';
+import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
 import './CustomerJobs.css';
 
@@ -16,18 +16,20 @@ interface Props {
   onFindJobs: () => void;
   onStatusChange: (id: number, status: BookingStatus) => void;
   onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
-  onPaymentConfirm: (id: number, method: PaymentMethod) => void;
-  onPaymentIssue: (id: number, reason: string) => void;
-  onCreateReport: (payload: CreateServiceReportPayload) => Promise<boolean>;
+  onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
   onRefresh: () => void;
 }
 
 const checklist = [
-  { key: 'cleanedFilter', label: 'ทำความสะอาดแผ่นกรอง' },
-  { key: 'cleanedCoil', label: 'ทำความสะอาดคอยล์' },
+  { key: 'cleanedFilter', label: 'ล้างแผ่นกรอง' },
+  { key: 'cleanedCoil', label: 'ล้างคอยล์' },
   { key: 'checkedDrain', label: 'ตรวจท่อน้ำทิ้ง' },
-  { key: 'checkedCooling', label: 'ตรวจการทำงานของเครื่อง' },
+  { key: 'checkedCooling', label: 'ตรวจความเย็น' },
 ] as const;
+
+/** Within this distance of the customer's pin the job counts as arrived, without the technician pressing anything. */
+const ARRIVAL_METERS = 150;
+const active: BookingStatus[] = ['ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'];
 
 function shortDate(date: string) {
   return new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -36,19 +38,26 @@ function mapsLink(booking: Booking) {
   const target = booking.latitude != null && booking.longitude != null ? `${booking.latitude},${booking.longitude}` : encodeURIComponent(booking.address);
   return `https://www.google.com/maps/dir/?api=1&destination=${target}&travelmode=driving`;
 }
+function metersBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const rad = Math.PI / 180, dLat = (bLat - aLat) * rad, dLng = (bLng - aLng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
 
-/** Sends the technician's position every few seconds while the job is "on the way". */
-function useShareLocation(booking: Booking, onLocationUpdate: Props['onLocationUpdate']) {
+/** While travelling: sends the position every few seconds and marks the job arrived once close to the customer. */
+function useShareLocation(booking: Booking, onLocationUpdate: Props['onLocationUpdate'], onArrive: () => void) {
   const [message, setMessage] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const arrived = useRef(false);
+  // Held in a ref so a new callback identity on each render does not restart GPS watching.
+  const arriveRef = useRef(onArrive);
+  arriveRef.current = onArrive;
   const traveling = booking.status === 'กำลังเดินทาง';
-  const id = booking.id;
+  const { id, latitude: destLat, longitude: destLng } = booking;
   useEffect(() => {
     if (!traveling) { setMessage(''); return; }
     if (!navigator.geolocation) { setMessage('อุปกรณ์นี้ไม่รองรับ GPS ผ่านเบราว์เซอร์'); return; }
-    let lastSentAt = 0;
-    let pending = false;
-    let disposed = false;
+    let lastSentAt = 0, pending = false, disposed = false;
     let latest: GeolocationPosition | null = null;
     async function send() {
       if (!latest || pending || disposed) return;
@@ -59,7 +68,16 @@ function useShareLocation(booking: Booking, onLocationUpdate: Props['onLocationU
       pending = false;
       if (disposed) return;
       lastSentAt = Date.now();
-      setMessage(sent ? `ส่งตำแหน่งแล้ว · ความแม่นยำประมาณ ${Math.round(coords.accuracy)} เมตร` : 'ส่งตำแหน่งไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต ระบบจะลองใหม่');
+      const distance = destLat != null && destLng != null ? metersBetween(coords.latitude, coords.longitude, destLat, destLng) : null;
+      if (distance != null && distance <= ARRIVAL_METERS + Math.min(coords.accuracy, 100) && !arrived.current) {
+        arrived.current = true;
+        setMessage('ถึงหน้างานแล้ว หยุดแชร์ตำแหน่ง');
+        arriveRef.current();
+        return;
+      }
+      setMessage(sent
+        ? (distance != null ? `ส่งตำแหน่งแล้ว · อีกประมาณ ${distance >= 1000 ? (distance / 1000).toFixed(1) + ' กม.' : Math.round(distance) + ' ม.'}` : 'ส่งตำแหน่งแล้ว')
+        : 'ส่งตำแหน่งไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต ระบบจะลองใหม่');
     }
     setMessage('กำลังขออนุญาตใช้ตำแหน่งจากอุปกรณ์…');
     const watchId = navigator.geolocation.watchPosition(
@@ -69,11 +87,11 @@ function useShareLocation(booking: Booking, onLocationUpdate: Props['onLocationU
     );
     const heartbeat = window.setInterval(() => { void send(); }, 8000);
     return () => { disposed = true; window.clearInterval(heartbeat); navigator.geolocation.clearWatch(watchId); };
-  }, [traveling, id, onLocationUpdate, attempt]);
+  }, [traveling, id, destLat, destLng, onLocationUpdate, attempt]);
   return { message, retry: () => setAttempt(value => value + 1) };
 }
 
-/** Technician's single place for confirmed jobs: travel, GPS, report and getting paid. */
+/** Technician's single place for their jobs: offers waiting on customers, jobs to go to, and closing a job. */
 export default function TechnicianJobsPage(props: Props) {
   const { bookings, focus, onFindJobs, onRefresh } = props;
   const wide = useIsWide();
@@ -87,7 +105,7 @@ export default function TechnicianJobsPage(props: Props) {
     const target = bookings.find(item => item.id === focus.id);
     setSelectedId(focus.id);
     if (target) setTab(isClosed(target) ? 'closed' : 'open');
-  }, [focus?.token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focus?.token, bookings.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open.length) return;
@@ -97,13 +115,13 @@ export default function TechnicianJobsPage(props: Props) {
 
   const shown = tab === 'open' ? open : closed;
   const selected = bookings.find(item => item.id === selectedId) ?? (wide ? shown[0] : undefined);
-  const actionCount = open.filter(techNeedsAction).length;
+  const toGo = open.filter(item => active.includes(item.status)).length;
 
   if (!bookings.length) {
     return <div className="cj-empty">
       <span className="cj-empty-icon"><Wrench size={30}/></span>
-      <h1>ยังไม่มีงานที่ได้รับ</h1>
-      <p>ดูงานใกล้ตัวแล้วกดสนใจ เมื่อลูกค้าเลือกคุณ งานจะมาอยู่ที่นี่พร้อมที่อยู่และปุ่มเริ่มเดินทาง</p>
+      <h1>ยังไม่มีงาน</h1>
+      <p>ดูงานใกล้ตัวแล้วกดสนใจ งานที่คุณเสนอราคาจะมาอยู่ที่นี่ทันที และเมื่อลูกค้าเลือกคุณ จะมีที่อยู่และปุ่มนำทาง</p>
       <button type="button" className="cj-primary" onClick={onFindJobs}><MapPin size={18}/> ดูงานใกล้ฉัน</button>
     </div>;
   }
@@ -112,7 +130,7 @@ export default function TechnicianJobsPage(props: Props) {
     <section className="cj-list" aria-label="รายการงาน">
       <div className="cj-list-head">
         <h1>งานของฉัน</h1>
-        {actionCount > 0 && <span className="cj-action-pill">{actionCount} งานรอคุณ</span>}
+        {toGo > 0 && <span className="cj-action-pill">{toGo} งานที่ต้องไป</span>}
       </div>
       <div className="cj-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>กำลังดำเนินการ <span>{open.length}</span></button>
@@ -121,14 +139,15 @@ export default function TechnicianJobsPage(props: Props) {
       {shown.length === 0
         ? <p className="cj-list-empty">{tab === 'open' ? 'ไม่มีงานที่กำลังดำเนินการ' : 'ยังไม่มีงานที่ปิดแล้ว'}</p>
         : <ul>{shown.map(item => {
-          const urgent = techNeedsAction(item);
+          const offer = isOffer(item);
+          const quote = item.applicants?.[0]?.quote;
           return <li key={item.id}>
-            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
+            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '') + (offer ? ' cj-row-offer' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
               <span className="cj-row-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><span>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</span></span>
               <span className="cj-row-main">
-                <strong>{item.customer || 'ลูกค้า'} · {item.unitCount || 1} เครื่อง</strong>
-                <span className={urgent ? 'cj-row-urgent' : ''}>{techGuide(item).short}</span>
-                <small>{shortDate(item.date)} · {item.time} น.</small>
+                <strong>{item.service} · {item.unitCount || 1} เครื่อง</strong>
+                <span className={techNeedsAction(item) ? 'cj-row-urgent' : ''}>{techGuide(item).short}</span>
+                <small>{offer ? `ข้อเสนอ ฿${(quote ?? item.price).toLocaleString()} · ${item.time} น.` : active.includes(item.status) ? item.address : `${shortDate(item.date)} · ${item.time} น.`}</small>
               </span>
               <ChevronRight size={18} aria-hidden="true"/>
             </button>
@@ -143,22 +162,21 @@ export default function TechnicianJobsPage(props: Props) {
   </div>;
 }
 
-function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onPaymentConfirm, onPaymentIssue, onCreateReport }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate, onComplete }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
   const report = reports.find(item => item.bookingId === booking.id);
-  const gps = useShareLocation(booking, onLocationUpdate);
+  const gps = useShareLocation(booking, onLocationUpdate, () => onStatusChange(booking.id, 'ถึงหน้างาน'));
   const cancelled = booking.status === 'ยกเลิก';
-  const canReport = !report && (booking.status === 'กำลังดำเนินการ' || booking.status === 'รอชำระเงิน');
+  const offer = isOffer(booking);
+  const going = active.includes(booking.status);
   const hasDestination = booking.latitude != null && booking.longitude != null;
   const hasOwn = booking.technicianLatitude != null && booking.technicianLongitude != null;
-
-  const act = (label: string, status: BookingStatus, Icon: typeof Check = ChevronRight) =>
-    <button type="button" className="cj-primary full" onClick={() => onStatusChange(booking.id, status)}>{label} <Icon size={17}/></button>;
+  const myQuote = booking.applicants?.[0]?.quote;
 
   return <article className="cj-article">
     <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
     <header className="cj-head">
-      <div><span className="cj-code">{booking.code}</span><h2>{booking.service}</h2><p>{shortDate(booking.date)} · {booking.time} น.</p></div>
+      <div><span className="cj-code">{booking.code}</span><h2>{booking.service} · {booking.unitCount || 1} เครื่อง</h2><p>{shortDate(booking.date)} · {booking.time} น.</p></div>
       <StatusBadge status={booking.status}/>
     </header>
 
@@ -167,99 +185,85 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     <section className={'cj-now' + (techNeedsAction(booking) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
       <p>{guide.hint}</p>
-      {booking.status === 'รอยืนยัน' && act('รับงาน', 'ยืนยันแล้ว', Check)}
-      {booking.status === 'ยืนยันแล้ว' && <>{act('เริ่มเดินทางและแชร์ตำแหน่ง', 'กำลังเดินทาง', Navigation)}<a className="cj-ghost" href={mapsLink(booking)} target="_blank" rel="noreferrer"><ExternalLink size={16}/> ดูเส้นทางใน Google Maps</a></>}
-      {booking.status === 'กำลังเดินทาง' && <div className="cj-track">
-        {hasDestination && <LocationMap key={booking.id} center={hasOwn ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
-          destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'สถานที่ให้บริการ', kind: 'destination' }}
-          technician={hasOwn ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
-          accuracy={booking.locationAccuracy ?? undefined} height={240} zoom={14}/>}
-        <p className="cj-note"><MapPin size={15}/> {gps.message || 'กำลังรับพิกัดจากอุปกรณ์'}</p>
-        {act('ถึงหน้างานแล้ว', 'ถึงหน้างาน', MapPin)}
-        <a className="cj-ghost" href={mapsLink(booking)} target="_blank" rel="noreferrer"><ExternalLink size={16}/> นำทางด้วย Google Maps</a>
-        <button type="button" className="cj-link" onClick={gps.retry}>ลองเชื่อมต่อ GPS อีกครั้ง</button>
+      {offer && <div className="tj-offer">
+        <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
+        <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
       </div>}
-      {booking.status === 'ถึงหน้างาน' && act('เริ่มล้างแอร์', 'กำลังดำเนินการ', Wrench)}
-      {booking.status === 'กำลังดำเนินการ' && act('ล้างเสร็จแล้ว รอชำระเงิน', 'รอชำระเงิน', CheckCircle2)}
-      {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <GetPaid booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
-      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ได้รับเงิน ฿{booking.price.toLocaleString()}</p>}
+      {booking.status === 'รอยืนยัน' && <button type="button" className="cj-primary full" onClick={() => onStatusChange(booking.id, 'ยืนยันแล้ว')}>รับงาน <Check size={17}/></button>}
+      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ได้รับเงิน ฿{booking.price.toLocaleString()} {booking.paymentMethod === 'PromptPay' ? '(โอน)' : '(เงินสด)'}</p>}
     </section>
 
-    {canReport && <ReportForm booking={booking} onCreate={onCreateReport}/>}
-    {report && <section className="cj-block">
-      <h3>รายงานที่บันทึกแล้ว</h3>
-      <p className="cj-report-summary">{report.summary}</p>
-      <ul className="cj-checklist">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'ok' : ''}><Check size={15} strokeWidth={3}/> {item.label}</li>)}</ul>
-      <p className={report.customerApproved ? 'cj-done' : 'cj-note'}>{report.customerApproved ? <><CheckCircle2 size={18}/> ลูกค้ายืนยันรายงานแล้ว</> : 'รอลูกค้ายืนยันรายงาน'}</p>
+    {going && <section className="cj-block tj-destination">
+      <h3><MapPin size={18}/> ที่ต้องไป</h3>
+      <p className="tj-address">{booking.address}</p>
+      <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
+      {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
+        destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
+        technician={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
+        accuracy={booking.status === 'กำลังเดินทาง' ? booking.locationAccuracy ?? undefined : undefined} height={220} zoom={15}/>}
+      <a className="cj-primary full" href={mapsLink(booking)} target="_blank" rel="noreferrer"><Navigation size={17}/> นำทางด้วย Google Maps</a>
+      {booking.status === 'ยืนยันแล้ว' && <button type="button" className="cj-ghost" onClick={() => onStatusChange(booking.id, 'กำลังเดินทาง')}><Send size={16}/> ออกเดินทาง · ให้ลูกค้าเห็นตำแหน่งของฉัน</button>}
+      {booking.status === 'กำลังเดินทาง' && <p className="cj-note"><MapPin size={15}/> {gps.message || 'กำลังรับพิกัดจากอุปกรณ์'} <button type="button" className="cj-link" onClick={gps.retry}>ลองใหม่</button></p>}
     </section>}
 
-    <section className="cj-block">
+    {going && <FinishJob booking={booking} onComplete={onComplete}/>}
+
+    {report && booking.status === 'เสร็จสิ้น' && <section className="cj-block">
+      <h3>สรุปงานที่บันทึกไว้</h3>
+      <p className="cj-report-summary">{report.summary}</p>
+      <ul className="cj-checklist">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'ok' : ''}><Check size={15} strokeWidth={3}/> {item.label}</li>)}</ul>
+    </section>}
+
+    {!going && !offer && <section className="cj-block">
       <h3>รายละเอียดงาน</h3>
       <dl className="cj-facts">
         <div><dt>ลูกค้า</dt><dd>{booking.customer || '-'}</dd></div>
-        <div><dt>สถานที่</dt><dd>{booking.address}{!cancelled && <> <a className="cj-inline-link" href={mapsLink(booking)} target="_blank" rel="noreferrer">เปิดแผนที่</a></>}</dd></div>
+        <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>ค่าบริการที่ตกลง</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
+        <div><dt>ค่าบริการ</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>
-    </section>
+    </section>}
+    {offer && <section className="cj-block">
+      <h3>รายละเอียดงาน</h3>
+      <dl className="cj-facts">
+        <div><dt>พื้นที่</dt><dd>{booking.address}</dd></div>
+        <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+      </dl>
+    </section>}
   </article>;
 }
 
-function GetPaid({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm: Props['onPaymentConfirm']; onIssue: Props['onPaymentIssue'] }) {
-  const [method, setMethod] = useState<PaymentMethod>(booking.paymentMethod ?? 'Cash');
-  const [reporting, setReporting] = useState(false);
-  const [reason, setReason] = useState('');
-  const underReview = booking.status === 'มีปัญหาการชำระเงิน';
-  const customerPaid = Boolean(booking.customerConfirmedPayment);
-  const gotIt = Boolean(booking.technicianConfirmedPayment);
-  return <div className="cj-pay">
-    <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
-    {!underReview && !gotIt && <div className="cj-methods" role="group" aria-label="วิธีที่ลูกค้าชำระ">
-      <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
-      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> ลูกค้าโอน</button>
-    </div>}
-    <ul className="cj-checks">
-      <li className={customerPaid ? 'ok' : ''}><CheckCircle2 size={17}/> {customerPaid ? 'ลูกค้ายืนยันว่าชำระแล้ว' : 'รอลูกค้ายืนยันการชำระเงิน'}</li>
-      <li className={gotIt ? 'ok' : ''}><CheckCircle2 size={17}/> {gotIt ? 'คุณยืนยันว่าได้รับเงินแล้ว' : 'รอคุณยืนยันว่าได้รับเงิน'}</li>
-    </ul>
-    {!underReview && !gotIt && <button type="button" className="cj-primary full" onClick={() => onConfirm(booking.id, method)}>ฉันได้รับเงินแล้ว <Check size={17}/></button>}
-    {!underReview && (reporting
-      ? <div className="cj-confirm">
-        <label htmlFor={`issue-${booking.id}`}>เกิดปัญหาอะไรกับการชำระเงิน</label>
-        <textarea id={`issue-${booking.id}`} rows={3} value={reason} maxLength={500} onChange={event => setReason(event.target.value)}/>
-        <div><button type="button" className="cj-primary" disabled={!reason.trim()} onClick={() => { onIssue(booking.id, reason.trim()); setReporting(false); }}>ส่งให้ผู้ดูแลตรวจสอบ</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
-      </div>
-      : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>)}
-    <p className="cj-note">เก็บเงินปลายทาง: รับเงินจากลูกค้าโดยตรงเมื่อล้างเสร็จ หากลูกค้าโอน ให้ตรวจยอดเข้าบัญชีก่อนกดยืนยัน</p>
-  </div>;
-}
-
-function ReportForm({ booking, onCreate }: { booking: Booking; onCreate: Props['onCreateReport'] }) {
-  const [summary, setSummary] = useState('');
-  const [checks, setChecks] = useState({ cleanedFilter: false, cleanedCoil: false, checkedDrain: false, checkedCooling: false });
-  const [beforePhotoUrl, setBefore] = useState('');
-  const [afterPhotoUrl, setAfter] = useState('');
+/** The one press at the end: job done and money received. Records the report and the cleaning history. */
+function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Props['onComplete'] }) {
+  const [method, setMethod] = useState<'Cash' | 'PromptPay'>(booking.paymentMethod ?? 'Cash');
+  const [checks, setChecks] = useState({ cleanedFilter: true, cleanedCoil: true, checkedDrain: true, checkedCooling: true });
+  const [note, setNote] = useState('');
+  const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true); setFailed(false);
-    const ok = await onCreate({ bookingId: booking.id, summary: summary.trim(), ...checks, beforePhotoUrl: beforePhotoUrl.trim() || undefined, afterPhotoUrl: afterPhotoUrl.trim() || undefined });
+  async function finish() {
+    setBusy(true);
+    const ok = await onComplete(booking.id, { method, summary: note.trim() || undefined, ...checks });
     setBusy(false);
-    if (!ok) setFailed(true);
+    if (!ok) setAsking(false);
   }
-  return <section className="cj-block">
-    <h3>บันทึกรายงานงาน</h3>
-    <p className="cj-report-summary">ลูกค้าจะเห็นรายงานนี้และกดยืนยัน ระบุเฉพาะสิ่งที่ทำและตรวจจริง</p>
-    <form className="cj-form" onSubmit={submit}>
+  return <section className="cj-block tj-finish">
+    <h3>ล้างเสร็จแล้ว? ปิดงานที่นี่</h3>
+    <p className="cj-note">กดครั้งเดียวหลังล้างเสร็จและได้รับเงินจากลูกค้าแล้ว ระบบจะบันทึกประวัติการล้างแอร์ให้ลูกค้าอัตโนมัติ</p>
+    <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
+    <div className="cj-methods" role="group" aria-label="ลูกค้าจ่ายด้วย">
+      <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
+      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> โอน</button>
+    </div>
+    <details className="tj-more">
+      <summary>รายการที่ทำ (ติ๊กไว้ให้แล้ว) และหมายเหตุ</summary>
       <div className="cj-checkgrid">{checklist.map(item => <label key={item.key}><input type="checkbox" checked={checks[item.key]} onChange={event => setChecks(prev => ({ ...prev, [item.key]: event.target.checked }))}/> {item.label}</label>)}</div>
-      <label className="cj-field"><span>สรุปงานที่ทำและคำแนะนำ</span><textarea rows={4} maxLength={2000} required value={summary} onChange={event => setSummary(event.target.value)} placeholder="เช่น ล้างแผ่นกรองและคอยล์เย็น ตรวจท่อน้ำทิ้งปกติ แนะนำล้างทุก 4 เดือน"/></label>
-      <label className="cj-field"><span>ลิงก์ภาพก่อนทำ (ถ้ามี)</span><input type="url" maxLength={500} value={beforePhotoUrl} onChange={event => setBefore(event.target.value)} placeholder="https://..."/></label>
-      <label className="cj-field"><span>ลิงก์ภาพหลังทำ (ถ้ามี)</span><input type="url" maxLength={500} value={afterPhotoUrl} onChange={event => setAfter(event.target.value)} placeholder="https://..."/></label>
-      <p className="cj-note">ตอนนี้รองรับเฉพาะลิงก์รูปภาพ ยังไม่มีพื้นที่อัปโหลดไฟล์</p>
-      {failed && <p className="cj-error" role="alert">บันทึกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง</p>}
-      <button type="submit" className="cj-primary full" disabled={busy || !summary.trim()}>{busy ? 'กำลังบันทึก...' : 'บันทึกรายงาน'}</button>
-    </form>
+      <label className="cj-field"><span>หมายเหตุถึงลูกค้า (ไม่บังคับ)</span><textarea rows={3} maxLength={2000} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น แนะนำล้างทุก 6 เดือน ท่อน้ำทิ้งปกติ"/></label>
+    </details>
+    {asking
+      ? <div className="cj-confirm" role="alertdialog" aria-label="ยืนยันปิดงาน">
+        <p>ยืนยันว่าล้างเสร็จและได้รับเงิน ฿{booking.price.toLocaleString()} ({method === 'Cash' ? 'เงินสด' : 'โอน'}) แล้ว</p>
+        <div><button type="button" className="cj-primary" disabled={busy} onClick={() => void finish()}>{busy ? 'กำลังบันทึก...' : 'ยืนยันปิดงาน'}</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setAsking(false)}>ยกเลิก</button></div>
+      </div>
+      : <button type="button" className="cj-primary full" onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>}
   </section>;
 }

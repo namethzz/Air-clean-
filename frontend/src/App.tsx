@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import CustomerJobsPage, { type JobFocus } from './pages/CustomerJobsPage';
 import TechnicianJobsPage from './pages/TechnicianJobsPage';
-import { isClosed, needsAction, techNeedsAction } from './lib/jobFlow';
+import { isClosed, isClosedForCustomer, needsAction, techNeedsAction } from './lib/jobFlow';
 import Topbar from './components/Topbar';
 import BookingModal, { type BookingPayload } from './components/BookingModal';
 import AuthPage from './pages/AuthPage';
@@ -23,10 +23,10 @@ import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
-  approveServiceReport, applyForBooking, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
+  approveServiceReport, applyForBooking, completeJob, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createAirConditioner, createBatchBooking, createBooking,
   createReview, createServiceReport, deleteAirConditioner, fetchAirConditioners, fetchBatchBookings, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
-  type AirConditionerPayload, type CreateServiceReportPayload,
+  type AirConditionerPayload, type CompleteJobPayload, type CreateServiceReportPayload,
 } from './lib/api';
 import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
@@ -176,7 +176,14 @@ export default function App() {
     }catch(error){showNotice(errorMessage(error,'บันทึกการจองไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
   async function applyForNearbyJob(id:number):Promise<boolean>{
-    try{await applyForBooking(id);showNotice('ส่งความสนใจรับงานแล้ว รอลูกค้าเลือกและยืนยัน');return true;}
+    try{
+      await applyForBooking(id);
+      // Show the offer in "my jobs" straight away, so the technician sees where it stands.
+      const bookings=await fetchBookings();
+      setState(previous=>({...previous,bookings}));
+      openJob(id);
+      showNotice('ส่งข้อเสนอแล้ว รอลูกค้าเลือก ถ้าลูกค้าเลือกคุณจะมีแจ้งเตือน');return true;
+    }
     catch(error){showNotice(errorMessage(error,'ส่งความสนใจไม่สำเร็จ'));return false;}
   }
   async function selectTechnician(id:number,technicianId:number):Promise<boolean>{
@@ -190,7 +197,7 @@ export default function App() {
     try{
       await updateBookingStatus(id,status);
       setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?{...item,status}:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
-      showNotice(status==='ยกเลิก'?'ยกเลิกรายการแล้ว':status==='กำลังเดินทาง'?'เริ่มเดินทางแล้ว เมื่ออนุญาตตำแหน่งระบบจะอัปเดต GPS':'บันทึกสถานะงานแล้ว');
+      showNotice(status==='ยกเลิก'?'ยกเลิกรายการแล้ว':status==='กำลังเดินทาง'?'ออกเดินทางแล้ว ลูกค้าจะเห็นตำแหน่งของคุณ':status==='ถึงหน้างาน'?'ถึงหน้างานแล้ว หยุดแชร์ตำแหน่ง':'บันทึกสถานะงานแล้ว');
     }catch(error){showNotice(errorMessage(error,'อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'));}
   }
   const locationUpdate=useCallback(async(id:number,latitude:number,longitude:number,accuracy?:number)=>{
@@ -243,6 +250,18 @@ export default function App() {
       showNotice('ขอบคุณสำหรับคะแนน');return true;
     }catch(error){showNotice(errorMessage(error,'ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
+  async function finishJob(id:number,payload:CompleteJobPayload):Promise<boolean>{
+    try{
+      const saved=await completeJob(id,payload);
+      setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
+      void refreshData();
+      showNotice('ปิดงานแล้ว บันทึกการรับเงินและประวัติการล้างแอร์เรียบร้อย');return true;
+    }catch(error){showNotice(errorMessage(error,'ปิดงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
+  }
+  async function sendProblem(id:number,reason:string):Promise<boolean>{
+    try{await reportProblem(id,reason);showNotice('ส่งเรื่องให้ผู้ดูแลแล้ว');return true;}
+    catch(error){showNotice(errorMessage(error,'ส่งเรื่องไม่สำเร็จ กรุณาลองใหม่'));return false;}
+  }
   async function createReport(payload:CreateServiceReportPayload):Promise<boolean>{
     try{await createServiceReport(payload);await refreshData();showNotice('บันทึกรายงานบริการเรียบร้อยแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'บันทึกรายงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
@@ -258,8 +277,8 @@ export default function App() {
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
       case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
-      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onCreateReport={createReport} onRefresh={refreshBookings}/>;
-        if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onApproveReport={approveReport} onReview={reviewJob} onRefresh={refreshBookings}/>;
+      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onRefresh={refreshBookings}/>;
+        if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onOpenPassport={()=>navigate('passport')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
       case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
@@ -270,7 +289,7 @@ export default function App() {
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
-  const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosed(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:0;
+  const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:0;
 
   function finishReset(message?:string){
     const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);

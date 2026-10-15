@@ -119,6 +119,17 @@ export async function removePushSubscription(endpoint: string): Promise<void> {
   return request<void>('/push/subscriptions/remove', { method:'POST', body:JSON.stringify({ endpoint }) });
 }
 export async function sendTestPush(): Promise<string> { return (await request<{ message: string }>('/push/test', { method:'POST' })).message; }
+export interface CompleteJobPayload {
+  method: 'Cash' | 'PromptPay'; summary?: string;
+  cleanedFilter: boolean; cleanedCoil: boolean; checkedDrain: boolean; checkedCooling: boolean;
+}
+/** The technician's single step at the end: done and paid. Records the report and the cleaning history. */
+export async function completeJob(id: number, payload: CompleteJobPayload): Promise<Booking> {
+  return request<Booking>('/bookings/' + id + '/complete', { method:'POST', body:JSON.stringify(payload) });
+}
+export async function reportProblem(id: number, reason: string): Promise<void> {
+  return request<void>('/bookings/' + id + '/report-problem', { method:'POST', body:JSON.stringify({ reason }) });
+}
 export async function sendTestEmail(email: string): Promise<string> {
   return (await request<{ message: string }>('/admin/test-email', { method:'POST', body:JSON.stringify({ email:email.trim() }) })).message;
 }

@@ -298,54 +298,78 @@ if brevo_port:
     reset_mail = next(item for item in sent if item['to'][0]['email'] == mail_email)
     assert '?reset=' in reset_mail['textContent']
     # Job notifications: each step emails the person who needs to act, and the opt-out is honoured.
-    def mail_to(address, subject_part, timeout=5.0):
+    # Job events reach people through the bell (and push), never by email.
+    emails_before = len(sent)
+    def notice(token, title_part, timeout=5.0):
         deadline = time.time() + timeout
         while time.time() < deadline:
-            found = [item for item in sent if item['to'][0]['email'] == address and subject_part in item['subject']]
+            found = [item for item in call('/notifications', token=token)['items'] if title_part in item['title']]
             if found:
-                return found[-1]
-            time.sleep(0.1)
-        raise AssertionError(f'no email to {address} about {subject_part!r}; got {[(i["to"][0]["email"], i["subject"]) for i in sent[-8:]]}')
+                return found[0]
+            time.sleep(0.15)
+        raise AssertionError(f'no notification about {title_part!r}; got {[i["title"] for i in call("/notifications", token=token)["items"][:6]]}')
     n_customer, n_customer_email = register('Customer')
     n_tech, n_tech_email = register('Technician')
     n_other, n_other_email = register('Technician')
-    mail_to(admin_email, 'มีช่างสมัครใหม่')
+    notice(admin, 'มีช่างสมัครใหม่')
     n_profile = call('/technicians/me', token=n_tech)
     n_other_profile = call('/technicians/me', token=n_other)
     call(f"/technicians/{n_other_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ทดสอบเหตุผล'}, admin)
-    assert 'ทดสอบเหตุผล' in mail_to(n_other_email, 'ยังไม่ผ่าน')['textContent']
+    assert 'ทดสอบเหตุผล' in notice(n_other, 'ยังไม่ผ่าน')['body']
     for row in [n_profile, n_other_profile]:
         call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)
-    mail_to(n_tech_email, 'ได้รับการอนุมัติ')
+    notice(n_tech, 'ได้รับการอนุมัติ')
     job = call('/bookings', 'POST', {**payload, 'address': 'NOTIFY-HOUSE-9'}, n_customer, 201)
     call(f"/bookings/{job['id']}/applications", 'POST', {}, n_tech)
     call(f"/bookings/{job['id']}/applications", 'POST', {}, n_other)
-    assert job['code'] in mail_to(n_customer_email, 'มีช่างเสนอราคา')['subject']
+    assert job['code'] in notice(n_customer, 'มีช่างเสนอราคา')['title']
+    # A technician's own offers appear in "my jobs" right away, still without the customer's address.
+    offered = next(row for row in call('/bookings', token=n_tech) if row['id'] == job['id'])
+    assert offered['status'] == 'รอเลือกช่าง' and 'NOTIFY-HOUSE' not in json.dumps(offered)
+    assert [a['technicianId'] for a in offered['applicants']] == [n_profile['id']]
     call(f"/bookings/{job['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
-    assert 'NOTIFY-HOUSE-9' in mail_to(n_tech_email, 'ลูกค้ายืนยัน')['textContent']
-    mail_to(n_other_email, 'เลือกช่างท่านอื่น')
+    assert 'NOTIFY-HOUSE-9' in notice(n_tech, 'ลูกค้ายืนยัน')['body']
+    assert next(row for row in call('/bookings', token=n_tech) if row['id'] == job['id'])['address'] == 'NOTIFY-HOUSE-9'
+    notice(n_other, 'เลือกช่างท่านอื่น')
+    assert all(row['id'] != job['id'] for row in call('/bookings', token=n_other))
     call(f"/bookings/{job['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, n_tech, 204)
-    mail_to(n_customer_email, 'กำลังเดินทาง')
-    for status in ['ถึงหน้างาน', 'กำลังดำเนินการ']:
-        call(f"/bookings/{job['id']}/status", 'PATCH', {'status': status}, n_tech, 204)
-    call('/service-reports', 'POST', {'bookingId': job['id'], 'summary': 'เรียบร้อย', 'cleanedFilter': True, 'cleanedCoil': True, 'checkedDrain': True, 'checkedCooling': True}, n_tech, 201)
-    assert 'เก็บเงินปลายทาง' in mail_to(n_customer_email, 'ล้างแอร์เสร็จแล้ว')['textContent']
-    for token in [n_customer, n_tech]:
-        call(f"/bookings/{job['id']}/payment-confirmation", 'PATCH', {'method': 'Cash', 'confirmed': True}, token)
-    mail_to(n_customer_email, 'งานเสร็จสมบูรณ์')
-    mail_to(n_tech_email, 'งานเสร็จสมบูรณ์')
-    # A customer who turns emails off gets none; cancelling a confirmed job tells the technician.
-    me = call('/auth/me', token=n_customer)
-    assert me['emailNotifications'] is True
-    assert call('/auth/profile', 'PATCH', {'fullName': me['fullName'], 'email': me['email'], 'emailNotifications': False}, n_customer)['emailNotifications'] is False
+    notice(n_customer, 'กำลังเดินทาง')
+    call(f"/bookings/{job['id']}/status", 'PATCH', {'status': 'ถึงหน้างาน'}, n_tech, 204)
+    notice(n_customer, 'ช่างมาถึงแล้ว')
+    # One step at the end: done and paid. Report, payment, history and counts are recorded together.
+    jobs_before = call('/technicians/me', token=n_tech)['jobsCompleted']
+    call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Bitcoin'}, n_tech, 400)
+    call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_customer, 403)
+    call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_other, 403)
+    closed = call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'PromptPay', 'summary': 'ล้างครบ 2 เครื่อง'}, n_tech)
+    assert closed['status'] == 'เสร็จสิ้น' and closed['paymentMethod'] == 'PromptPay' and closed['paymentStatus'] == 'Paid'
+    call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_tech, 409)
+    assert call('/technicians/me', token=n_tech)['jobsCompleted'] == jobs_before + 1
+    report_row = next(r for r in call('/service-reports', token=n_customer) if r['bookingId'] == job['id'])
+    assert report_row['summary'] == 'ล้างครบ 2 เครื่อง' and report_row['cleanedFilter']
+    assert 'ให้คะแนน' in notice(n_customer, 'ล้างแอร์เสร็จแล้ว')['body']
+    # Straight from "confirmed" works too (the technician never pressed travelling or arrived).
+    direct = call('/bookings', 'POST', payload, n_customer, 201)
+    call(f"/bookings/{direct['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{direct['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
+    assert call(f"/bookings/{direct['id']}/complete", 'POST', {'method': 'Cash'}, n_tech)['status'] == 'เสร็จสิ้น'
+    assert next(r for r in call('/service-reports', token=n_customer) if r['bookingId'] == direct['id'])['summary']
+    # After the job the customer can rate, and flag a problem for the admin.
+    call(f"/bookings/{job['id']}/reviews", 'POST', {'rating': 5, 'comment': 'ดีมาก'}, n_customer, 201)
+    call(f"/bookings/{job['id']}/report-problem", 'POST', {'reason': 'ล้างแล้วน้ำยังหยด'}, n_other, 403)
+    call(f"/bookings/{job['id']}/report-problem", 'POST', {'reason': 'ล้างแล้วน้ำยังหยด'}, other_customer, 404)
+    call(f"/bookings/{job['id']}/report-problem", 'POST', {'reason': 'ล้างแล้วน้ำยังหยด'}, n_customer, 204)
+    assert 'น้ำยังหยด' in notice(admin, 'แจ้งปัญหางาน')['body']
+    # Cancelling a confirmed job tells the technician.
     quiet = call('/bookings', 'POST', payload, n_customer, 201)
     call(f"/bookings/{quiet['id']}/applications", 'POST', {}, n_tech)
+    call(f"/bookings/{quiet['id']}/report-problem", 'POST', {'reason': 'ยังไม่เสร็จ'}, n_customer, 409)
     call(f"/bookings/{quiet['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
     call(f"/bookings/{quiet['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, n_customer, 204)
-    mail_to(n_tech_email, 'ลูกค้ายกเลิกงาน')
+    notice(n_tech, 'ลูกค้ายกเลิกงาน')
     time.sleep(1)
-    assert not [item for item in sent if item['to'][0]['email'] == n_customer_email and quiet['code'] in item['subject']]
-# In-app notifications (the bell): every event is recorded, even for people who turned emails off.
+    assert len(sent) == emails_before, [item['subject'] for item in sent[emails_before:]]
+# In-app notifications (the bell): list, read state, links.
 if brevo_port:
     feed = call('/notifications', token=n_customer)
     offer = next(item for item in feed['items'] if item['title'].startswith('มีช่างเสนอราคา') and item['bookingId'] == quiet['id'])

@@ -35,6 +35,9 @@ public record NotificationDto(string Id,string Title,string Body,string Target,i
 public record MarkNotificationsReadRequest(string[]? Ids);
 public record PushSubscriptionRequest([Required,MaxLength(1000)] string Endpoint,[Required,MaxLength(200)] string P256dh,[Required,MaxLength(100)] string Auth);
 public record PushUnsubscribeRequest([Required,MaxLength(1000)] string Endpoint);
+/// <summary>The technician's single "job done and paid" step. The checklist defaults to a standard clean.</summary>
+public record CompleteJobRequest([Required] string Method,[MaxLength(2000)] string? Summary=null,bool CleanedFilter=true,bool CleanedCoil=true,bool CheckedDrain=true,bool CheckedCooling=true);
+public record ReportProblemRequest([Required,MinLength(3),MaxLength(1000)] string Reason);
 public record TestEmailRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record AdminResetLinkRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record SavedAddressDto(int Id,string Label,string PlaceType,string Address,string? Building,string? Floor,string? Room,string? Note,double Latitude,double Longitude);

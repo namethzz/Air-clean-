@@ -1,4 +1,5 @@
 import type { Booking, PageKey, ServiceReportRecord } from '../types';
+import { isClosedForCustomer } from './jobFlow';
 
 /** The single thing a customer should do next, derived from their real bookings. */
 export interface NextStep {
@@ -29,15 +30,16 @@ export function openBookings(bookings: Booking[]): Booking[] {
   return bookings.filter(item => !closed.includes(item.status)).sort(byDate);
 }
 
-export function pickNextStep(bookings: Booking[], reports: ServiceReportRecord[]): NextStep {
+export function pickNextStep(bookings: Booking[], _reports: ServiceReportRecord[]): NextStep {
   const open = openBookings(bookings);
   const who = (b: Booking) => b.technician || 'ช่าง';
 
   const pay = open.find(b => b.status === 'รอชำระเงิน' && !b.customerConfirmedPayment);
   if (pay) return { tone: 'action', eyebrow: 'ต้องทำตอนนี้', title: 'ยืนยันการชำระเงิน', text: `งาน ${pay.code} เสร็จแล้ว ชำระเงินกับ${who(pay)}แล้วกดยืนยันเพื่อปิดงาน`, cta: 'ยืนยันการชำระเงิน', to: 'tracking', bookingId: pay.id };
 
-  const report = reports.find(r => !r.customerApproved);
-  if (report) return { tone: 'action', eyebrow: 'ต้องทำตอนนี้', title: 'ตรวจรายงานบริการ', text: `ช่างบันทึกรายงานงาน ${report.bookingCode} แล้ว ดูผลงานก่อนกดยืนยัน`, cta: 'ดูรายงาน', to: 'reports', bookingId: report.bookingId };
+  // A finished job the customer has not rated yet (in the last two weeks).
+  const rate = bookings.filter(b => b.status === 'เสร็จสิ้น' && !b.customerRating && !isClosedForCustomer(b)).sort((a, b) => b.id - a.id)[0];
+  if (rate) return { tone: 'action', eyebrow: 'ล้างแอร์เสร็จแล้ว', title: `ให้คะแนน${who(rate)}`, text: `งาน ${rate.code} เสร็จเรียบร้อย คะแนนของคุณช่วยให้ลูกค้าคนอื่นเลือกช่างได้ง่ายขึ้น`, cta: 'ให้คะแนนช่าง', to: 'bookings', bookingId: rate.id };
 
   const choose = open.find(b => b.status === 'รอเลือกช่าง');
   if (choose) {
@@ -50,8 +52,8 @@ export function pickNextStep(bookings: Booking[], reports: ServiceReportRecord[]
 
   const moving = open.find(b => travelling.includes(b.status));
   if (moving) {
-    const title = moving.status === 'กำลังเดินทาง' ? `${who(moving)}กำลังเดินทางมาหาคุณ` : moving.status === 'ถึงหน้างาน' ? `${who(moving)}มาถึงแล้ว` : `${who(moving)}กำลังทำงาน`;
-    return { tone: 'wait', eyebrow: 'งานของคุณ', title, text: `${moving.service} · ${moving.unitLabel}`, cta: moving.status === 'กำลังเดินทาง' ? 'ดูตำแหน่งช่าง' : 'ดูสถานะงาน', to: 'tracking', bookingId: moving.id };
+    const title = moving.status === 'กำลังเดินทาง' ? `${who(moving)}กำลังเดินทางมาหาคุณ` : `${who(moving)}มาถึงแล้ว กำลังล้างแอร์`;
+    return { tone: 'wait', eyebrow: 'งานของคุณ', title, text: `${moving.service} · ${moving.unitLabel}`, cta: moving.status === 'กำลังเดินทาง' ? 'ดูตำแหน่งช่าง' : 'ดูสถานะงาน', to: 'bookings', bookingId: moving.id };
   }
 
   const upcoming = open.find(b => b.status === 'ยืนยันแล้ว' || b.status === 'รอยืนยัน');
