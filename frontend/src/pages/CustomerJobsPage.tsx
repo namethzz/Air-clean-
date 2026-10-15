@@ -1,9 +1,10 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, History,
+  AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
+import ReceiptSheet from '../components/ReceiptSheet';
 import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
 import StatusBadge from '../components/StatusBadge';
@@ -273,6 +274,7 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [receipt, setReceipt] = useState(false);
   const next = new Date(booking.date + 'T00:00:00');
   next.setMonth(next.getMonth() + 6);
   async function send() {
@@ -287,7 +289,9 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
     <div className="cj-after-actions">
       <button type="button" className="cj-primary" onClick={onNewBooking}><RotateCcw size={16}/> ขอช่างล้างแอร์อีกครั้ง</button>
       <button type="button" className="cj-ghost" onClick={onOpenPassport}><History size={16}/> ดูประวัติการล้างแอร์</button>
+      {booking.paymentStatus === 'Paid' && <button type="button" className="cj-ghost" onClick={() => setReceipt(true)}><FileText size={16}/> ใบเสร็จรับเงิน</button>}
     </div>
+    {receipt && <ReceiptSheet bookingId={booking.id} canIssue companyFirst={booking.placeId != null} onClose={() => setReceipt(false)}/>}
     {booking.issue?.kind === 'Service' && !booking.issue.open && booking.issue.resolutionNote && !sent &&
       <p className="cj-done"><CheckCircle2 size={18}/> ผู้ดูแลปิดเรื่องที่คุณแจ้งแล้ว: {booking.issue.resolutionNote}</p>}
     {sent || (booking.issue?.kind === 'Service' && booking.issue.open)

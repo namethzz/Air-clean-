@@ -52,6 +52,11 @@ public record ReportProblemRequest([Required,MinLength(3),MaxLength(1000)] strin
 public record TestEmailRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record AdminResetLinkRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record SavedAddressDto(int Id,string Label,string PlaceType,string Address,string? Building,string? Floor,string? Room,string? Note,double Latitude,double Longitude,int? UnitCount=null,string? ContactName=null,string? ContactPhone=null,IReadOnlyList<RoomDto>? Rooms=null);
+public record BillingDto([Required,MaxLength(160)] string Name,[MaxLength(20)] string? TaxId,[MaxLength(40)] string? Branch,[MaxLength(400)] string? Address);
+public record IssueReceiptRequest([Required] BillingDto Payer,bool Remember=true);
+public record ReceiptLineDto(string Description,int Quantity,decimal UnitPrice,decimal Amount);
+public record ReceiptDto(bool Issued,string? Number,string? IssuedAt,string BookingCode,string ServiceDate,string? PaidAt,string? PaymentMethod,
+  BillingDto Payer,string IssuerName,string? IssuerPhone,string ServiceAddress,IReadOnlyList<ReceiptLineDto> Lines,decimal Total,IReadOnlyList<string> Rooms,BillingDto? SavedBilling);
 public record JobProgressRequest([Range(0,300)] int UnitsDone=0,List<string>? RoomsDone=null);
 public record RoomDto([Required,MaxLength(20)] string Name,[Range(1,10)] int Units=1);
 public record BookingRoomDto(string Name,int Units,bool Done);
