@@ -46,6 +46,15 @@ def account(role):
 
 admin_email, admin_password = os.environ['TEST_ADMIN_EMAIL'], os.environ['TEST_ADMIN_PASSWORD']
 admin = call('/auth/login', 'POST', {'email': admin_email, 'password': admin_password})['token']
+# Accounts saved before session versions existed must keep working after an upgrade.
+legacy_token, legacy_email = register('Customer')
+if os.environ.get('MONGODB_URI'):
+    from pymongo import MongoClient
+    MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')].users.update_one(
+        {'Email': legacy_email}, {'$unset': {'SessionVersion': '', 'ExternalLogins': ''}})
+    legacy_token = call('/auth/login', 'POST', {'email': legacy_email, 'password': 'CiTestPass123!'})['token']
+call('/auth/me', token=legacy_token)
+call('/bookings', token=legacy_token)
 
 customer = account('Customer')
 other_customer = account('customer')
