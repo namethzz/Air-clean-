@@ -580,4 +580,30 @@ second = call(f"/bookings/{by_room['id']}/receipt", 'POST', {'payer': {'name': '
 assert second['number'] != issued['number'] and second['rooms'] == ['202', 'ล็อบบี้']
 unpaid = call('/bookings', 'POST', payload, customer, 201)
 call(f"/bookings/{unpaid['id']}/receipt", token=customer, expected=409)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts and cancellation.')
+# Rescheduling: before a technician is chosen the customer just moves it; after that one side asks and the other agrees.
+later = (datetime.now() + timedelta(days=5)).strftime('%Y-%m-%d')
+moved = call('/bookings', 'POST', payload, customer, 201)
+call(f"/bookings/{moved['id']}/applications", 'POST', {}, tech)
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '13:00-17:00'}, tech, 403)
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '12:00-17:00'}, customer, 400)
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': '2020-01-01T10:00:00'}, customer, 400)
+direct_move = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T13:00:00', 'timeWindow': '13:00-17:00'}, customer)
+assert direct_move['date'] == later and direct_move['timeWindow'] == '13:00-17:00' and direct_move['reschedule'] is None
+call(f"/bookings/{moved['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T09:00:00'}, other_customer, 403)
+asked = call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': later + 'T09:00:00', 'reason': 'ติดธุระ'}, customer)
+assert asked['reschedule']['by'] == 'customer' and asked['reschedule']['time'] == '09:00' and asked['date'] == later and asked['time'] == '13:00'
+call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer, 400)
+kept = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': False}, tech)
+assert kept['reschedule'] is None and kept['time'] == '13:00'
+call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer, 409)
+next_day = (datetime.now() + timedelta(days=6)).strftime('%Y-%m-%d')
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T08:00:00', 'timeWindow': '08:00-12:00', 'reason': 'ติดงานก่อนหน้า'}, tech)
+agreed = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': True}, customer)
+assert agreed['date'] == next_day and agreed['timeWindow'] == '08:00-12:00' and agreed['reschedule'] is None
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T10:00:00'}, customer)
+withdrawn = call(f"/bookings/{moved['id']}/reschedule/answer", 'POST', {'accept': False}, customer)
+assert withdrawn['reschedule'] is None and withdrawn['date'] == next_day
+call(f"/bookings/{moved['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, tech, 204)
+call(f"/bookings/{moved['id']}/reschedule", 'POST', {'scheduledAt': next_day + 'T15:00:00'}, customer, 409)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation.')

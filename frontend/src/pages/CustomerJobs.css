@@ -427,3 +427,16 @@ span.rm-chip{cursor:default}
 .ch-receipt{position:absolute;right:44px;bottom:12px;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 10px;border:1px solid var(--ac-frame);border-radius:999px;background:#fff;color:var(--ac-blue-deep);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .tj-receipt{width:100%}
 .rc-form textarea{min-height:88px!important;height:auto;padding:12px 14px!important;line-height:1.6}
+
+/* ── Reschedule ── */
+.rs-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1px solid var(--ac-frame);border-radius:14px;background:var(--ac-mist)}
+.rs-banner.ask{border-color:#e6b566;background:#fff8ec}
+.rs-banner>svg{flex:none;margin-top:2px;color:var(--ac-blue-deep)}
+.rs-banner.ask>svg{color:#7a5410}
+.rs-banner>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rs-banner strong{font-size:15.5px;color:var(--ac-ink)}
+.rs-banner span{font-size:14px;line-height:1.5;color:var(--ac-ink-2)}
+.rs-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.rs-actions .cj-primary,.rs-actions .cj-ghost{min-height:44px}
+.rs-reason{width:100%;min-height:46px;padding:0 14px;border:1px solid #cfd9e5;border-radius:12px;font:inherit;font-size:16px}
+.cj-reschedule{width:100%;margin-top:4px}

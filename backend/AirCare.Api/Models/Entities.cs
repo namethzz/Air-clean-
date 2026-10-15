@@ -69,8 +69,11 @@ public class Booking {
  /// <summary>For buildings: the rooms in this job and which ones the technician has finished.</summary>
  public List<BookingRoom> Rooms {get;set;}=[];
  /// <summary>Set once, the first time the customer issues the receipt for this paid job.</summary>
+ /// <summary>A change of date asked by one side after a technician was chosen, waiting for the other side.</summary>
+ public RescheduleRequest? Reschedule {get;set;}
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
 }
+public class RescheduleRequest { public DateTime ProposedAt {get;set;} public string? TimeWindow {get;set;} public int ByUserId {get;set;} public string ByRole {get;set;}=""; public string? Reason {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; }
 public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }
 public class RoomEntry { public string Name {get;set;}=""; public int Units {get;set;}=1; }
 public static class IssueKinds { public const string Payment="Payment"; public const string Service="Service"; }
