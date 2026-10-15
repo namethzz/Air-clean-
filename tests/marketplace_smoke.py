@@ -426,4 +426,59 @@ if push_port:
     assert call('/push/test', 'POST', {}, p_customer)['message'].count('1 อุปกรณ์') == 1
     call('/push/subscriptions/remove', 'POST', {'endpoint': laptop['endpoint']}, p_customer, 204)
     call('/push/test', 'POST', {}, p_customer, 409)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in and cancellation.')
+# Reported issues: admins see payment disputes and customer reports, contact both sides, and close them.
+def awaiting_payment():
+    row = call('/bookings', 'POST', payload, customer, 201)
+    call(f"/bookings/{row['id']}/applications", 'POST', {}, tech)
+    call(f"/bookings/{row['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
+    for step in ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ']:
+        call(f"/bookings/{row['id']}/status", 'PATCH', {'status': step}, tech, 204)
+    call('/service-reports', 'POST', {**report, 'bookingId': row['id']}, tech, 201)
+    return row['id']
+def open_issue(booking_id):
+    return next((row for row in call('/admin/issues', token=admin) if row['bookingId'] == booking_id), None)
+call('/admin/issues', token=customer, expected=403)
+disputed = awaiting_payment()
+call(f'/bookings/{disputed}/payment-issue', 'POST', {'reason': 'ลูกค้าบอกโอนแล้วแต่ยังไม่เข้า'}, tech)
+issue = open_issue(disputed)
+assert issue and issue['issue']['kind'] == 'Payment' and issue['issue']['open'] and issue['issue']['reportedBy'] == 'ช่าง'
+assert 'ยังไม่เข้า' in issue['issue']['reason'] and issue['technician']['phone'] and issue['customer']['email'] and issue['address']
+assert call(f'/bookings/{disputed}', token=customer)['issue']['open']
+call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'paid'}, tech, 403)
+call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'close', 'note': 'x'}, admin, 400)
+call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'paid', 'method': 'Bitcoin'}, admin, 400)
+jobs_before = call('/technicians/me', token=tech)['jobsCompleted']
+paid = call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'paid', 'method': 'PromptPay', 'note': 'ตรวจสลิปแล้ว'}, admin)
+assert paid['status'] == 'เสร็จสิ้น' and paid['paymentStatus'] == 'Paid' and paid['paymentMethod'] == 'PromptPay'
+assert paid['issue']['resolution'] == 'Paid' and not paid['issue']['open']
+assert call('/technicians/me', token=tech)['jobsCompleted'] == jobs_before + 1
+assert open_issue(disputed) is None
+assert any(row['bookingId'] == disputed for row in call('/admin/issues?status=resolved', token=admin))
+call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'paid'}, admin, 409)
+# A dispute can end in cancellation (a note is required), and a later report after completion is closed with a note.
+cancelled = awaiting_payment()
+call(f'/bookings/{cancelled}/payment-issue', 'POST', {'reason': 'ไม่ได้รับเงิน'}, customer)
+call(f'/admin/issues/{cancelled}/resolve', 'POST', {'action': 'cancel'}, admin, 400)
+assert call(f'/admin/issues/{cancelled}/resolve', 'POST', {'action': 'cancel', 'note': 'ตกลงยกเลิก'}, admin)['status'] == 'ยกเลิก'
+call(f'/bookings/{disputed}/report-problem', 'POST', {'reason': 'แอร์ยังมีกลิ่น'}, customer, 204)
+call(f'/bookings/{disputed}/report-problem', 'POST', {'reason': 'ซ้ำ'}, customer, 409)
+service = open_issue(disputed)
+assert service and service['issue']['kind'] == 'Service' and service['issue']['reason'] == 'แอร์ยังมีกลิ่น'
+call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'paid'}, admin, 400)
+closed_issue = call(f'/admin/issues/{disputed}/resolve', 'POST', {'action': 'close', 'note': 'ช่างกลับไปล้างซ้ำแล้ว'}, admin)
+assert closed_issue['issue']['resolutionNote'] == 'ช่างกลับไปล้างซ้ำแล้ว' and closed_issue['status'] == 'เสร็จสิ้น'
+assert open_issue(disputed) is None
+# Both sides confirming payment settles an open dispute without the admin.
+settled = awaiting_payment()
+call(f'/bookings/{settled}/payment-issue', 'POST', {'reason': 'ยังไม่แน่ใจ'}, customer)
+call(f'/bookings/{settled}/payment-confirmation', 'PATCH', {'method': 'Cash', 'confirmed': True}, customer)
+call(f'/bookings/{settled}/payment-confirmation', 'PATCH', {'method': 'Cash', 'confirmed': True}, tech)
+assert open_issue(settled) is None and call(f'/bookings/{settled}', token=customer)['issue']['resolution'] == 'Paid'
+# Disputes recorded before issues were stored still show up.
+if os.environ.get('MONGODB_URI'):
+    legacy = awaiting_payment()
+    call(f'/bookings/{legacy}/payment-issue', 'POST', {'reason': 'เก่า'}, tech)
+    MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')].bookings.update_one({'_id': legacy}, {'$unset': {'Issue': ''}})
+    assert open_issue(legacy)['issue']['reason'] == 'เก่า'
+    assert call(f'/admin/issues/{legacy}/resolve', 'POST', {'action': 'paid'}, admin)['issue']['resolution'] == 'Paid'
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues and cancellation.')

@@ -19,6 +19,7 @@ import ReportsPage from './pages/ReportsPage';
 import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
+import IssuesPage from './pages/IssuesPage';
 import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
@@ -32,7 +33,7 @@ import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummar
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', passport:'แอร์ของฉัน', profile:'บัญชีของฉัน' };
@@ -284,12 +285,13 @@ export default function App() {
       case 'passport':return <PassportPage units={state.airConditioners} onCreate={addUnit} onDelete={removeUnit} onBook={unitId=>openBooking(unitId)}/>;
       case 'batch':return <BatchPage bookings={state.batchBookings} onCreate={batchCreate}/>;
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
+      case 'issues':return user.role==='admin'?<IssuesPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout}/>;
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
-  const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:0;
+  const actionCount = user?.role==='customer'?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:user?.role==='admin'?state.bookings.filter(item=>item.issue?.open||item.status==='มีปัญหาการชำระเงิน').length:0;
 
   function finishReset(message?:string){
     const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);

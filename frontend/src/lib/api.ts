@@ -1,4 +1,4 @@
-import type { AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AdminIssue, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -192,6 +192,12 @@ export async function deleteAirConditioner(id:number):Promise<void> {
 }
 export async function createReview(bookingId:number,rating:number,comment:string):Promise<void> {
   await request<unknown>('/bookings/'+bookingId+'/reviews',{method:'POST',body:JSON.stringify({rating,comment:comment.trim()})});
+}
+export async function fetchAdminIssues(status:'open'|'resolved'='open'):Promise<AdminIssue[]> {
+  return request<AdminIssue[]>('/admin/issues?status='+status);
+}
+export async function resolveIssue(bookingId:number,action:'paid'|'cancel'|'close',note?:string,method?:string):Promise<Booking> {
+  return request<Booking>('/admin/issues/'+bookingId+'/resolve',{method:'POST',body:JSON.stringify({action,note,method})});
 }
 export async function fetchTechnicianApplications():Promise<TechnicianApplication[]> {
   return request<TechnicianApplication[]>('/admin/technicians');
