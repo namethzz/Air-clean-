@@ -4,6 +4,7 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, History,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
+import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
@@ -132,7 +133,8 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
     <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
       <h3>{guide.title}</h3>
       <p>{guide.hint}</p>
-      {(booking.unitsDone ?? 0) > 0 && booking.status !== 'เสร็จสิ้น' && booking.status !== 'ยกเลิก' && <div className="cj-unit-progress">
+      {booking.rooms?.length && booking.status !== 'ยกเลิก' && (booking.unitsDone ?? 0) > 0 ? <RoomBoard rooms={booking.rooms}/> : null}
+      {!booking.rooms?.length && (booking.unitsDone ?? 0) > 0 && booking.status !== 'เสร็จสิ้น' && booking.status !== 'ยกเลิก' && <div className="cj-unit-progress">
         <span>ช่างล้างไปแล้ว <strong>{booking.unitsDone}</strong> จาก {booking.unitCount} เครื่อง</span>
         <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, ((booking.unitsDone ?? 0) / Math.max(1, booking.unitCount ?? 1)) * 100)}%` }}/></div>
       </div>}
@@ -158,6 +160,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       <dl className="cj-facts">
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+        {booking.rooms?.length ? <div><dt>ห้อง</dt><dd>{booking.rooms.length} ห้อง · {booking.rooms.map(room => room.name).slice(0, 12).join(', ')}{booking.rooms.length > 12 ? ' …' : ''}</dd></div> : null}
         {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="cj-pre">{booking.notes}</dd></div>}
         <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
       </dl>

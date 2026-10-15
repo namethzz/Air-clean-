@@ -1,16 +1,18 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, Minus, Plus, Wind, X } from 'lucide-react';
-import type { AirConditioner, SavedAddress, Technician, UserRole } from '../types';
+import type { AirConditioner, Booking, SavedAddress, Technician, UserRole } from '../types';
 import LocationPicker, { type RememberChoice } from './LocationPicker';
+import { RoomPicker } from './Rooms';
+import { dueRooms, lastCleaned } from '../lib/rooms';
 import VisitTimePicker, { defaultVisit, visitPayload, type Visit } from './VisitTimePicker';
 import { saveAddress } from '../lib/api';
 
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
   date:string; time:string; timeWindow?:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
-  notes?:string; placeId?:number;
+  notes?:string; placeId?:number; rooms?:string[];
 }
-interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; role?:UserRole; initialPlaceId?:string; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
+interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; role?:UserRole; initialPlaceId?:string; initialRooms?:string[]; bookings?:Booking[]; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
 function unitText(unit:AirConditioner):string { return [unit.label,unit.brand,unit.type].filter(Boolean).join(' · ').slice(0,180); }
 
 /** What a customer can tell by looking at the unit. Hanging and ceiling units take longer, so they cost more. */
@@ -32,7 +34,7 @@ function AcIcon({kind}:{kind:AcType}){
   </svg>;
 }
 
-export default function BookingModal({technicians,units=[],initialUnitId,role,initialPlaceId,onClose,onSubmit}:BookingModalProps) {
+export default function BookingModal({technicians,units=[],initialUnitId,role,initialPlaceId,initialRooms,bookings=[],onClose,onSubmit}:BookingModalProps) {
   const manager=role==='manager';
   // Homes book up to 30 units; building managers book whole buildings.
   const maxUnits=manager?300:30;
@@ -45,7 +47,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
   const [unitNote,setUnitNote]=useState('');
   // Held as text so the field can be emptied while typing; it becomes a number within the limit on leaving it.
   const [countText,setCountText]=useState('1');
-  const unitCount=Math.max(1,Math.min(maxUnits,Number.parseInt(countText,10)||1));
+  const typedCount=Math.max(1,Math.min(maxUnits,Number.parseInt(countText,10)||1));
   const [details,setDetails]=useState('');
   const service=acTypes.find(item=>item.key===acType)!.service+(checkUp?' + ตรวจเช็ก':'');
   const chosenUnit=units.find(unit=>unit.id===unitId);
@@ -65,6 +67,17 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
   const [remember,setRemember]=useState<RememberChoice>({on:true,label:manager?'':'บ้าน'});
   // Picking a building fills in how many units it has; the manager can still change it.
   useEffect(()=>{if(manager&&place.unitCount)setCountText(String(Math.min(place.unitCount,maxUnits)));},[place.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Buildings with a room list are booked by room: the rooms asked for (rooms due), otherwise all of them.
+  const roster=manager?place.rooms??[]:[];
+  const [selectedRooms,setSelectedRooms]=useState<string[]>([]);
+  const firstPlace=useRef(true);
+  useEffect(()=>{
+    const fromLink=firstPlace.current&&place.id===initialPlaceId&&initialRooms?.length;
+    if(place.id!=='new')firstPlace.current=false;
+    setSelectedRooms(fromLink?initialRooms!:roster.map(room=>room.name));
+  },[place.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dueNames=useMemo(()=>roster.length&&place.id!=='new'?dueRooms(roster,lastCleaned(place.id,bookings)).map(room=>room.name):[],[roster,place.id,bookings]);
+  const unitCount=roster.length?Math.max(1,roster.filter(room=>selectedRooms.includes(room.name)).reduce((sum,room)=>sum+room.units,0)):typedCount;
   const [visit,setVisit]=useState<Visit>(defaultVisit);
   const [submitted,setSubmitted]=useState(false);
   const [submitting,setSubmitting]=useState(false);
@@ -81,6 +94,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
     setFormError('');
     if(!place.address.trim()) { setFormError('กรุณากรอกที่อยู่ให้ครบถ้วน'); return; }
     if(!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
+    if(roster.length&&!selectedRooms.length) { setFormError('เลือกห้องที่จะล้างอย่างน้อย 1 ห้อง'); return; }
     const when=visitPayload(visit);
     if(!when) { setFormError('กรุณาเลือกวันและเวลาที่ช่างมาได้'); return; }
     setSubmitting(true);
@@ -95,7 +109,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
     const success=await onSubmit({
       service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
       date:visit.date,time:when.time,timeWindow:when.timeWindow,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
-      notes,placeId:Number.isFinite(placeId)?placeId:undefined,
+      notes,placeId:Number.isFinite(placeId)?placeId:undefined,rooms:roster.length?selectedRooms:undefined,
     });
     setSubmitting(false);
     if(success)setSubmitted(true);
@@ -115,6 +129,12 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
         <div className="form-section-label"><span>01</span> สถานที่ให้บริการ</div>
         <LocationPicker value={place} onChange={setPlace} remember={remember} onRememberChange={setRemember} forBuilding={manager} preferId={initialPlaceId}/>
         <div className="form-section-label"><span>02</span> รายละเอียดงาน</div>
+        {roster.length>0
+          ?<div className="bk-field">
+            <span className="bk-label">ห้องที่จะล้าง</span>
+            <RoomPicker rooms={roster} selected={selectedRooms} onChange={setSelectedRooms} due={dueNames}/>
+          </div>
+          :<>
         <div className="bk-field">
           <span className="bk-label" id="bk-count-label">จำนวนแอร์ที่จะล้าง</span>
           <div className="bk-stepper" role="group" aria-labelledby="bk-count-label">
@@ -125,6 +145,8 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
           </div>
           {manager&&<small className="bk-hint">จองได้สูงสุด {maxUnits} เครื่องต่อครั้ง ถ้ามีแอร์หลายแบบ เลือกแบบที่มีมากที่สุด แล้วบอกช่างในรายละเอียดด้านล่าง</small>}
         </div>
+          {manager&&place.id!=='new'&&<small className="bk-hint">เพิ่มรายการห้องที่หน้า “อาคารของฉัน” เพื่อเลือกห้องและติดตามรายห้องได้</small>}
+          </>}
         <div className="bk-field">
           <span className="bk-label" id="bk-type-label">แอร์เป็นแบบไหน</span>
           <div className="bk-types" role="radiogroup" aria-labelledby="bk-type-label">

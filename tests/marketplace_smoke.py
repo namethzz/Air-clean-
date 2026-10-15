@@ -546,4 +546,22 @@ finished_whole = call(f"/bookings/{whole['id']}/complete", 'POST', {'method': 'P
 assert finished_whole['unitsDone'] == 48 and finished_whole['status'] == 'เสร็จสิ้น'
 call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 1}, tech, 409)
 call(f"/bookings/{whole['id']}/reviews", 'POST', {'rating': 5, 'comment': 'ทีมงานดี'}, manager, 201)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers and cancellation.')
+# Buildings with a room list: rooms are picked when booking, decide the unit count, and are ticked off one by one.
+roomy = call('/me/addresses', 'POST', {'label': 'คอนโด B', 'placeType': 'คอนโด', 'address': 'BUILDING-B', 'latitude': 13.75, 'longitude': 100.5,
+             'rooms': [{'name': '201', 'units': 1}, {'name': '202', 'units': 2}, {'name': '202', 'units': 1}, {'name': 'ล็อบบี้', 'units': 3}]}, manager)
+assert [r['name'] for r in roomy['rooms']] == ['201', '202', 'ล็อบบี้'] and roomy['unitCount'] == 6
+call('/me/addresses', 'POST', {'label': 'ใหญ่', 'placeType': 'คอนโด', 'address': 'x', 'latitude': 1, 'longitude': 1,
+     'rooms': [{'name': str(1000 + i)} for i in range(501)]}, manager, 400)
+call('/bookings', 'POST', {**payload, 'rooms': ['201']}, manager, 400)
+call('/bookings', 'POST', {**payload, 'placeId': roomy['id'], 'rooms': ['999']}, manager, 400)
+by_room = call('/bookings', 'POST', {**payload, 'unitCount': 1, 'placeId': roomy['id'], 'rooms': ['202', 'ล็อบบี้']}, manager, 201)
+assert by_room['unitCount'] == 5 and [r['name'] for r in by_room['rooms']] == ['202', 'ล็อบบี้'] and not any(r['done'] for r in by_room['rooms'])
+call(f"/bookings/{by_room['id']}/applications", 'POST', {}, tech)
+assert next(row for row in call('/bookings', token=tech) if row['id'] == by_room['id'])['rooms'] is None
+call(f"/bookings/{by_room['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, manager)
+ticked = call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': ['ล็อบบี้', 'unknown']}, tech)
+assert ticked['unitsDone'] == 3 and [r['done'] for r in ticked['rooms']] == [False, True]
+assert call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': []}, tech)['unitsDone'] == 0
+closed_rooms = call(f"/bookings/{by_room['id']}/complete", 'POST', {'method': 'Cash'}, tech)
+assert all(r['done'] for r in closed_rooms['rooms']) and closed_rooms['unitsDone'] == 5
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms and cancellation.')

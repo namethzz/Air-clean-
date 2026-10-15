@@ -63,7 +63,11 @@ public class Booking {
  public int? PlaceId {get;set;}
  /// <summary>How many of the units the technician has finished so far on a large job.</summary>
  public int UnitsDone {get;set;}
+ /// <summary>For buildings: the rooms in this job and which ones the technician has finished.</summary>
+ public List<BookingRoom> Rooms {get;set;}=[];
 }
+public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }
+public class RoomEntry { public string Name {get;set;}=""; public int Units {get;set;}=1; }
 public static class IssueKinds { public const string Payment="Payment"; public const string Service="Service"; }
 public static class IssueResolutions { public const string Paid="Paid"; public const string Cancelled="Cancelled"; public const string Closed="Closed"; }
 /// <summary>A reported problem: payment (job stuck before payment) or service (after the job was completed).</summary>
@@ -97,6 +101,8 @@ public class SavedAddressRecord {
  public string? Building {get;set;} public string? Floor {get;set;} public string? Room {get;set;} public string? Note {get;set;}
  /// <summary>For buildings: how many air conditioners, and who meets the technician on site.</summary>
  public int? UnitCount {get;set;} public string? ContactName {get;set;} public string? ContactPhone {get;set;}
+ /// <summary>The building's rooms (and air conditioners per room), set up once and picked from when booking.</summary>
+ public List<RoomEntry> Rooms {get;set;}=[];
  public double Latitude {get;set;} public double Longitude {get;set;} public DateTime UpdatedAt {get;set;}=DateTime.UtcNow;
 }
 /// <summary>An in-app notification shown under the bell. Target says which page opens when it is tapped.</summary>

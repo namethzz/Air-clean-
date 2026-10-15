@@ -5,6 +5,7 @@ import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
 import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
+import { RoomBoard } from '../components/Rooms';
 import { isClosed, isOffer, sortByNeed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
 import type { CompleteJobPayload } from '../lib/api';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
@@ -19,7 +20,7 @@ interface Props {
   onStatusChange: (id: number, status: BookingStatus) => void;
   onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
   onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
-  onProgress: (id: number, unitsDone: number) => Promise<boolean>;
+  onProgress: (id: number, unitsDone: number, roomsDone?: string[]) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -226,7 +227,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
     </section>}
 
     {going && booking.notes && <section className="cj-block tj-notes"><h3>ข้อมูลจากลูกค้า</h3><p>{booking.notes}</p></section>}
-    {going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
+    {going && booking.rooms?.length ? <RoomChecklist booking={booking} onProgress={onProgress}/> : going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
 
     {going && <FinishJob booking={booking} onComplete={onComplete}/>}
 
@@ -300,6 +301,28 @@ function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking:
       </section>}
     <button type="button" className="cj-link tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={16}/> ดูงานทั้งหมด</button>
   </article>;
+}
+
+/** Building jobs with rooms: tap each room when it is done; saved shortly after the last tap. */
+function RoomChecklist({ booking, onProgress }: { booking: Booking; onProgress: Props['onProgress'] }) {
+  const [rooms, setRooms] = useState(booking.rooms ?? []);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => { if (!dirty) setRooms(booking.rooms ?? []); }, [booking.rooms]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = window.setTimeout(async () => {
+      setSaving(true);
+      await onProgress(booking.id, 0, rooms.filter(room => room.done).map(room => room.name));
+      setSaving(false); setDirty(false);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [rooms, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <section className="cj-block tj-progress">
+    <h3>ห้องที่ล้างแล้ว</h3>
+    <RoomBoard rooms={rooms} onToggle={name => { setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
+    <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'แตะห้องเมื่อล้างเสร็จ ลูกค้าเห็นทันทีว่าห้องไหนเสร็จแล้ว'}</p>
+  </section>;
 }
 
 /** Large jobs: count finished units as you go, so the customer sees how far along the building is. */

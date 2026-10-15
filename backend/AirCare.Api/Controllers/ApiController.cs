@@ -273,10 +273,13 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         if (existing is null && await store.SavedAddresses.CountDocumentsAsync(x => x.UserId == CurrentUserId) >= 20)
             return Conflict(new { message = "บันทึกที่อยู่ได้สูงสุด 20 รายการ กรุณาลบรายการที่ไม่ใช้ก่อน" });
         string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        var rooms = (request.Rooms ?? []).Select(x => new RoomEntry { Name = x.Name.Trim(), Units = Math.Clamp(x.Units, 1, 10) }).Where(x => x.Name.Length > 0)
+            .GroupBy(x => x.Name).Select(x => x.First()).ToList();
+        if (rooms.Count > 500) return BadRequest(new { message = "บันทึกห้องได้สูงสุด 500 ห้องต่ออาคาร" });
         var record = new SavedAddressRecord {
             Id = existing?.Id ?? 0, UserId = CurrentUserId, Label = label,
             PlaceType = request.PlaceType, Address = request.Address.Trim(), Building = Clean(request.Building), Floor = Clean(request.Floor),
-            Room = Clean(request.Room), Note = Clean(request.Note), UnitCount = request.UnitCount, ContactName = Clean(request.ContactName), ContactPhone = Clean(request.ContactPhone), Latitude = request.Latitude, Longitude = request.Longitude, UpdatedAt = DateTime.UtcNow
+            Room = Clean(request.Room), Note = Clean(request.Note), UnitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : request.UnitCount, Rooms = rooms, ContactName = Clean(request.ContactName), ContactPhone = Clean(request.ContactPhone), Latitude = request.Latitude, Longitude = request.Longitude, UpdatedAt = DateTime.UtcNow
         };
         if (existing is null) {
             record.Id = await store.NextIdAsync("savedAddresses");
@@ -422,6 +425,16 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return Conflict(new { message = "อัปเดตความคืบหน้าได้ระหว่างทำงานเท่านั้น" });
         var done = Math.Clamp(request.UnitsDone, 0, booking.UnitCount);
         var update = Builders<Booking>.Update.Set(x => x.UnitsDone, done);
+        if (booking.Rooms.Count > 0 && request.RoomsDone is not null) {
+            // Rooms ticked off by name; the unit count follows from them.
+            var finished = request.RoomsDone.ToHashSet();
+            foreach (var room in booking.Rooms) {
+                if (finished.Contains(room.Name) && !room.Done) { room.Done = true; room.DoneAt = DateTime.UtcNow; }
+                else if (!finished.Contains(room.Name)) { room.Done = false; room.DoneAt = null; }
+            }
+            done = booking.Rooms.Where(x => x.Done).Sum(x => x.Units);
+            update = Builders<Booking>.Update.Set(x => x.UnitsDone, done).Set(x => x.Rooms, booking.Rooms);
+        }
         // Counting finished units means the work has started.
         if (booking.Status is BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived && done > 0)
             update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived").Set(x => x.UpdatedAt, DateTime.UtcNow);
@@ -618,8 +631,20 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         } else window = null;
         // Homes book up to 30 units at a time; building managers book whole buildings.
         if (CurrentRole == AppRoles.Customer && request.UnitCount > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
-        if (request.PlaceId is int placeId && !await store.SavedAddresses.Find(x => x.Id == placeId && x.UserId == CurrentUserId).AnyAsync())
-            return BadRequest(new { message = "ไม่พบอาคารนี้ในรายการของคุณ" });
+        var place = request.PlaceId is int placeId ? await store.SavedAddresses.Find(x => x.Id == placeId && x.UserId == CurrentUserId).FirstOrDefaultAsync() : null;
+        if (request.PlaceId is not null && place is null) return BadRequest(new { message = "ไม่พบอาคารนี้ในรายการของคุณ" });
+        // Rooms picked from the building's list decide how many units the job has.
+        var rooms = new List<BookingRoom>();
+        var picked = (request.Rooms ?? []).Select(x => x.Trim()).Where(x => x.Length > 0).Distinct().ToList();
+        if (picked.Count > 0) {
+            if (place is null) return BadRequest(new { message = "เลือกห้องได้เมื่อเลือกอาคารแล้ว" });
+            var roster = (place.Rooms ?? []).ToDictionary(x => x.Name);
+            var unknown = picked.FirstOrDefault(x => !roster.ContainsKey(x));
+            if (unknown is not null) return BadRequest(new { message = $"ไม่พบห้อง {unknown} ในอาคารนี้" });
+            rooms = picked.Select(x => new BookingRoom { Name = x, Units = roster[x].Units }).ToList();
+            if (rooms.Sum(x => x.Units) > 300) return BadRequest(new { message = "เลือกได้ไม่เกิน 300 เครื่องต่องาน แบ่งเป็นหลายงานได้" });
+        }
+        var unitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : request.UnitCount;
         if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || request.Latitude is null || request.Longitude is null)
             return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
@@ -630,14 +655,14 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             return BadRequest(new { message = "ไม่พบเครื่องปรับอากาศนี้ในสมุดประวัติของคุณ" });
         var technicians = (await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync())
             .Where(x => x.Status == VerificationStates.Approved).ToList();
-        var cheapest = technicians.OrderBy(x => CalculateQuote(x, request.Service, request.UnitCount)).FirstOrDefault()
+        var cheapest = technicians.OrderBy(x => CalculateQuote(x, request.Service, unitCount)).FirstOrDefault()
             ?? new TechnicianProfile { BasePrice = 550m };
-        var estimatedPrice = CalculateQuote(cheapest, request.Service, request.UnitCount);
+        var estimatedPrice = CalculateQuote(cheapest, request.Service, unitCount);
         var id = await store.NextIdAsync("bookings");
         var booking = new Booking {
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
             TechnicianId = 0, TechnicianName = "รอช่างรับงาน", TechnicianInitials = "—",
-            PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount, AirConditionerId = request.AirConditionerId,
+            PropertyType = request.PropertyType.Trim(), UnitCount = unitCount, Rooms = rooms, AirConditionerId = request.AirConditionerId,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
             ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
@@ -680,7 +705,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         Customer = "ลูกค้าในพื้นที่",
         Address = "พื้นที่ใกล้หน้างาน (ที่อยู่เต็มจะแสดงเมื่อยืนยันช่าง)",
         Latitude = null, Longitude = null, TechnicianLatitude = null, TechnicianLongitude = null,
-        AirConditionerId = null, Notes = null, PlaceId = null,
+        AirConditionerId = null, Notes = null, PlaceId = null, Rooms = null,
         Applicants = dto.Applicants.Where(x => x.TechnicianId == technicianId).ToList()
     };
 
@@ -942,6 +967,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         booking.PaymentStatus = "Paid";
         booking.TechnicianConfirmedPayment = true;
         booking.UnitsDone = booking.UnitCount;
+        foreach (var room in booking.Rooms.Where(x => !x.Done)) { room.Done = true; room.DoneAt = DateTime.UtcNow; }
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status,
             Notes = $"ช่างปิดงานและได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0}", CreatedAt = DateTime.UtcNow });
