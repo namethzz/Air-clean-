@@ -44,6 +44,12 @@ def register(role, **extra):
 def account(role):
     return register(role)[0]
 
+# The smallest thing the server accepts as a JPEG (it checks the file's first bytes).
+TINY_JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U'
+
+def send_id(token):
+    return call('/technicians/me/documents', 'POST', {'kind': 'idcard', 'data': TINY_JPEG}, token, 201)
+
 admin_email, admin_password = os.environ['TEST_ADMIN_EMAIL'], os.environ['TEST_ADMIN_PASSWORD']
 admin = call('/auth/login', 'POST', {'email': admin_email, 'password': admin_password})['token']
 # Accounts saved before session versions existed must keep working after an upgrade.
@@ -104,7 +110,11 @@ assert rejected['verificationStatus'] == 'Rejected'
 assert 'เบอร์โทรติดต่อไม่ได้' in str(call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech, expected=403))
 assert call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600,
      'availableText': '09:00–18:00', 'skills': 'ล้างแอร์มาตรฐาน, ตรวจเช็ก', 'phone': '089-999-0000'}, tech)['verificationStatus'] == 'Pending'
-for row in [profile, call('/technicians/me', token=other_tech)]:
+# Approval needs the ID card on file.
+assert 'บัตรประชาชน' in call(f"/technicians/{profile['id']}/verification", 'PATCH', {'verified': True}, admin, 409)['message']
+for token in [tech, other_tech]:
+    send_id(token)
+    row = call('/technicians/me', token=token)
     assert call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)['verificationStatus'] == 'Approved'
 assert call('/technicians/me', token=tech)['verified']
 assert any(row['id'] == profile['id'] for row in call('/technicians'))
@@ -316,7 +326,8 @@ if brevo_port:
     n_other_profile = call('/technicians/me', token=n_other)
     call(f"/technicians/{n_other_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ทดสอบเหตุผล'}, admin)
     assert 'ทดสอบเหตุผล' in notice(n_other, 'ยังไม่ผ่าน')['body']
-    for row in [n_profile, n_other_profile]:
+    for token, row in [(n_tech, n_profile), (n_other, n_other_profile)]:
+        send_id(token)
         call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)
     notice(n_tech, 'ได้รับการอนุมัติ')
     job = call('/bookings', 'POST', {**payload, 'address': 'NOTIFY-HOUSE-9'}, n_customer, 201)
@@ -400,6 +411,7 @@ if push_port:
     laptop = pusher.subscribe('laptop')
     call('/push/subscriptions', 'POST', laptop, p_customer, 204)
     p_profile = call('/technicians/me', token=p_tech)
+    send_id(p_tech)
     call(f"/technicians/{p_profile['id']}/verification", 'PATCH', {'verified': True}, admin)
     p_job = call('/bookings', 'POST', payload, p_customer, 201)
     call(f"/bookings/{p_job['id']}/applications", 'POST', {}, p_tech)
@@ -615,4 +627,121 @@ call(f"/bookings/{dropped['id']}/applications", 'POST', {}, tech)
 call(f"/bookings/{dropped['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
 call(f"/bookings/{dropped['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, tech, 204)
 assert call(f"/bookings/{dropped['id']}", token=customer)['status'] == 'ยกเลิก'
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation.')
+
+# ── Technician documents: only the technician and admins can open them. ──
+def raw(path, token, expected=200):
+    req = Request(BASE + path, headers={'Authorization': 'Bearer ' + token})
+    try:
+        with urlopen(req, timeout=20) as response:
+            status, data = response.status, response.read()
+    except HTTPError as error:
+        status, data = error.code, error.read()
+    assert status == expected, f'GET {path}: expected {expected}, got {status}'
+    return data
+docs = call('/technicians/me/documents', token=tech)
+assert [d['kind'] for d in docs] == ['idcard']
+assert raw(f"/technician-documents/{docs[0]['id']}", tech)[:3] == b'\xff\xd8\xff'
+raw(f"/technician-documents/{docs[0]['id']}", admin)
+raw(f"/technician-documents/{docs[0]['id']}", other_tech, 403)
+raw(f"/technician-documents/{docs[0]['id']}", customer, 403)
+call('/technicians/me/documents', 'POST', {'kind': 'passport', 'data': TINY_JPEG}, tech, 400)
+call('/technicians/me/documents', 'POST', {'kind': 'selfie', 'data': 'data:text/plain;base64,aGVsbG8='}, tech, 400)
+for _ in range(2):
+    call('/technicians/me/documents', 'POST', {'kind': 'selfie', 'data': TINY_JPEG}, tech, 201)
+for _ in range(3):
+    call('/technicians/me/documents', 'POST', {'kind': 'certificate', 'data': TINY_JPEG}, tech, 201)
+call('/technicians/me/documents', 'POST', {'kind': 'certificate', 'data': TINY_JPEG}, tech, 409)
+kinds = [d['kind'] for d in call(f"/admin/technicians/{profile['id']}/documents", token=admin)]
+assert kinds.count('selfie') == 1 and kinds.count('certificate') == 3
+call(f"/admin/technicians/{profile['id']}/documents", token=tech, expected=403)
+cert = next(d for d in call('/technicians/me/documents', token=tech) if d['kind'] == 'certificate')
+call(f"/technicians/me/documents/{cert['id']}", 'DELETE', None, other_tech, 404)
+call(f"/technicians/me/documents/{cert['id']}", 'DELETE', None, tech, 204)
+
+# ── Membership: a free trial on approval, pay by PromptPay slip, the admin approves, and offers stop when it runs out. ──
+mine = call('/technicians/me/membership', token=tech)
+assert mine['state'] == 'Trial' and 25 <= mine['daysLeft'] <= 31 and mine['pending'] is None
+call('/technicians/me/membership', token=customer, expected=403)
+call('/admin/membership/settings', 'PUT', {'monthlyFee': 199, 'trialDays': 30, 'promptPayId': '12345', 'payeeName': 'AirClean'}, admin, 400)
+call('/admin/membership/settings', 'PUT', {'monthlyFee': 199, 'trialDays': 30, 'promptPayId': '081-234-5678', 'payeeName': 'AirClean'}, tech, 403)
+saved_settings = call('/admin/membership/settings', 'PUT', {'monthlyFee': 199, 'trialDays': 30, 'promptPayId': '081-234-5678', 'payeeName': 'AirClean'}, admin)
+assert saved_settings['promptPayId'] == '0812345678'
+assert call('/technicians/me/membership', token=tech)['monthlyFee'] == 199
+call('/technicians/me/membership/payments', 'POST', {'months': 13, 'slip': TINY_JPEG}, tech, 400)
+slip = call('/technicians/me/membership/payments', 'POST', {'months': 2, 'slip': TINY_JPEG}, tech, 201)
+assert slip['amount'] == 398 and slip['status'] == 'Pending'
+call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': TINY_JPEG}, tech, 409)
+raw(f"/membership/payments/{slip['id']}/slip", admin)
+raw(f"/membership/payments/{slip['id']}/slip", tech)
+raw(f"/membership/payments/{slip['id']}/slip", other_tech, 403)
+board = call('/admin/membership', token=admin)
+assert board['payments'][0]['id'] == slip['id'] and any(m['technicianId'] == profile['id'] for m in board['members'])
+call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': False}, admin, 400)
+before_until = datetime.fromisoformat(call('/technicians/me/membership', token=tech)['memberUntil'].replace('Z', '+00:00'))
+approved = call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin)
+covered = datetime.fromisoformat(approved['coveredUntil'].replace('Z', '+00:00'))
+assert 58 <= (covered - before_until).days <= 62
+call(f"/admin/membership/payments/{slip['id']}/review", 'POST', {'approve': True}, admin, 409)
+assert call('/technicians/me/membership', token=tech)['state'] == 'Active'
+if os.environ.get('MONGODB_URI'):
+    from pymongo import MongoClient
+    db = MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')]
+    db.technicians.update_one({'_id': other_profile['id']}, {'$set': {'MemberUntil': datetime.now(timezone.utc) - timedelta(days=1)}})
+    lapsed_job = call('/bookings', 'POST', payload, customer, 201)
+    lapsed = call(f"/bookings/{lapsed_job['id']}/applications", 'POST', {}, other_tech, 402)
+    assert lapsed['code'] == 'membership_expired'
+    assert call('/technicians/me/membership', token=other_tech)['state'] == 'Expired'
+    call(f"/admin/technicians/{other_profile['id']}/membership/grant", 'POST', {'days': 7}, admin)
+    call(f"/bookings/{lapsed_job['id']}/applications", 'POST', {}, other_tech)
+
+    # ── Reminders, run by the scheduler hook as if it were a chosen Thai time. ──
+    cron_key = os.environ.get('CRON_KEY')
+    if cron_key:
+        def cron(at):
+            req = Request(BASE + '/cron/reminders?at=' + at, data=b'', method='POST', headers={'X-Cron-Key': cron_key})
+            with urlopen(req, timeout=20) as response:
+                return json.loads(response.read())
+        try:
+            urlopen(Request(BASE + '/cron/reminders', data=b'', method='POST', headers={'X-Cron-Key': 'wrong'}), timeout=20)
+            raise AssertionError('wrong cron key accepted')
+        except HTTPError as error:
+            assert error.code == 401
+        visit_day = (datetime.now() + timedelta(days=4)).strftime('%Y-%m-%d')
+        r_customer = account('Customer')
+        visit = call('/bookings', 'POST', {**payload, 'scheduledAt': visit_day + 'T13:00:00', 'timeWindow': '13:00-17:00'}, r_customer, 201)
+        call(f"/bookings/{visit['id']}/applications", 'POST', {}, tech)
+        call(f"/bookings/{visit['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, r_customer)
+        db.bookings.update_one({'_id': visit['id']}, {'$set': {'CreatedAt': datetime.now(timezone.utc) - timedelta(days=10)}})
+        eve = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')
+        cron(eve + 'T16:00:00')
+        time.sleep(0.3)
+        assert not any('พรุ่งนี้' in i['title'] for i in call('/notifications', token=r_customer)['items'])
+        assert cron(eve + 'T18:00:00')['visits'] >= 1
+        def titles(token):
+            for _ in range(40):
+                items = [i['title'] for i in call('/notifications', token=token)['items']]
+                if items:
+                    return items
+                time.sleep(0.1)
+            return []
+        assert any('พรุ่งนี้ช่างจะมาล้างแอร์' in t for t in titles(r_customer)), titles(r_customer)
+        cron(eve + 'T19:00:00')
+        time.sleep(0.5)
+        assert sum('พรุ่งนี้ช่างจะมาล้างแอร์' in t for t in titles(r_customer)) == 1
+        assert cron(eve + 'T23:00:00')['quiet']
+        # Six months after the last cleaning at a place, with nothing booked there.
+        me = call('/auth/me', token=r_customer)
+        db.bookings.insert_one({'_id': 990000 + int(time.time()) % 9999, 'Code': 'OLD-1', 'CustomerId': me['id'], 'Status': 'Completed', 'Address': 'OLD-HOUSE-1',
+                                'ScheduledAt': datetime.now(timezone.utc) - timedelta(days=200), 'CreatedAt': datetime.now(timezone.utc) - timedelta(days=210),
+                                'UpdatedAt': datetime.now(timezone.utc) - timedelta(days=200), 'Events': [], 'Applicants': [], 'Rooms': []})
+        today = datetime.now().strftime('%Y-%m-%d')
+        assert cron(today + 'T10:00:00')['cleaningDue'] >= 1
+        assert cron(today + 'T10:30:00')['cleaningDue'] == 0
+        assert any('ถึงรอบล้างแอร์' in t for t in titles(r_customer))
+        # A technician whose membership ends within three days is told once.
+        db.technicians.update_one({'_id': other_profile['id']}, {'$set': {'MemberUntil': datetime.now(timezone.utc) + timedelta(days=2)}})
+        assert cron(today + 'T11:00:00')['membership'] >= 1
+        cron(today + 'T11:30:00')
+        time.sleep(0.5)
+        assert sum('ใกล้หมดอายุ' in t for t in titles(other_tech)) == 1
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, membership and reminders.')

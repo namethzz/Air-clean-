@@ -11,6 +11,8 @@ public record NotificationLink(string Target, int? BookingId = null)
     public static readonly NotificationLink Issues = new("issues");
     public static readonly NotificationLink NearbyJobs = new("nearbyJobs");
     public static readonly NotificationLink Profile = new("profile");
+    public static readonly NotificationLink History = new("history");
+    public static readonly NotificationLink Membership = new("membership");
 }
 
 /// <summary>

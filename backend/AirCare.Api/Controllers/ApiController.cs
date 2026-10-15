@@ -353,15 +353,20 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var note = request.Note?.Trim();
         if (!request.Verified && string.IsNullOrWhiteSpace(note))
             return BadRequest(new { message = "กรุณาระบุเหตุผลเพื่อให้ช่างแก้ไขข้อมูลได้" });
+        // Approving needs the ID card on file; technicians approved before documents existed keep their approval.
+        if (request.Verified && !await store.TechnicianDocuments.Find(x => x.TechnicianId == id && x.Kind == "idcard").AnyAsync()
+            && await store.Technicians.Find(x => x.Id == id && x.VerificationStatus != VerificationStates.Approved).AnyAsync())
+            return Conflict(new { message = "ช่างยังไม่ได้ส่งรูปบัตรประชาชน ให้ช่างแนบที่หน้า “โปรไฟล์และราคา” ก่อนอนุมัติ" });
         var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Eq(x => x.Id, id),
             Builders<TechnicianProfile>.Update.Set(x => x.IsVerified, request.Verified)
                 .Set(x => x.VerificationStatus, request.Verified ? VerificationStates.Approved : VerificationStates.Rejected)
                 .Set(x => x.VerificationNote, request.Verified ? null : note).Set(x => x.ReviewedAt, DateTime.UtcNow),
             new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
         if (saved is null) return NotFound(new { message = "ไม่พบโปรไฟล์ช่าง" });
+        if (request.Verified) saved = await Membership.EnsureTrialAsync(store, saved);
         var account = await store.Users.Find(x => x.Id == saved.UserId).FirstOrDefaultAsync();
         if (request.Verified)
-            notify.ToUser(saved.UserId, "บัญชีช่างของคุณได้รับการอนุมัติแล้ว", "ตอนนี้คุณดูงานใกล้ตัวและส่งข้อเสนอราคาได้แล้วที่เมนู “งานใกล้ฉัน”", NotificationLink.NearbyJobs);
+            notify.ToUser(saved.UserId, "บัญชีช่างของคุณได้รับการอนุมัติแล้ว", $"ตอนนี้คุณดูงานใกล้ตัวและส่งข้อเสนอราคาได้แล้วที่เมนู “งานใกล้ฉัน”{(saved.MemberUntil is { } trial ? $"\nทดลองใช้ฟรีถึง {MembershipController.ThaiDay(trial)}" : "")}", NotificationLink.NearbyJobs);
         else
             notify.ToUser(saved.UserId, "บัญชีช่างของคุณยังไม่ผ่านการตรวจสอบ", $"เหตุผล: {note}\nแก้ไขข้อมูลที่หน้า “โปรไฟล์และราคา” แล้วบันทึก ระบบจะส่งให้ผู้ดูแลตรวจอีกครั้ง", NotificationLink.Profile);
         return Ok(DtoMapper.ToApplicationDto(saved, account?.Email ?? ""));
@@ -535,7 +540,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var when = VisitText(request.ScheduledAt, window);
         var who = technician ? "ช่าง" : "ลูกค้า";
         await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update
-            .Set(x => x.ScheduledAt, request.ScheduledAt).Set(x => x.TimeWindow, window).Set(x => x.UpdatedAt, DateTime.UtcNow)
+            .Set(x => x.ScheduledAt, request.ScheduledAt).Set(x => x.TimeWindow, window).Set(x => x.UpdatedAt, DateTime.UtcNow).Set(x => x.VisitReminded, false)
             .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status,
                 Notes = $"{who}เปลี่ยนนัดจาก {before} เป็น {when}{(reason is null ? "" : " เหตุผล: " + reason)}", CreatedAt = DateTime.UtcNow }));
         var detail = $"นัดใหม่ {when} (เดิม {before}){(reason is null ? "" : "\nเหตุผล: " + reason)}";
@@ -839,6 +844,9 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var technician = await EnsureCurrentTechnicianProfileAsync();
         if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
         if (technician.Status != VerificationStates.Approved) return NotApprovedResult(technician);
+        technician = await Membership.EnsureTrialAsync(store, technician);
+        if (!Membership.IsActive(technician))
+            return StatusCode(StatusCodes.Status402PaymentRequired, new { message = "สมาชิก AirClean หมดอายุแล้ว ต่ออายุที่หน้า “สมาชิก AirClean” เพื่อส่งข้อเสนองานใหม่", code = "membership_expired" });
         booking.Applicants ??= [];
         if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
             return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });

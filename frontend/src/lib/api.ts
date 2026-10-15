@@ -1,4 +1,4 @@
-import type { Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -267,4 +267,36 @@ export async function issueReceipt(bookingId:number,payer:Billing,remember:boole
 }
 export async function requestReschedule(bookingId:number,scheduledAt:string,timeWindow?:string,reason?:string):Promise<Booking> {
   return request<Booking>('/bookings/'+bookingId+'/reschedule',{method:'POST',body:JSON.stringify({scheduledAt,timeWindow,reason})});
+}
+
+/* ───────────── Technician documents ───────────── */
+export async function fetchMyDocuments():Promise<TechnicianDocument[]> { return request<TechnicianDocument[]>('/technicians/me/documents'); }
+export async function uploadMyDocument(kind:DocumentKind,data:string):Promise<TechnicianDocument> {
+  return request<TechnicianDocument>('/technicians/me/documents',{method:'POST',body:JSON.stringify({kind,data})});
+}
+export async function deleteMyDocument(id:string):Promise<void> { await request<void>('/technicians/me/documents/'+id,{method:'DELETE'}); }
+export async function fetchTechnicianDocuments(technicianId:number):Promise<TechnicianDocument[]> {
+  return request<TechnicianDocument[]>('/admin/technicians/'+technicianId+'/documents');
+}
+/** Private images (documents, slips) need the sign-in token, so they come back as a local object URL. */
+export async function privateImageUrl(path:string):Promise<string> {
+  const response=await fetch(requireApiBase()+path,{headers:{Authorization:'Bearer '+(localStorage.getItem(TOKEN_KEY)??'')}});
+  if(!response.ok)throw new ApiError('โหลดรูปไม่สำเร็จ',response.status);
+  return URL.createObjectURL(await response.blob());
+}
+
+/* ───────────── Membership ───────────── */
+export async function fetchMyMembership():Promise<Membership> { return request<Membership>('/technicians/me/membership'); }
+export async function payMembership(months:number,slip:string):Promise<MembershipPayment> {
+  return request<MembershipPayment>('/technicians/me/membership/payments',{method:'POST',body:JSON.stringify({months,slip})});
+}
+export async function fetchAdminMembership():Promise<AdminMembership> { return request<AdminMembership>('/admin/membership'); }
+export async function saveMembershipSettings(settings:MembershipSettings):Promise<MembershipSettings> {
+  return request<MembershipSettings>('/admin/membership/settings',{method:'PUT',body:JSON.stringify(settings)});
+}
+export async function reviewMembershipPayment(id:number,approve:boolean,note?:string):Promise<MembershipPayment> {
+  return request<MembershipPayment>('/admin/membership/payments/'+id+'/review',{method:'POST',body:JSON.stringify({approve,note})});
+}
+export async function grantMembershipDays(technicianId:number,days:number):Promise<{memberUntil:string}> {
+  return request<{memberUntil:string}>('/admin/technicians/'+technicianId+'/membership/grant',{method:'POST',body:JSON.stringify({days})});
 }

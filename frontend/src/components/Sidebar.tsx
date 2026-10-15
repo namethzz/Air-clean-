@@ -1,4 +1,4 @@
-import { AirVent, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
+import { BadgeCheck, Wallet, AirVent, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Users, Wind } from 'lucide-react';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -20,6 +20,7 @@ const managerItems:Item[]=[
 const technicianItems:Item[]=[
   {key:'nearbyJobs',label:'งานใกล้ฉัน',icon:MapPin},
   {key:'bookings',label:'งานของฉัน',icon:ClipboardList},
+  {key:'membership',label:'สมาชิก AirClean',icon:BadgeCheck},
   {key:'profile',label:'โปรไฟล์และราคา',icon:UserCog},
 ];
 const navItems:Item[]=[
@@ -33,6 +34,7 @@ const navItems:Item[]=[
   {key:'reports',label:'รายงานบริการ',icon:ClipboardCheck},
   {key:'approvals',label:'ตรวจสอบช่าง',icon:ShieldCheck,roles:['admin']},
   {key:'issues',label:'เรื่องที่ถูกแจ้ง',icon:MessageSquareWarning,roles:['admin']},
+  {key:'membership',label:'ค่าสมาชิกช่าง',icon:Wallet,roles:['admin']},
 ];
 function initials(name:string):string{return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.slice(0,1)).join('')||'AC';}
 export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking,actionCount=0}:Props){

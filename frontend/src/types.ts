@@ -1,4 +1,4 @@
-export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues'|'history'|'buildings';
+export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|'passport'|'batch'|'reports'|'profile'|'approvals'|'issues'|'history'|'buildings'|'membership';
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
 export type PaymentMethod='Cash'|'PromptPay';
@@ -29,3 +29,12 @@ export interface TechnicianJob{id:number;code:string;status:string;date:string;t
 export interface TechnicianDetail{profile:TechnicianApplication;accountCreatedAt:string;signIn:string[];stats:TechnicianStats;jobs:TechnicianJob[];reviews:{rating:number;comment:string;customer:string;bookingCode:string;createdAt:string}[];}
 export interface Billing{name:string;taxId?:string|null;branch?:string|null;address?:string|null;}
 export interface Receipt{issued:boolean;number?:string|null;issuedAt?:string|null;bookingCode:string;serviceDate:string;paidAt?:string|null;paymentMethod?:string|null;payer:Billing;issuerName:string;issuerPhone?:string|null;serviceAddress:string;lines:{description:string;quantity:number;unitPrice:number;amount:number}[];total:number;rooms:string[];savedBilling?:Billing|null;}
+
+export type DocumentKind='idcard'|'selfie'|'certificate';
+export interface TechnicianDocument{id:string;kind:DocumentKind;createdAt:string;}
+export type MembershipState='Trial'|'Active'|'Expired'|'NotApproved';
+export interface MembershipPayment{id:number;technicianId:number;technicianName:string;months:number;amount:number;status:'Pending'|'Approved'|'Rejected';note?:string|null;createdAt:string;reviewedAt?:string|null;coveredUntil?:string|null;}
+export interface Membership{state:MembershipState;memberUntil?:string|null;daysLeft:number;monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;pending?:MembershipPayment|null;history:MembershipPayment[];}
+export interface MembershipSettings{monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;}
+export interface MemberRow{technicianId:number;name:string;phone:string;state:MembershipState;memberUntil?:string|null;daysLeft:number;}
+export interface AdminMembership{settings:MembershipSettings;payments:MembershipPayment[];members:MemberRow[];}

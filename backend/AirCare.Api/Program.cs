@@ -19,6 +19,8 @@ builder.Services.AddSingleton<EmailSender>();
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddSingleton<Notifier>();
 builder.Services.AddSingleton<ExternalIdentityValidator>();
+builder.Services.AddSingleton<ReminderService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<ReminderService>());
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var configuredOrigins = (builder.Configuration["FRONTEND_ORIGIN"] ?? "")

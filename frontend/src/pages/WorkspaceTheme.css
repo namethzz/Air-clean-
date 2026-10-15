@@ -333,3 +333,12 @@
 .at-job-side small{display:inline-flex;align-items:center;gap:3px;font-size:12.5px;color:#5d7089}
 .at-job-photos{padding:12px 14px}
 @media (max-width:560px){.at-job{grid-template-columns:48px minmax(0,1fr)}.at-job-date{width:48px;height:48px}.at-job-side{grid-column:2;flex-direction:row;align-items:center;justify-content:flex-start}.at-facts>div{grid-template-columns:1fr;gap:2px}}
+.approval-docs{display:flex;flex-direction:column;gap:8px}
+.approval-docs>strong{font-size:14px}
+.approval-docs>div{display:flex;flex-wrap:wrap;gap:10px}
+.approval-docs figure{display:flex;flex-direction:column;align-items:center;gap:4px;margin:0}
+.approval-docs figcaption{font-size:12px;color:#5d7089}
+.approval-docs-none{font-size:14px;font-weight:600;color:#9a5b00}
+.nearby-day-count{margin:0;font-size:13px;color:#5d7089}
+.nearby-confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.nearby-confirm span{flex:1 1 100%;font-size:14px;font-weight:600;color:#b3392f}

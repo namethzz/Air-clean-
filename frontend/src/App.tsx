@@ -23,6 +23,7 @@ import ApprovalsPage from './pages/ApprovalsPage';
 import BuildingsPage from './pages/BuildingsPage';
 import { books } from './lib/roles';
 import IssuesPage from './pages/IssuesPage';
+import MembershipPage from './pages/MembershipPage';
 import AdminTechniciansPage from './pages/AdminTechniciansPage';
 import UpdateBanner from './components/UpdateBanner';
 import PushPrompt from './components/PushPrompt';
@@ -39,11 +40,11 @@ import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummar
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
-  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์', buildings:'อาคารของฉัน',
+  tracking:'ติดตามงาน', passport:'ประวัติแอร์', batch:'งานหลายเครื่อง', reports:'รายงานบริการ', profile:'โปรไฟล์ของฉัน', approvals:'ตรวจสอบช่าง', issues:'เรื่องที่ถูกแจ้ง', history:'ประวัติการล้างแอร์', buildings:'อาคารของฉัน', membership:'ค่าสมาชิกช่าง',
 };
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
-const technicianTitles:Partial<Record<PageKey,string>> = { nearbyJobs:'งานใกล้ฉัน', bookings:'งานของฉัน', profile:'โปรไฟล์และราคา' };
+const technicianTitles:Partial<Record<PageKey,string>> = { nearbyJobs:'งานใกล้ฉัน', bookings:'งานของฉัน', profile:'โปรไฟล์และราคา', membership:'สมาชิก AirClean' };
 const managerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของอาคาร', buildings:'อาคารของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
 function titleFor(role:UserRole,page:PageKey):string { if(role==='admin'&&page==='technicians')return 'ช่างทั้งหมด'; return (role==='manager'&&managerTitles[page])||(role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
 /** Where each role starts. Technicians go straight to jobs near them. */
@@ -298,7 +299,8 @@ export default function App() {
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):openBooking()}/>;
       case 'technicians':if(user.role==='admin')return <AdminTechniciansPage onNotice={showNotice} onChanged={()=>void refreshData()}/>;
         return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
-      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
+      case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')} onOpenMembership={()=>navigate('membership')} myJobs={state.bookings}/>;
+      case 'membership':return user.role==='technician'||user.role==='admin'?<MembershipPage admin={user.role==='admin'} onNotice={showNotice}/>:null;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onRefresh={refreshBookings}/>;
         if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
@@ -310,7 +312,7 @@ export default function App() {
       case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
       case 'issues':return user.role==='admin'?<IssuesPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
-      case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout}/>;
+      case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout} onOpenMembership={()=>navigate('membership')}/>;
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 

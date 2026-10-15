@@ -62,3 +62,14 @@ public record JobProgressRequest([Range(0,300)] int UnitsDone=0,List<string>? Ro
 public record RoomDto([Required,MaxLength(20)] string Name,[Range(1,10)] int Units=1);
 public record BookingRoomDto(string Name,int Units,bool Done);
 public record SaveAddressRequest([Required,MaxLength(60)] string Label,[Required,MaxLength(20)] string PlaceType,[Required,MaxLength(300)] string Address,[MaxLength(120)] string? Building,[MaxLength(20)] string? Floor,[MaxLength(20)] string? Room,[MaxLength(300)] string? Note,[Range(-90,90)] double Latitude,[Range(-180,180)] double Longitude,[Range(1,1000)] int? UnitCount=null,[MaxLength(80)] string? ContactName=null,[MaxLength(30)] string? ContactPhone=null,List<RoomDto>? Rooms=null);
+
+public record TechnicianDocumentDto(string Id,string Kind,string CreatedAt);
+public record UploadDocumentRequest([Required] string Kind,[Required,MaxLength(3_000_000)] string Data);
+public record MembershipPaymentDto(int Id,int TechnicianId,string TechnicianName,int Months,decimal Amount,string Status,string? Note,string CreatedAt,string? ReviewedAt,string? CoveredUntil);
+public record MembershipDto(string State,string? MemberUntil,int DaysLeft,decimal MonthlyFee,int TrialDays,string PromptPayId,string PayeeName,MembershipPaymentDto? Pending,IReadOnlyList<MembershipPaymentDto> History);
+public record MembershipPaymentRequest([Range(1,12)] int Months,[Required,MaxLength(3_000_000)] string Slip);
+public record ReviewMembershipPaymentRequest(bool Approve,[MaxLength(500)] string? Note=null);
+public record MembershipSettingsDto([Range(0,100000)] decimal MonthlyFee,[Range(0,365)] int TrialDays,[MaxLength(20)] string PromptPayId,[MaxLength(120)] string PayeeName);
+public record MemberRowDto(int TechnicianId,string Name,string Phone,string State,string? MemberUntil,int DaysLeft);
+public record AdminMembershipDto(MembershipSettingsDto Settings,IReadOnlyList<MembershipPaymentDto> Payments,IReadOnlyList<MemberRowDto> Members);
+public record GrantMembershipRequest([Range(1,365)] int Days,[MaxLength(200)] string? Note=null);
