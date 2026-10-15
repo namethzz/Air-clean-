@@ -25,6 +25,9 @@ jobs:
       - name: Build
         working-directory: backend/AirClean.Api
         run: dotnet build --no-restore --configuration Release
+      - name: Unit tests
+        working-directory: backend
+        run: dotnet test AirClean.Api.Tests --configuration Release
       - name: Test marketplace against disposable database
         env:
           MONGODB_URI: mongodb://localhost:27017
@@ -72,6 +75,9 @@ jobs:
       - name: Install
         working-directory: frontend
         run: npm ci
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build

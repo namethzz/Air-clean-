@@ -1,7 +1,8 @@
 const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
 const places = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
 
-function underMillion(n: number): string {
+/** `afterMillions`: a trailing 1 after "ล้าน" is read "เอ็ด" too (1,000,001 = หนึ่งล้านเอ็ด). */
+function underMillion(n: number, afterMillions = false): string {
   const text = String(n);
   let out = '';
   for (let i = 0; i < text.length; i++) {
@@ -9,7 +10,7 @@ function underMillion(n: number): string {
     if (d === 0) continue;
     if (place === 1 && d === 1) out += 'สิบ';
     else if (place === 1 && d === 2) out += 'ยี่สิบ';
-    else if (place === 0 && d === 1 && text.length > 1) out += 'เอ็ด';
+    else if (place === 0 && d === 1 && (text.length > 1 || afterMillions)) out += 'เอ็ด';
     else out += digits[d] + places[place];
   }
   return out;
@@ -17,7 +18,7 @@ function underMillion(n: number): string {
 function integerText(n: number): string {
   if (n === 0) return 'ศูนย์';
   const millions = Math.floor(n / 1_000_000), rest = n % 1_000_000;
-  return (millions ? integerText(millions) + 'ล้าน' : '') + (rest ? underMillion(rest) : '');
+  return (millions ? integerText(millions) + 'ล้าน' : '') + (rest ? underMillion(rest, millions > 0) : '');
 }
 
 /** 5500.5 → "ห้าพันห้าร้อยบาทห้าสิบสตางค์", the amount in words printed on Thai receipts. */

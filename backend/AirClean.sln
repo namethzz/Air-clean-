@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AirClean.Api", "AirClean.Api\AirClean.Api.csproj", "{4C06762C-EDFA-4BE2-A6E0-2D47AB889A7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AirClean.Api.Tests", "AirClean.Api.Tests\AirClean.Api.Tests.csproj", "{4744A913-D406-4E33-BA35-61B965D01B2A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4C06762C-EDFA-4BE2-A6E0-2D47AB889A7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C06762C-EDFA-4BE2-A6E0-2D47AB889A7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C06762C-EDFA-4BE2-A6E0-2D47AB889A7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C06762C-EDFA-4BE2-A6E0-2D47AB889A7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4744A913-D406-4E33-BA35-61B965D01B2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4744A913-D406-4E33-BA35-61B965D01B2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4744A913-D406-4E33-BA35-61B965D01B2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4744A913-D406-4E33-BA35-61B965D01B2A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
