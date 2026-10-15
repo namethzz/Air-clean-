@@ -559,3 +559,23 @@
 .bk-check input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--ac-blue,#2468d8)}
 .bk-check strong{display:block;font-size:15px;color:var(--ac-ink,#13253b)}
 .bk-check small{display:block;margin-top:2px;font-size:13.5px;line-height:1.5;color:var(--ac-ink-2,#445870)}
+
+/* Booking form: date and time */
+.bk-days{position:relative;display:flex;gap:8px;margin:0 -2px;padding:2px 2px 6px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.bk-days::-webkit-scrollbar{display:none}
+.bk-day{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:68px;min-height:84px;border:1px solid #cfd9e5;border-radius:14px;background:#fff;color:var(--ac-ink-2,#445870);font:inherit;scroll-snap-align:start;cursor:pointer}
+.bk-day span{font-size:13px;font-weight:600}
+.bk-day strong{font:700 24px/1.1 var(--ac-display,inherit);color:var(--ac-ink,#13253b)}
+.bk-day small{font-size:12.5px}
+.bk-day.active{border-color:var(--ac-blue,#2468d8);background:var(--ac-blue,#2468d8);color:#fff}
+.bk-day.active strong{color:#fff}
+.bk-day-other{gap:6px;border-style:dashed;color:var(--ac-blue-deep,#1a4fb0)}
+.bk-day-other.active{border-style:solid}
+.bk-date-native{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none}
+.bk-picked{margin:0;font-size:14px;color:var(--ac-ink-2,#445870)}
+.bk-slots{display:flex;flex-direction:column;gap:10px}
+.bk-slot-group small{display:block;margin-bottom:6px;font-size:13px;color:var(--ac-ink-3,#5d7089)}
+.bk-slot-group>div{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.bk-slot{min-height:48px;border:1px solid #cfd9e5;border-radius:12px;background:#fff;color:var(--ac-ink,#13253b);font:inherit;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer}
+.bk-slot.active{border-color:var(--ac-blue,#2468d8);background:var(--ac-blue,#2468d8);color:#fff}
+.bk-slot:disabled{border-color:#e6ebf1;background:#f6f8fa;color:#b4c0cd;text-decoration:line-through;cursor:not-allowed}

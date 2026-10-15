@@ -3,6 +3,7 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, History,
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Wind, Wrench,
 } from 'lucide-react';
+import { JobPhotoGallery } from '../components/JobPhotos';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import { currentStep, guideFor, isClosedForCustomer, journeySteps, needsAction, sortJobs } from '../lib/jobFlow';
@@ -145,6 +146,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
     </section>}
 
     {report && <ReportBlock report={report}/>}
+    {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง"/></section>}
 
     <section className="cj-block">
       <h3>รายละเอียดงาน</h3>
