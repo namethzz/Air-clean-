@@ -1,1 +1,0 @@
-// Demo seed data is now handled by MongoStore.SeedAsync in AppDbContext.cs.
