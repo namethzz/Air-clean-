@@ -716,8 +716,10 @@ if slipok_port:
         turned_down = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(marker)}, tech, 201)
         assert turned_down['status'] == 'Rejected' and reason in turned_down['note'], turned_down
     # One bank transaction pays once, even if the slip service did not flag it.
-    assert call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF')}, tech, 201)['status'] == 'Approved'
-    reused = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF')}, tech, 201)
+    assert call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF-a')}, tech, 201)['status'] == 'Approved'
+    # The very same picture is refused before it is even checked.
+    call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF-a')}, tech, 409)
+    reused = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'SAMEREF-b')}, tech, 201)
     assert reused['status'] == 'Rejected' and 'เคยใช้' in reused['note']
     # The bank has not confirmed yet: it waits (one slip at a time), and an admin can still decide by hand.
     waiting = call('/technicians/me/membership/payments', 'POST', {'months': 1, 'slip': slip_with(b'WAITALWAYS')}, tech, 201)

@@ -62,6 +62,22 @@ public class MongoStore {
   await JobPhotos.Indexes.CreateOneAsync(new CreateIndexModel<JobPhoto>(Builders<JobPhoto>.IndexKeys.Ascending(x=>x.BookingId).Ascending(x=>x.CreatedAt)));
   await TechnicianDocuments.Indexes.CreateOneAsync(new CreateIndexModel<TechnicianDocument>(Builders<TechnicianDocument>.IndexKeys.Ascending(x=>x.TechnicianId)));
   await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.Status).Descending(x=>x.CreatedAt)));
+  // Bookings are read per customer, per technician (assigned or offered), and by the reminder runs by status and time.
+  await Bookings.Indexes.CreateManyAsync(new[] {
+   new CreateIndexModel<Booking>(Builders<Booking>.IndexKeys.Ascending(x=>x.CustomerId)),
+   new CreateIndexModel<Booking>(Builders<Booking>.IndexKeys.Ascending(x=>x.TechnicianId)),
+   new CreateIndexModel<Booking>(Builders<Booking>.IndexKeys.Ascending("Applicants.TechnicianId")),
+   new CreateIndexModel<Booking>(Builders<Booking>.IndexKeys.Ascending(x=>x.Status).Ascending(x=>x.OfferDeadline)),
+   new CreateIndexModel<Booking>(Builders<Booking>.IndexKeys.Ascending(x=>x.Status).Ascending(x=>x.ScheduledAt)) });
+  // One slip pays once, and a technician has at most one slip waiting. An older database holding duplicates keeps running without them.
+  try { await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.TransRef),
+   new CreateIndexOptions<MembershipPayment>{Unique=true,Name="one_payment_per_transaction",PartialFilterExpression=Builders<MembershipPayment>.Filter.And(
+    Builders<MembershipPayment>.Filter.Eq(x=>x.Status,PaymentStates.Approved),Builders<MembershipPayment>.Filter.Type(x=>x.TransRef,MongoDB.Bson.BsonType.String))})); }
+  catch (MongoCommandException) { }
+  try { await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.TechnicianId),
+   new CreateIndexOptions<MembershipPayment>{Unique=true,Name="one_pending_slip",PartialFilterExpression=Builders<MembershipPayment>.Filter.Eq(x=>x.Status,PaymentStates.Pending)})); }
+  catch (MongoCommandException) { }
+  await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.SlipHash)));
   await Notifications.Indexes.CreateOneAsync(new CreateIndexModel<AppNotification>(Builders<AppNotification>.IndexKeys.Ascending(x=>x.UserId).Descending(x=>x.CreatedAt)));
   try { await PushSubscriptions.Indexes.CreateOneAsync(new CreateIndexModel<PushSubscriptionRecord>(Builders<PushSubscriptionRecord>.IndexKeys.Ascending(x=>x.Endpoint),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }

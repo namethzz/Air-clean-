@@ -6,6 +6,9 @@ using AirCare.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -65,8 +68,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Render sits in front of the app; take the visitor's address from the header it adds so limits apply per visitor.
+builder.Services.Configure<ForwardedHeadersOptions>(options => {
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+// Limits on sign-in, sign-up and password reset against guessing and spam (and the free email quota).
+// On by default in production; RATE_LIMITS=on|off overrides.
+var rateLimits = builder.Configuration["RATE_LIMITS"]?.Trim().ToLowerInvariant() switch { "on" => true, "off" => false, _ => builder.Environment.IsProduction() };
+builder.Services.AddRateLimiter(options => {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancel) => {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync("{\"message\":\"ลองหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่\"}", cancel);
+    };
+    RateLimitPartition<string> PerVisitor(HttpContext http, string policy, int permits, TimeSpan window) => !rateLimits
+        ? RateLimitPartition.GetNoLimiter(policy)
+        : RateLimitPartition.GetSlidingWindowLimiter($"{policy}:{http.Connection.RemoteIpAddress}", _ => new SlidingWindowRateLimiterOptions {
+            PermitLimit = permits, Window = window, SegmentsPerWindow = 6, QueueLimit = 0 });
+    options.AddPolicy("sign-in", http => PerVisitor(http, "sign-in", 10, TimeSpan.FromMinutes(1)));
+    options.AddPolicy("sign-up", http => PerVisitor(http, "sign-up", 10, TimeSpan.FromHours(1)));
+    options.AddPolicy("password-reset", http => PerVisitor(http, "password-reset", 5, TimeSpan.FromMinutes(15)));
+});
+
 var app = builder.Build();
+app.UseForwardedHeaders();
 app.UseCors("Frontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/", () => Results.Ok(new { name = "AirClean API", version = "1.0.0", database = "MongoDB Atlas", status = "running" }));
