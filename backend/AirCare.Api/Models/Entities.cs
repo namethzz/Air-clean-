@@ -26,6 +26,8 @@ public class AppUser {
  public BillingInfo? Billing {get;set;}
  /// <summary>The customer's phone for technicians to call about a job; remembered from the last booking.</summary>
  public string? Phone {get;set;}
+ /// <summary>Completed bookings this customer was already reminded about ("6 months since the last cleaning").</summary>
+ public List<int> DueRemindedFor {get;set;}=[];
 }
 public class BillingInfo { public string Name {get;set;}=""; public string? TaxId {get;set;} public string? Branch {get;set;} public string? Address {get;set;} }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
@@ -36,6 +38,33 @@ public class TechnicianProfile {
  /// <summary>Admin review of the technician application. Older records without it fall back to <see cref="IsVerified"/>.</summary>
  public string? VerificationStatus {get;set;} public string? VerificationNote {get;set;} public DateTime? AppliedAt {get;set;} public DateTime? ReviewedAt {get;set;}
  public string Status => VerificationStatus ?? (IsVerified ? VerificationStates.Approved : VerificationStates.Pending);
+ /// <summary>Monthly membership: the technician can send offers until this time (UTC). Set to a free trial on first approval.</summary>
+ public DateTime? MemberUntil {get;set;}
+ /// <summary>The MemberUntil value already warned about ("ends in 3 days" / "ended"), so each notice goes out once.</summary>
+ public DateTime? MemberSoonNoticeFor {get;set;} public DateTime? MemberEndedNoticeFor {get;set;}
+}
+/// <summary>An identity document a technician sends with the application: ID card, a photo holding it, or a certificate.</summary>
+[BsonIgnoreExtraElements]
+public class TechnicianDocument {
+ [BsonId] public string Id {get;set;}=""; public int TechnicianId {get;set;}
+ /// <summary>idcard, selfie or certificate.</summary>
+ public string Kind {get;set;}="idcard"; public string ContentType {get;set;}="image/jpeg"; public byte[] Data {get;set;}=[]; public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+}
+public static class PaymentStates { public const string Pending="Pending"; public const string Approved="Approved"; public const string Rejected="Rejected"; }
+/// <summary>A technician's membership fee: they transfer by PromptPay, attach the slip, and an admin approves it.</summary>
+[BsonIgnoreExtraElements]
+public class MembershipPayment {
+ [BsonId] public int Id {get;set;} public int TechnicianId {get;set;} public string TechnicianName {get;set;}=""; public int Months {get;set;}=1; public decimal Amount {get;set;}
+ public string SlipContentType {get;set;}="image/jpeg"; public byte[] SlipData {get;set;}=[];
+ public string Status {get;set;}=PaymentStates.Pending; public string? Note {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+ public DateTime? ReviewedAt {get;set;} public int? ReviewedByUserId {get;set;} public DateTime? CoveredUntil {get;set;}
+}
+/// <summary>Membership price and where technicians pay, set by an admin. One document with Id "membership".</summary>
+[BsonIgnoreExtraElements]
+public class MembershipSettings {
+ [BsonId] public string Id {get;set;}="membership"; public decimal MonthlyFee {get;set;}=299; public int TrialDays {get;set;}=30;
+ /// <summary>PromptPay phone number or national/tax ID the fee is transferred to.</summary>
+ public string PromptPayId {get;set;}=""; public string PayeeName {get;set;}="";
 }
 [BsonIgnoreExtraElements]
 public class AirConditioner {
@@ -74,6 +103,8 @@ public class Booking {
  /// <summary>Phones the two sides use to call each other once a technician is chosen.</summary>
  public string? CustomerPhone {get;set;} public string? TechnicianPhone {get;set;}
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
+ /// <summary>Set once the "your visit is tomorrow / today" reminder went out.</summary>
+ public bool VisitReminded {get;set;}
 }
 public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }
 public class RoomEntry { public string Name {get;set;}=""; public int Units {get;set;}=1; }

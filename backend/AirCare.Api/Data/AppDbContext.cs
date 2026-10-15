@@ -17,6 +17,9 @@ public class MongoStore {
  public IMongoCollection<PushSubscriptionRecord> PushSubscriptions {get;}
  public IMongoCollection<VapidKeyRecord> VapidKeys {get;}
  public IMongoCollection<JobPhoto> JobPhotos {get;}
+ public IMongoCollection<TechnicianDocument> TechnicianDocuments {get;}
+ public IMongoCollection<MembershipPayment> MembershipPayments {get;}
+ public IMongoCollection<MembershipSettings> MembershipSettings {get;}
  private readonly IMongoCollection<SequenceCounter> _counters;
 
  public MongoStore(IConfiguration configuration) {
@@ -36,6 +39,9 @@ public class MongoStore {
   PushSubscriptions=_database.GetCollection<PushSubscriptionRecord>("pushSubscriptions");
   VapidKeys=_database.GetCollection<VapidKeyRecord>("vapidKeys");
   JobPhotos=_database.GetCollection<JobPhoto>("jobPhotos");
+  TechnicianDocuments=_database.GetCollection<TechnicianDocument>("technicianDocuments");
+  MembershipPayments=_database.GetCollection<MembershipPayment>("membershipPayments");
+  MembershipSettings=_database.GetCollection<MembershipSettings>("settings");
   _counters=_database.GetCollection<SequenceCounter>("counters");
  }
  public async Task<int> NextIdAsync(string collection) {
@@ -54,6 +60,8 @@ public class MongoStore {
   catch (MongoCommandException) { }
   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.PasswordResetTokenHash),new CreateIndexOptions{Sparse=true}));
   await JobPhotos.Indexes.CreateOneAsync(new CreateIndexModel<JobPhoto>(Builders<JobPhoto>.IndexKeys.Ascending(x=>x.BookingId).Ascending(x=>x.CreatedAt)));
+  await TechnicianDocuments.Indexes.CreateOneAsync(new CreateIndexModel<TechnicianDocument>(Builders<TechnicianDocument>.IndexKeys.Ascending(x=>x.TechnicianId)));
+  await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.Status).Descending(x=>x.CreatedAt)));
   await Notifications.Indexes.CreateOneAsync(new CreateIndexModel<AppNotification>(Builders<AppNotification>.IndexKeys.Ascending(x=>x.UserId).Descending(x=>x.CreatedAt)));
   try { await PushSubscriptions.Indexes.CreateOneAsync(new CreateIndexModel<PushSubscriptionRecord>(Builders<PushSubscriptionRecord>.IndexKeys.Ascending(x=>x.Endpoint),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }

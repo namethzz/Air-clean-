@@ -47,6 +47,7 @@ jobs:
           SMTP_FROM: no-reply@airclean.test
           TEST_BREVO_PORT: 5098
           TEST_PUSH_PORT: 5096
+          CRON_KEY: isolated-ci-cron-key
         run: |
           dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!
