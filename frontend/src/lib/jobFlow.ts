@@ -1,3 +1,4 @@
+import { timeLabel } from './time';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 
 /** The five stages a customer sees, in order. The last one is rating the technician. */
@@ -116,7 +117,7 @@ function when(booking: Booking): string {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const days = Math.round((date.getTime() - today.getTime()) / 86400000);
   const day = days === 0 ? 'วันนี้' : days === 1 ? 'พรุ่งนี้' : date.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
-  return `${day} ${booking.time} น.`;
+  return `${day} ${timeLabel(booking)}`;
 }
 
 export function techGuide(booking: Booking): JobGuide {

@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Banknote, Building2, CheckCircle2, Clock3, ExternalLink, LocateFixed, MapPin, Navigation, RefreshCw, ShieldCheck, Smartphone, Wallet, Wrench } from 'lucide-react';
 import type { Booking, BookingStatus, PaymentMethod, UserRole } from '../types';
@@ -141,7 +142,7 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
         <div className="tracking-status-line"><div className="tracking-status-icon"><Navigation size={18}/></div><div className="tracking-status-copy"><strong>{statusHeadline(selected.status)}</strong><span>{selected.code} · {selected.technician}</span></div></div>
         <div className="tracking-info-list">
           <div className="tracking-info-row"><MapPin size={16}/><div><strong>สถานที่ให้บริการ</strong><span>{selected.address}</span>{selected.unitLabel && <span>{selected.unitLabel}</span>}</div></div>
-          <div className="tracking-info-row"><Clock3 size={16}/><div><strong>วันและเวลา</strong><span>{new Date(`${selected.date}T00:00:00`).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})} · {selected.time} น.</span></div></div>
+          <div className="tracking-info-row"><Clock3 size={16}/><div><strong>วันและเวลา</strong><span>{new Date(`${selected.date}T00:00:00`).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})} · {timeLabel(selected)}</span></div></div>
           <div className="tracking-info-row"><Wallet size={16}/><div><strong>ค่าบริการที่ตกลง</strong><span>฿{selected.price.toLocaleString()} · ชำระหน้างาน</span><span>วิธีชำระ: {selected.paymentMethod === 'PromptPay' ? 'PromptPay' : selected.paymentMethod === 'Cash' ? 'เงินสด' : 'เลือกตอนชำระเงิน'}</span></div></div>
         </div>
 

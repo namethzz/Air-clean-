@@ -588,6 +588,14 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     public async Task<IActionResult> CreateBooking(CreateBookingRequest request)
     {
         if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "กรุณาเลือกวันนัดหมายตั้งแต่วันนี้เป็นต้นไป" });
+        var window = request.TimeWindow?.Trim();
+        if (!string.IsNullOrEmpty(window)) {
+            // "HH:mm-HH:mm", starting at the scheduled time and ending later the same day.
+            var parts = window.Split('-');
+            if (parts.Length != 2 || !TimeOnly.TryParseExact(parts[0], "HH:mm", out var from) || !TimeOnly.TryParseExact(parts[1], "HH:mm", out var to)
+                || to <= from || from != TimeOnly.FromDateTime(request.ScheduledAt))
+                return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
+        } else window = null;
         if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || request.Latitude is null || request.Longitude is null)
             return BadRequest(new { message = "กรุณาเลือกตำแหน่งให้บริการบนแผนที่ก่อนส่งคำขอ" });
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
@@ -608,7 +616,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             PropertyType = request.PropertyType.Trim(), UnitCount = request.UnitCount, AirConditionerId = request.AirConditionerId,
             Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
-            ScheduledAt = request.ScheduledAt, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
+            ScheduledAt = request.ScheduledAt, TimeWindow = window, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };

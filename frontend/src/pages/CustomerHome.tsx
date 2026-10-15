@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/time';
 import { ChevronRight, History } from 'lucide-react';
 import HeroFinancial from '../components/ui/hero-financial';
 import StatusBadge from '../components/StatusBadge';
@@ -49,7 +50,7 @@ export default function CustomerHome({ bookings, reports, userName, onNavigate, 
       <ul className="ac-home-list">{others.map(item => <li key={item.id}>
         <button type="button" className="ac-home-row" onClick={() => onOpenJob(item.id)} aria-label={`${item.service} ${item.status} เปิดดูงาน`}>
           <span className="ac-home-date"><strong>{formatThaiDate(item.date).split(' ')[0]}</strong><span>{formatThaiDate(item.date).split(' ').slice(1).join(' ')}</span></span>
-          <span className="ac-home-main"><strong>{item.service}</strong><span>{guideFor(item).short} · {item.time} น.</span></span>
+          <span className="ac-home-main"><strong>{item.service}</strong><span>{guideFor(item).short} · {timeLabel(item)}</span></span>
           <StatusBadge status={item.status}/>
           <ChevronRight size={18} aria-hidden="true"/>
         </button>

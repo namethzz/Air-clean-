@@ -175,7 +175,7 @@ export default function App() {
       const saved=await createBooking({
         service:payload.service,unitLabel:payload.unitLabel,propertyType:payload.propertyType,unitCount:payload.unitCount,address:payload.address,
         scheduledAt:payload.date+'T'+payload.time+':00',price:payload.price,latitude:payload.latitude,longitude:payload.longitude,
-        airConditionerId:payload.airConditionerId,
+        airConditionerId:payload.airConditionerId,timeWindow:payload.timeWindow,
       });
       setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       openJob(saved.id);showNotice('ส่งคำขอแล้ว รอช่างใกล้เคียงเสนอราคา');return true;

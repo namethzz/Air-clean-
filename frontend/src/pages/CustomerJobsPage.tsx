@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, History,
@@ -95,7 +96,7 @@ export default function CustomerJobsPage(props: Props) {
               <span className="cj-row-main">
                 <strong>{item.service}{item.unitCount && item.unitCount > 1 ? ` · ${item.unitCount} เครื่อง` : ''}</strong>
                 <span className={urgent ? 'cj-row-urgent' : ''}>{guide.short}</span>
-                <small>{shortDate(item.date)} · {item.time} น.</small>
+                <small>{shortDate(item.date)} · {timeLabel(item)}</small>
               </span>
               <ChevronRight size={18} aria-hidden="true"/>
             </button>
@@ -122,7 +123,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
   return <article className="cj-article">
     <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
     <header className="cj-head">
-      <div><span className="cj-code">{booking.code}</span><h2>{booking.service}</h2><p>{shortDate(booking.date)} · {booking.time} น.</p></div>
+      <div><span className="cj-code">{booking.code}</span><h2>{booking.service}</h2><p>{shortDate(booking.date)} · {timeLabel(booking)}</p></div>
       <StatusBadge status={booking.status}/>
     </header>
 

@@ -1,20 +1,16 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, CalendarDays, Check, Minus, Plus, Wind, X } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { ArrowRight, Check, Minus, Plus, Wind, X } from 'lucide-react';
 import type { AirConditioner, SavedAddress, Technician } from '../types';
 import LocationPicker, { type RememberChoice } from './LocationPicker';
+import VisitTimePicker, { defaultVisit, visitPayload, type Visit } from './VisitTimePicker';
 import { saveAddress } from '../lib/api';
 
 export interface BookingPayload {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string;
-  date:string; time:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
+  date:string; time:string; timeWindow?:string; price:number; latitude:number; longitude:number; airConditionerId?:number;
 }
 interface BookingModalProps { technicians:Technician[]; units?:AirConditioner[]; initialUnitId?:number; onClose:()=>void; onSubmit:(payload:BookingPayload)=>Promise<boolean>; }
 function unitText(unit:AirConditioner):string { return [unit.label,unit.brand,unit.type].filter(Boolean).join(' · ').slice(0,180); }
-function localDate() {
-  const now=new Date();
-  return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-}
-const today=localDate();
 
 /** What a customer can tell by looking at the unit. Hanging and ceiling units take longer, so they cost more. */
 const acTypes=[
@@ -25,45 +21,6 @@ const acTypes=[
 type AcType=typeof acTypes[number]['key'];
 const sizes=[{key:'',label:'ไม่ทราบ'},{key:'9,000–12,000 BTU',label:'ห้องนอน (9,000–12,000)'},{key:'18,000–24,000 BTU',label:'ห้องใหญ่ (18,000–24,000)'},{key:'มากกว่า 24,000 BTU',label:'มากกว่า 24,000'}];
 const brands=['Daikin','Mitsubishi','Carrier','Panasonic','Samsung','LG','Haier','Sharp','Saijo Denki','Central Air'];
-
-const slots=[{label:'ช่วงเช้า',times:['08:00','09:00','10:00','11:00']},{label:'ช่วงบ่าย',times:['13:00','14:00','15:00','16:00','17:00']}];
-function addDays(date:string,days:number){const value=new Date(date+'T00:00:00');value.setDate(value.getDate()+days);return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);}
-/** Today only offers times at least an hour away, so the technician has time to get there. */
-function timeOpen(date:string,time:string){if(date!==localDate())return true;const [h,m]=time.split(':').map(Number);const at=new Date();at.setHours(h,m,0,0);return at.getTime()-Date.now()>=60*60*1000;}
-function firstFreeTime(date:string){return slots.flatMap(group=>group.times).find(time=>timeOpen(date,time));}
-
-/** Next two weeks as day cards (plus any other date), and the visit time as buttons grouped by morning and afternoon. */
-function DateTimePicker({date,time,onDate,onTime}:{date:string;time:string;onDate:(value:string)=>void;onTime:(value:string)=>void}){
-  const first=localDate();
-  const days=Array.from({length:14},(_,i)=>addDays(first,i)).filter(day=>day!==first||firstFreeTime(day));
-  const other=!days.includes(date);
-  const picker=useRef<HTMLInputElement>(null);
-  function pickDay(day:string){onDate(day);if(!timeOpen(day,time))onTime(firstFreeTime(day)??time);}
-  return <>
-    <div className="bk-field">
-      <span className="bk-label" id="bk-date-label">วันที่สะดวก</span>
-      <div className="bk-days" role="radiogroup" aria-labelledby="bk-date-label">
-        {days.map((day,index)=>{const value=new Date(day+'T00:00:00');const head=day===first?'วันนี้':day===addDays(first,1)?'พรุ่งนี้':value.toLocaleDateString('th-TH',{weekday:'short'});
-          return <button type="button" role="radio" aria-checked={date===day} key={day} className={'bk-day'+(date===day?' active':'')+(index===0?' first':'')} onClick={()=>pickDay(day)}>
-            <span>{head}</span><strong>{value.getDate()}</strong><small>{value.toLocaleDateString('th-TH',{month:'short'})}</small>
-          </button>;})}
-        <button type="button" className={'bk-day bk-day-other'+(other?' active':'')} onClick={()=>{const input=picker.current;if(!input)return;try{input.showPicker();}catch{input.focus();input.click();}}}>
-          <CalendarDays size={20}/><small>{other?new Date(date+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'}):'วันอื่น'}</small>
-        </button>
-        <input ref={picker} className="bk-date-native" type="date" min={first} value={date} onChange={event=>{if(event.target.value)pickDay(event.target.value);}} aria-label="เลือกวันอื่น" tabIndex={-1}/>
-      </div>
-      <p className="bk-picked">{new Date(date+'T00:00:00').toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · {time} น.</p>
-    </div>
-    <div className="bk-field">
-      <span className="bk-label" id="bk-time-label">เวลาที่สะดวกให้ช่างมาถึง</span>
-      <div className="bk-slots" role="radiogroup" aria-labelledby="bk-time-label">
-        {slots.map(group=><div key={group.label} className="bk-slot-group"><small>{group.label}</small><div>
-          {group.times.map(value=>{const open=timeOpen(date,value);return <button type="button" role="radio" aria-checked={time===value} key={value} disabled={!open} className={'bk-slot'+(time===value?' active':'')} onClick={()=>onTime(value)}>{value}</button>;})}
-        </div></div>)}
-      </div>
-    </div>
-  </>;
-}
 
 function AcIcon({kind}:{kind:AcType}){
   // Simple drawings so people can match what is on their wall or ceiling.
@@ -101,8 +58,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
     latitude:13.7563,longitude:100.5018,locationSelected:false,
   });
   const [remember,setRemember]=useState<RememberChoice>({on:true,label:'บ้าน'});
-  const [date,setDate]=useState(()=>firstFreeTime(today)?today:addDays(today,1));
-  const [time,setTime]=useState(()=>firstFreeTime(today)??'10:00');
+  const [visit,setVisit]=useState<Visit>(defaultVisit);
   const [submitted,setSubmitted]=useState(false);
   const [submitting,setSubmitting]=useState(false);
   const [formError,setFormError]=useState('');
@@ -118,10 +74,12 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
     setFormError('');
     if(!place.address.trim()) { setFormError('กรุณากรอกที่อยู่ให้ครบถ้วน'); return; }
     if(!place.locationSelected) { setFormError('กรุณาปักหมุดบนแผนที่หรือใช้ตำแหน่งปัจจุบันก่อนส่งคำขอ'); return; }
+    const when=visitPayload(visit);
+    if(!when) { setFormError('กรุณาเลือกวันและเวลาที่ช่างมาได้'); return; }
     setSubmitting(true);
     const success=await onSubmit({
       service,unitLabel:unitLabel.trim(),propertyType,unitCount,address:fullAddress,
-      date,time,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
+      date:visit.date,time:when.time,timeWindow:when.timeWindow,price,latitude:place.latitude,longitude:place.longitude,airConditionerId:unitId,
     });
     setSubmitting(false);
     if(success){
@@ -177,7 +135,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,onClose
         <label className="bk-check"><input type="checkbox" checked={checkUp} onChange={event=>setCheckUp(event.target.checked)}/><span><strong>ตรวจเช็กระบบเพิ่ม</strong><small>วัดน้ำยาและตรวจการทำงาน +฿300/เครื่อง แนะนำถ้าแอร์ไม่ค่อยเย็น</small></span></label>
         {units.length>0&&<label className="form-field"><span>เครื่องจากสมุดประวัติ (ไม่บังคับ)</span><select value={unitId??''} onChange={event=>pickUnit(event.target.value)}><option value="">ไม่ระบุเครื่อง</option>{units.map(unit=><option key={unit.id} value={unit.id}>{unitText(unit)}</option>)}</select></label>}
         <label className="form-field"><span>บอกช่างเพิ่มเติม (ไม่บังคับ)</span><input value={unitNote} onChange={event=>setUnitNote(event.target.value)} maxLength={80} placeholder="เช่น น้ำหยด มีกลิ่น ห้องนอน 2 ห้องนั่งเล่น 1"/></label>
-        <DateTimePicker date={date} time={time} onDate={setDate} onTime={setTime}/>
+        <VisitTimePicker value={visit} onChange={setVisit}/>
         <div className="marketplace-estimate">
           <div><span>ราคาเริ่มต้นโดยประมาณ</span><strong>฿{price.toLocaleString()}</strong></div>
           <small><Wind size={14}/> ยังไม่ใช่ราคาสุดท้าย คุณจะเห็นราคาที่ช่างแต่ละคนเสนอและเลือกยืนยันเอง · เก็บเงินปลายทางเมื่อล้างเสร็จ ไม่ต้องจ่ายล่วงหน้า</small>

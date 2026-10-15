@@ -57,6 +57,8 @@ public class Booking {
  public string Status {get;set;}=BookingStates.Pending; public string? Notes {get;set;} public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime UpdatedAt {get;set;}=DateTime.UtcNow; public List<BookingEvent> Events {get;set;}=[]; public List<BookingApplicant> Applicants {get;set;}=[];
  /// <summary>The latest problem someone reported on this job, kept until an admin closes it.</summary>
  public BookingIssue? Issue {get;set;}
+ /// <summary>When the customer gave a window ("13:00-17:00") instead of one time; ScheduledAt holds its start.</summary>
+ public string? TimeWindow {get;set;}
 }
 public static class IssueKinds { public const string Payment="Payment"; public const string Service="Service"; }
 public static class IssueResolutions { public const string Paid="Paid"; public const string Cancelled="Cancelled"; public const string Closed="Closed"; }
