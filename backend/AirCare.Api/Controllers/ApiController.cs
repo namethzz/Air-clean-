@@ -377,6 +377,117 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
             .Select(x => DtoMapper.ToApplicationDto(x, emails.GetValueOrDefault(x.UserId, ""))).ToList());
     }
 
+    /// <summary>Everything an admin needs about one technician: profile, contact, totals, jobs and reviews.</summary>
+    [Authorize(Roles = "Admin"), HttpGet("admin/technicians/{id:int}")]
+    public async Task<IActionResult> TechnicianDetail(int id)
+    {
+        var profile = await store.Technicians.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (profile is null) return NotFound(new { message = "ไม่พบช่าง" });
+        var account = await store.Users.Find(x => x.Id == profile.UserId).FirstOrDefaultAsync();
+        var jobs = await store.Bookings.Find(x => x.TechnicianId == id).ToListAsync();
+        var offers = await store.Bookings.Find(Builders<Booking>.Filter.ElemMatch(x => x.Applicants, a => a.TechnicianId == id)).ToListAsync();
+        var reviews = await store.Reviews.Find(x => x.TechnicianId == id).SortByDescending(x => x.CreatedAt).Limit(30).ToListAsync();
+        var bookingIds = jobs.Select(x => x.Id).ToList();
+        var photoCounts = (await store.JobPhotos.Find(Builders<JobPhoto>.Filter.In(x => x.BookingId, bookingIds)).Project(x => x.BookingId).ToListAsync())
+            .GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
+        var completed = jobs.Where(x => x.Status == BookingStates.Completed).ToList();
+        var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var active = new[] { BookingStates.Pending, BookingStates.Confirmed, BookingStates.Traveling, BookingStates.Arrived, BookingStates.InProgress, BookingStates.AwaitingPayment, BookingStates.PaymentIssue };
+        var stats = new TechnicianStatsDto(completed.Count, jobs.Count(x => active.Contains(x.Status)), jobs.Count(x => x.Status == BookingStates.Cancelled),
+            offers.Count(x => x.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection && x.TechnicianId != id),
+            completed.Sum(x => x.Price), completed.Where(x => x.UpdatedAt >= monthStart).Sum(x => x.Price), profile.Rating, profile.ReviewCount,
+            jobs.Count(x => IssueOf(x) is { IsOpen: true }));
+        var bookingCodes = jobs.ToDictionary(x => x.Id, x => (x.Code, x.CustomerName));
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        return Ok(new TechnicianDetailDto(
+            DtoMapper.ToApplicationDto(profile, account?.Email ?? ""),
+            (account?.CreatedAt ?? DateTime.MinValue).ToString("O", culture),
+            [.. (account is not null && !string.IsNullOrEmpty(account.PasswordHash) ? new[] { "อีเมลและรหัสผ่าน" } : []), .. (account?.ExternalLogins ?? []).Select(x => x.Provider).Distinct()],
+            stats,
+            jobs.OrderByDescending(x => x.ScheduledAt).Take(40).Select(x => new TechnicianJobDto(x.Id, x.Code, DtoMapper.DisplayStatus(x.Status),
+                x.ScheduledAt.ToString("yyyy-MM-dd", culture), x.ScheduledAt.ToString("HH:mm", culture), x.CustomerName, x.Address, x.Service, x.UnitCount, x.Price, x.CustomerRating,
+                photoCounts.GetValueOrDefault(x.Id))).ToList(),
+            reviews.Select(x => new TechnicianReviewDto(x.Rating, x.Comment, bookingCodes.TryGetValue(x.BookingId, out var b) ? b.CustomerName : "", bookingCodes.TryGetValue(x.BookingId, out var c) ? c.Code : "", x.CreatedAt.ToString("O", culture))).ToList()));
+    }
+
+    private const int MaxPhotosPerJob = 8;
+    private const int MaxPhotoBytes = 2_000_000;
+
+    /// <summary>The technician adds a photo of the work (before or after). Phones resize it before sending.</summary>
+    [Authorize(Roles = "Technician"), HttpPost("bookings/{id:int}/photos"), RequestSizeLimit(3_200_000)]
+    public async Task<IActionResult> UploadJobPhoto(int id, UploadPhotoRequest request)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound(new { message = "ไม่พบงานนี้" });
+        var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+        if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
+        if (booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection or BookingStates.Pending or BookingStates.Cancelled
+            || (booking.Status == BookingStates.Completed && booking.UpdatedAt < DateTime.UtcNow.AddDays(-1)))
+            return Conflict(new { message = "เพิ่มรูปได้ระหว่างทำงานและภายใน 1 วันหลังปิดงาน" });
+        var kind = request.Kind.Trim().ToLowerInvariant();
+        if (kind is not ("before" or "after")) return BadRequest(new { message = "ระบุว่าเป็นรูปก่อนหรือหลังล้าง" });
+        byte[] data;
+        try { data = Convert.FromBase64String(request.Data.Contains(',') ? request.Data[(request.Data.IndexOf(',') + 1)..] : request.Data); }
+        catch (FormatException) { return BadRequest(new { message = "ไฟล์รูปไม่ถูกต้อง" }); }
+        if (data.Length == 0 || data.Length > MaxPhotoBytes) return BadRequest(new { message = "รูปใหญ่เกินไป (สูงสุด 2 MB)" });
+        var contentType = ImageType(data);
+        if (contentType is null) return BadRequest(new { message = "รองรับเฉพาะรูป JPEG, PNG หรือ WebP" });
+        if (await store.JobPhotos.CountDocumentsAsync(x => x.BookingId == id) >= MaxPhotosPerJob) return Conflict(new { message = $"เพิ่มรูปได้สูงสุด {MaxPhotosPerJob} รูปต่องาน" });
+        var photo = new JobPhoto { Id = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(), BookingId = id, TechnicianId = tech.Id,
+            UploadedByUserId = CurrentUserId, Kind = kind, ContentType = contentType, Data = data, CreatedAt = DateTime.UtcNow };
+        await store.JobPhotos.InsertOneAsync(photo);
+        return Created($"/api/photos/{photo.Id}", ToPhotoDto(photo));
+    }
+
+    [Authorize, HttpGet("bookings/{id:int}/photos")]
+    public async Task<IActionResult> JobPhotos(int id)
+    {
+        var booking = await store.Bookings.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (booking is null) return NotFound();
+        if (!await CanSeeJobAsync(booking)) return Forbid();
+        var photos = await store.JobPhotos.Find(x => x.BookingId == id).SortBy(x => x.CreatedAt)
+            .Project(x => new JobPhoto { Id = x.Id, Kind = x.Kind, CreatedAt = x.CreatedAt }).ToListAsync();
+        return Ok(photos.Select(ToPhotoDto).ToList());
+    }
+
+    [Authorize, HttpGet("photos/{photoId}")]
+    public async Task<IActionResult> JobPhotoFile(string photoId)
+    {
+        var photo = await store.JobPhotos.Find(x => x.Id == photoId).FirstOrDefaultAsync();
+        if (photo is null) return NotFound();
+        var booking = await store.Bookings.Find(x => x.Id == photo.BookingId).FirstOrDefaultAsync();
+        if (booking is null || !await CanSeeJobAsync(booking)) return Forbid();
+        Response.Headers.CacheControl = "private, max-age=86400";
+        return File(photo.Data, photo.ContentType);
+    }
+
+    [Authorize(Roles = "Technician"), HttpDelete("photos/{photoId}")]
+    public async Task<IActionResult> DeleteJobPhoto(string photoId)
+    {
+        var deleted = await store.JobPhotos.DeleteOneAsync(x => x.Id == photoId && x.UploadedByUserId == CurrentUserId);
+        return deleted.DeletedCount == 0 ? NotFound() : NoContent();
+    }
+
+    private static JobPhotoDto ToPhotoDto(JobPhoto photo) => new(photo.Id, photo.Kind, photo.CreatedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+
+    /// <summary>JPEG, PNG or WebP by the file's first bytes; anything else is refused.</summary>
+    private static string? ImageType(byte[] data) =>
+        data.Length > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF ? "image/jpeg"
+        : data.Length > 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 ? "image/png"
+        : data.Length > 12 && Encoding.ASCII.GetString(data, 0, 4) == "RIFF" && Encoding.ASCII.GetString(data, 8, 4) == "WEBP" ? "image/webp"
+        : null;
+
+    /// <summary>The job's customer, its technician, or an admin.</summary>
+    private async Task<bool> CanSeeJobAsync(Booking booking)
+    {
+        if (CurrentRole == AppRoles.Admin) return true;
+        if (CurrentRole == AppRoles.Technician) {
+            var tech = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
+            return tech is not null && tech.Id == booking.TechnicianId;
+        }
+        return booking.CustomerId == CurrentUserId;
+    }
+
     [Authorize, HttpGet("dashboard")]
     public async Task<IActionResult> Dashboard()
     {

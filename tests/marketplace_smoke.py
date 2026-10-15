@@ -481,4 +481,33 @@ if os.environ.get('MONGODB_URI'):
     MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')].bookings.update_one({'_id': legacy}, {'$unset': {'Issue': ''}})
     assert open_issue(legacy)['issue']['reason'] == 'เก่า'
     assert call(f'/admin/issues/{legacy}/resolve', 'POST', {'action': 'paid'}, admin)['issue']['resolution'] == 'Paid'
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues and cancellation.')
+# Job photos: the job's technician uploads (images only, size and count limited); the customer and admins see them.
+import base64
+photo_job = awaiting_payment()
+jpeg = base64.b64encode(b'\xff\xd8\xff\xe0' + b'\x00' * 2000).decode()
+call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': base64.b64encode(b'<svg/>').decode()}, tech, 400)
+call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'side', 'data': jpeg}, tech, 400)
+call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': jpeg}, other_tech, 403)
+call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': jpeg}, customer, 403)
+before = call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'before', 'data': 'data:image/jpeg;base64,' + jpeg}, tech, 201)
+after = call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': jpeg}, tech, 201)
+assert [p['kind'] for p in call(f'/bookings/{photo_job}/photos', token=customer)] == ['before', 'after']
+call(f'/bookings/{photo_job}/photos', token=other_customer, expected=403)
+assert len(call(f'/bookings/{photo_job}/photos', token=admin)) == 2
+req = Request(BASE + f"/photos/{after['id']}", headers={'Authorization': 'Bearer ' + customer})
+with urlopen(req, timeout=20) as response:
+    assert response.headers['Content-Type'] == 'image/jpeg' and response.read()[:3] == b'\xff\xd8\xff'
+call(f"/photos/{after['id']}", token=other_customer, expected=403)
+call(f"/photos/{before['id']}", 'DELETE', token=other_tech, expected=404)
+call(f"/photos/{before['id']}", 'DELETE', token=tech, expected=204)
+for _ in range(7):
+    call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': jpeg}, tech, 201)
+call(f'/bookings/{photo_job}/photos', 'POST', {'kind': 'after', 'data': jpeg}, tech, 409)
+# Admin view of one technician: profile, contact, totals, jobs (with photo counts) and reviews.
+call(f"/admin/technicians/{profile['id']}", token=customer, expected=403)
+detail = call(f"/admin/technicians/{profile['id']}", token=admin)
+assert detail['profile']['phone'] and detail['profile']['email'] and detail['stats']['jobsCompleted'] >= 1
+assert detail['stats']['revenueTotal'] > 0 and detail['reviews'] and detail['reviews'][0]['rating'] in range(1, 6)
+assert next(job for job in detail['jobs'] if job['id'] == photo_job)['photos'] == 8
+call('/admin/technicians/999999', token=admin, expected=404)
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details and cancellation.')

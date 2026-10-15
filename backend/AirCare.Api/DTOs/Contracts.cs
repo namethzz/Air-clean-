@@ -31,6 +31,12 @@ public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Ti
 
 public record CreateAirConditionerRequest([Required,MinLength(1),MaxLength(80)] string Label,[MaxLength(80)] string? Room,[MaxLength(60)] string? Brand,[MaxLength(80)] string? Model,[MaxLength(80)] string? Type,[MaxLength(80)] string? SerialNumber,DateTime? LastServiceDate);
 public record TechnicianVerificationRequest(bool Verified,[MaxLength(500)] string? Note=null);
+public record UploadPhotoRequest([Required] string Kind,[Required,MaxLength(3_000_000)] string Data);
+public record JobPhotoDto(string Id,string Kind,string CreatedAt);
+public record TechnicianStatsDto(int JobsCompleted,int JobsActive,int JobsCancelled,int OffersWaiting,decimal RevenueTotal,decimal RevenueThisMonth,decimal Rating,int ReviewCount,int OpenIssues);
+public record TechnicianReviewDto(int Rating,string Comment,string Customer,string BookingCode,string CreatedAt);
+public record TechnicianJobDto(int Id,string Code,string Status,string Date,string Time,string Customer,string Area,string Service,int UnitCount,decimal Price,int? CustomerRating,int Photos);
+public record TechnicianDetailDto(TechnicianApplicationDto Profile,string AccountCreatedAt,string[] SignIn,TechnicianStatsDto Stats,IReadOnlyList<TechnicianJobDto> Jobs,IReadOnlyList<TechnicianReviewDto> Reviews);
 public record TechnicianApplicationDto(int Id,int UserId,string Name,string Email,string Phone,string Title,string Area,decimal BasePrice,string AvailableText,string[] Skills,int ExperienceYears,decimal Rating,int ReviewCount,int JobsCompleted,bool Verified,string VerificationStatus,string? VerificationNote,string? AppliedAt,string? ReviewedAt);
 public record ExternalLoginRequest([Required,MaxLength(20)] string Provider,[Required,MaxLength(8000)] string IdToken,bool CreateAccount=false,[MaxLength(30)] string? Role=null,[MaxLength(120)] string? FullName=null,[MaxLength(30)] string? Phone=null,[MaxLength(200)] string? ServiceArea=null,[Range(0,60)] int? ExperienceYears=null);
 public record ForgotPasswordRequest([Required,EmailAddress,MaxLength(254)] string Email);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Ban, CheckCircle2, Clock3, Mail, MessageSquareWarning, Phone, RefreshCw, Wallet, Wrench } from 'lucide-react';
 import type { AdminIssue, IssueResolution } from '../types';
 import { fetchAdminIssues, resolveIssue } from '../lib/api';
+import { JobPhotoGallery } from '../components/JobPhotos';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
 type Tab = 'open' | 'resolved';
@@ -85,6 +86,7 @@ function IssueCard({ row, onResolved, onNotice }: { row: AdminIssue; onResolved:
       <Contact label="ช่าง" party={row.technician}/>
       {row.address && <div><dt>ที่อยู่</dt><dd>{row.address}</dd></div>}
     </dl>
+    <JobPhotoGallery bookingId={row.bookingId} title="รูปจากหน้างาน"/>
     {row.history.length > 0 && <details className="issue-history"><summary>ประวัติงาน ({row.history.length})</summary><ol>
       {row.history.map((item, index) => <li key={index}><Clock3 size={13}/><span><small>{when(item.at)} · {item.status}</small>{item.notes || '—'}</span></li>)}
     </ol></details>}

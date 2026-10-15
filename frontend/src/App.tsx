@@ -21,6 +21,7 @@ import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import IssuesPage from './pages/IssuesPage';
+import AdminTechniciansPage from './pages/AdminTechniciansPage';
 import UpdateBanner from './components/UpdateBanner';
 import PushPrompt from './components/PushPrompt';
 import NotificationBell from './components/NotificationBell';
@@ -41,7 +42,7 @@ const pageTitles:Record<PageKey,string> = {
 /** Customers see plainer names for the same pages. */
 const customerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
 const technicianTitles:Partial<Record<PageKey,string>> = { nearbyJobs:'งานใกล้ฉัน', bookings:'งานของฉัน', profile:'โปรไฟล์และราคา' };
-function titleFor(role:UserRole,page:PageKey):string { return (role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
+function titleFor(role:UserRole,page:PageKey):string { if(role==='admin'&&page==='technicians')return 'ช่างทั้งหมด'; return (role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
 /** Where each role starts. Technicians go straight to jobs near them. */
 function homePage(role:UserRole):PageKey { return role==='technician'?'nearbyJobs':'overview'; }
 const activeStatuses:BookingStatus[] = ['เปิดรับช่าง','รอเลือกช่าง','รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
@@ -280,7 +281,8 @@ export default function App() {
     if(!user)return null;
     switch(page){
       case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):user.role==='manager'?navigate('batch'):openBooking()}/>;
-      case 'technicians':return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
+      case 'technicians':if(user.role==='admin')return <AdminTechniciansPage onNotice={showNotice} onChanged={()=>void refreshData()}/>;
+        return <TechniciansPage technicians={state.technicians} searchQuery={searchQuery} onBook={()=>openBooking()}/>;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')}/>;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onRefresh={refreshBookings}/>;
         if(user.role==='customer')return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;

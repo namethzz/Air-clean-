@@ -3,6 +3,7 @@ import { ArrowRight, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, C
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
+import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
 import { isClosed, isOffer, sortByNeed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
 import type { CompleteJobPayload } from '../lib/api';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
@@ -224,6 +225,7 @@ function JobDetail({ booking, reports, onBack, onStatusChange, onLocationUpdate,
 
     {going && <FinishJob booking={booking} onComplete={onComplete}/>}
 
+    {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id}/></section>}
     {report && booking.status === 'เสร็จสิ้น' && <section className="cj-block">
       <h3>สรุปงานที่บันทึกไว้</h3>
       <p className="cj-report-summary">{report.summary}</p>
@@ -302,6 +304,9 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
   const [note, setNote] = useState('');
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [photos, setPhotos] = useState({ after: 0, failed: false });
+  // At least one "after" photo, unless uploading failed (bad signal must not block closing the job).
+  const photosReady = photos.after > 0 || photos.failed;
   async function finish() {
     setBusy(true);
     const ok = await onComplete(booking.id, { method, summary: note.trim() || undefined, ...checks });
@@ -311,6 +316,11 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
   return <section className="cj-block tj-finish">
     <h3>ล้างเสร็จแล้ว? ปิดงานที่นี่</h3>
     <p className="cj-note">กดครั้งเดียวหลังล้างเสร็จและได้รับเงินจากลูกค้าแล้ว ระบบจะบันทึกประวัติการล้างแอร์ให้ลูกค้าอัตโนมัติ</p>
+    <div className="tj-photos">
+      <h4>รูปงาน</h4>
+      <p className="cj-note">ถ่ายรูปแอร์หลังล้างอย่างน้อย 1 รูป ลูกค้าจะเห็นรูปในงานของเขา</p>
+      <JobPhotoPicker bookingId={booking.id} onChange={setPhotos}/>
+    </div>
     <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
     <div className="cj-methods" role="group" aria-label="ลูกค้าจ่ายด้วย">
       <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
@@ -326,6 +336,10 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
         <p>ยืนยันว่าล้างเสร็จและได้รับเงิน ฿{booking.price.toLocaleString()} ({method === 'Cash' ? 'เงินสด' : 'โอน'}) แล้ว</p>
         <div><button type="button" className="cj-primary" disabled={busy} onClick={() => void finish()}>{busy ? 'กำลังบันทึก...' : 'ยืนยันปิดงาน'}</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setAsking(false)}>ยกเลิก</button></div>
       </div>
-      : <button type="button" className="cj-primary full" onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>}
+      : <>
+        <button type="button" className="cj-primary full" disabled={!photosReady} onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>
+        {!photosReady && <p className="cj-note tj-photo-needed">เพิ่มรูปหลังล้างก่อนปิดงาน</p>}
+        {photos.failed && photos.after === 0 && <p className="cj-note tj-photo-needed">อัปโหลดรูปไม่ได้ ปิดงานต่อได้ แล้วเพิ่มรูปภายหลังภายใน 1 วัน</p>}
+      </>}
   </section>;
 }

@@ -21,3 +21,7 @@ export interface BatchBooking{id:number;code:string;building:string;address:stri
 export interface ServiceReportRecord{id:number;bookingId:number;bookingCode:string;summary:string;cleanedFilter:boolean;cleanedCoil:boolean;checkedDrain:boolean;checkedCooling:boolean;beforePhotoUrl?:string|null;afterPhotoUrl?:string|null;customerApproved:boolean;createdAt:string;}
 export interface DashboardSummary{totalUnits:number;upcomingBookings:number;serviceCompletion:number;totalSpent:number;}
 export interface AppState{technicians:Technician[];airConditioners:AirConditioner[];bookings:Booking[];batchBookings:BatchBooking[];serviceReports:ServiceReportRecord[];summary:DashboardSummary;}
+export interface JobPhoto{id:string;kind:'before'|'after';createdAt:string;}
+export interface TechnicianStats{jobsCompleted:number;jobsActive:number;jobsCancelled:number;offersWaiting:number;revenueTotal:number;revenueThisMonth:number;rating:number;reviewCount:number;openIssues:number;}
+export interface TechnicianJob{id:number;code:string;status:string;date:string;time:string;customer:string;area:string;service:string;unitCount:number;price:number;customerRating?:number|null;photos:number;}
+export interface TechnicianDetail{profile:TechnicianApplication;accountCreatedAt:string;signIn:string[];stats:TechnicianStats;jobs:TechnicianJob[];reviews:{rating:number;comment:string;customer:string;bookingCode:string;createdAt:string}[];}

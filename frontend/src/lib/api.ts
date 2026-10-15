@@ -1,4 +1,4 @@
-import type { AdminIssue, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, BatchBooking, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -235,4 +235,23 @@ export interface TechnicianProfilePayload {
 export function fetchMyTechnicianProfile(): Promise<TechnicianApplication> { return request<TechnicianApplication>('/technicians/me'); }
 export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<TechnicianApplication> {
   return request<TechnicianApplication>('/technicians/me', { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function uploadJobPhoto(bookingId:number,kind:'before'|'after',data:string):Promise<JobPhoto> {
+  return request<JobPhoto>('/bookings/'+bookingId+'/photos',{method:'POST',body:JSON.stringify({kind,data})});
+}
+export async function fetchJobPhotos(bookingId:number):Promise<JobPhoto[]> {
+  return request<JobPhoto[]>('/bookings/'+bookingId+'/photos');
+}
+export async function deleteJobPhoto(id:string):Promise<void> {
+  await request<void>('/photos/'+id,{method:'DELETE'});
+}
+/** Photos need the sign-in token, so they are fetched and shown from a local object URL. */
+export async function jobPhotoUrl(id:string):Promise<string> {
+  const response=await fetch(requireApiBase()+'/photos/'+id,{headers:{Authorization:'Bearer '+(localStorage.getItem(TOKEN_KEY)??'')}});
+  if(!response.ok)throw new ApiError('โหลดรูปไม่สำเร็จ',response.status);
+  return URL.createObjectURL(await response.blob());
+}
+export async function fetchTechnicianDetail(id:number):Promise<TechnicianDetail> {
+  return request<TechnicianDetail>('/admin/technicians/'+id);
 }
