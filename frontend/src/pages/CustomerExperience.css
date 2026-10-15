@@ -484,3 +484,45 @@
 .auth-screen .auth-social-pending{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--ac-frame);border-radius:12px;background:var(--ac-mist);font-size:14px;color:var(--ac-ink-2)}
 .auth-screen .auth-social-pending strong{color:var(--ac-ink);font-size:15px;overflow-wrap:anywhere}
 .acl-footer small a,.auth-screen .auth-copyright a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+
+/* Address picker: saved places first, then search / my location / map for a new one */
+.lp{display:flex;flex-direction:column;gap:12px}
+.lp-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.lp-head strong{font-size:16px;color:var(--ac-ink,#13253b)}
+.lp-head span{font-size:13.5px;color:var(--ac-ink-3,#5d7089)}
+.lp .cj-link{min-height:36px;font-size:14px}
+.lp-saved{display:flex;flex-direction:column;gap:8px}
+.lp-saved-item{border:1px solid var(--ac-frame,#dce4ed);border-radius:14px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.lp-saved-item.selected{border-color:var(--ac-blue,#2468d8);box-shadow:0 0 0 2px var(--ac-blue-tint,#e8f0fc)}
+.lp-saved-pick{display:flex;align-items:flex-start;gap:12px;width:100%;min-height:64px;padding:14px;border:0;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.lp-radio{flex:none;display:grid;place-items:center;width:22px;height:22px;margin-top:1px;border:2px solid #b9c7d8;border-radius:50%;color:#fff}
+.lp-saved-item.selected .lp-radio{border-color:var(--ac-blue,#2468d8);background:var(--ac-blue,#2468d8)}
+.lp-saved-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lp-saved-text strong{font-size:15.5px;color:var(--ac-ink,#13253b)}
+.lp-saved-text small{font-size:13.5px;line-height:1.5;color:var(--ac-ink-2,#445870);overflow-wrap:anywhere}
+.lp-saved-actions{display:flex;gap:16px;padding:0 14px 8px 48px}
+.lp-danger{color:#a53c3c!important}
+.lp-new{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1.5px dashed #b9c7d8;border-radius:14px;background:none;color:var(--ac-blue-deep,#1a4fb0);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+.lp-search{position:relative;display:flex;align-items:center;gap:8px;min-height:50px;padding:0 12px;border:1px solid #cfd9e5;border-radius:12px;background:#fff;color:var(--ac-ink-3,#5d7089)}
+.lp-search:focus-within{border-color:var(--ac-blue,#2468d8);box-shadow:0 0 0 3px var(--ac-blue-tint,#e8f0fc)}
+.lp-search input{flex:1;min-width:0;min-height:46px;border:0!important;outline:0;background:none!important;box-shadow:none!important;padding:0!important;font:inherit;font-size:16px;color:var(--ac-ink,#13253b)}
+.lp-search input::-webkit-search-cancel-button{display:none}
+.lp-clear{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:50%;background:none;color:inherit;cursor:pointer}
+.lp-results{position:absolute;left:-1px;right:-1px;top:calc(100% + 6px);z-index:1000;max-height:300px;overflow:auto;margin:0;padding:6px;list-style:none;border:1px solid var(--ac-frame,#dce4ed);border-radius:12px;background:#fff;box-shadow:0 14px 34px rgba(10,24,44,.16)}
+.lp-results button{display:flex;align-items:flex-start;gap:10px;width:100%;min-height:52px;padding:10px;border:0;border-radius:8px;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.lp-results button:hover,.lp-results button:focus-visible{background:var(--ac-blue-tint,#e8f0fc)}
+.lp-results svg{flex:none;margin-top:2px;color:var(--ac-blue-deep,#1a4fb0)}
+.lp-results strong{display:block;font-size:15px;color:var(--ac-ink,#13253b)}
+.lp-results small{display:block;font-size:13px;color:var(--ac-ink-2,#445870)}
+.lp-locate{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:1px solid var(--ac-blue,#2468d8);border-radius:12px;background:var(--ac-blue-tint,#e8f0fc);color:var(--ac-blue-deep,#1a4fb0);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+.lp-locate:disabled{opacity:.7}
+.lp-spin{animation:lp-spin 1s linear infinite}
+@keyframes lp-spin{to{transform:rotate(360deg)}}
+.lp-pin-state{display:flex;align-items:center;gap:6px;margin:-4px 0 0;font-size:13.5px;color:var(--ac-ink-2,#445870)}
+.lp-pin-state.ok{color:#0f6f69;font-weight:600}
+.lp textarea{width:100%;min-height:64px;padding:10px 12px;border:1px solid #cfd9e5;border-radius:10px;font:inherit;font-size:16px;line-height:1.5;resize:vertical}
+.lp .form-field input{font-size:16px}
+.lp-hint{font-size:12.5px;font-style:normal;font-weight:500;color:var(--ac-blue-deep,#1a4fb0)}
+.lp-remember{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:12px;background:var(--ac-mist,#f3f6fa)}
+.lp-check{display:flex;align-items:center;gap:10px;min-height:32px;font-size:15px;font-weight:600;color:var(--ac-ink,#13253b);cursor:pointer}
+.lp-check input{width:20px;height:20px;accent-color:var(--ac-blue,#2468d8)}

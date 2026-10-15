@@ -21,6 +21,7 @@ import TrackingPage from './pages/TrackingPage';
 import NearbyJobsPage from './pages/NearbyJobsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import IssuesPage from './pages/IssuesPage';
+import UpdateBanner from './components/UpdateBanner';
 import PushPrompt from './components/PushPrompt';
 import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
@@ -324,6 +325,7 @@ export default function App() {
       <footer className="app-footer"><span>© 2026 AirClean</span>{!apiConnected&&<span className="footer-center" role="status"><WifiOff size={13}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>
     </main>
     {customer&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
+    <UpdateBanner/>
     <PushPrompt key={user.id} userId={user.id} role={user.role}/>
     {bookingModalOpen&&<BookingModal technicians={state.technicians} units={user.role==='customer'?[]:state.airConditioners} initialUnitId={bookingUnitId} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
     {notice&&<div className="toast-notice" role="status"><div className="toast-check"><CheckCircle2 size={17}/></div><span>{notice}</span><button className="icon-button" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={15}/></button></div>}
