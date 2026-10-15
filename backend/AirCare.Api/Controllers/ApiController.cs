@@ -16,14 +16,15 @@ namespace AirCare.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment) : ControllerBase
+public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<ApiController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity) : ControllerBase
 {
     [AllowAnonymous, HttpPost("auth/login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
-        if (user is null || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+        // Accounts created with Google or Apple have no password until the user sets one.
+        if (user is null || string.IsNullOrEmpty(user.PasswordHash) || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return Ok(CreateLoginResponse(user));
     }
@@ -34,18 +35,10 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var email = request.Email.Trim().ToLowerInvariant();
         if (await store.Users.Find(x => x.Email == email).AnyAsync())
             return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" });
-        var requestedRole = request.Role.Trim().ToLowerInvariant() switch {
-            "technician" or "ช่างแอร์" => AppRoles.Technician,
-            "manager" or "ผู้ดูแลอาคาร" => AppRoles.Manager,
-            _ => AppRoles.Customer
-        };
-        // Never allow public registration to grant Admin privileges.
+        var requestedRole = PublicRole(request.Role);
         var phone = request.Phone?.Trim() ?? "";
         var serviceArea = request.ServiceArea?.Trim() ?? "";
-        if (requestedRole == AppRoles.Technician) {
-            if (!IsPhone(phone)) return BadRequest(new { message = "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)" });
-            if (serviceArea.Length < 2) return BadRequest(new { message = "กรุณาระบุพื้นที่ให้บริการ เช่น ลาดพร้าว จตุจักร" });
-        }
+        if (TechnicianApplicationError(requestedRole, phone, serviceArea) is { } invalid) return BadRequest(new { message = invalid });
         var user = new AppUser { Id = await store.NextIdAsync("users"), FullName = request.FullName.Trim(), Email = email, Role = requestedRole, CreatedAt = DateTime.UtcNow };
         user.PasswordHash = hasher.HashPassword(user, request.Password);
         try { await store.Users.InsertOneAsync(user); }
@@ -55,11 +48,57 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
     }
 
+    [AllowAnonymous, HttpPost("auth/external")]
+    public async Task<IActionResult> ExternalLogin(ExternalLoginRequest request)
+    {
+        var providerName = request.Provider.Trim().ToLowerInvariant();
+        var label = providerName == "apple" ? "Apple" : "Google";
+        if (!externalIdentity.IsEnabled(providerName)) return BadRequest(new { message = $"ยังไม่ได้เปิดใช้การเข้าสู่ระบบด้วย {label}" });
+        var identity = await externalIdentity.ValidateAsync(providerName, request.IdToken);
+        if (identity is null) return Unauthorized(new { message = $"ยืนยันตัวตนกับ {label} ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
+
+        // 1. This Google/Apple account is already linked.
+        var user = await store.Users.Find(x => x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
+        if (user is not null) return Ok(CreateLoginResponse(user));
+
+        // 2. Same verified email as an existing account: link it. Admin accounts keep password-only sign-in.
+        if (identity.Email is not null && identity.EmailVerified) {
+            var existing = await store.Users.Find(x => x.Email == identity.Email).FirstOrDefaultAsync();
+            if (existing is not null) {
+                if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
+                await LinkExternalLoginAsync(existing, identity);
+                return Ok(CreateLoginResponse(existing));
+            }
+        }
+
+        // 3. No account yet: the client asks the person for a role (and technician details), then calls again.
+        var suggestedName = request.FullName?.Trim() is { Length: >= 2 } given ? given : identity.Name?.Trim() ?? "";
+        if (!request.CreateAccount)
+            return NotFound(new { code = "signup_required", message = "ยังไม่มีบัญชี AirClean สำหรับบัญชีนี้ เลือกบทบาทเพื่อสร้างบัญชี", email = identity.Email, fullName = suggestedName });
+        if (identity.Email is null || !identity.EmailVerified)
+            return BadRequest(new { message = $"{label} ไม่ได้ส่งอีเมลที่ยืนยันแล้วมาให้ กรุณาสมัครด้วยอีเมลและรหัสผ่าน" });
+        if (await store.Users.Find(x => x.Email == identity.Email).AnyAsync())
+            return Conflict(new { message = "อีเมลนี้มีบัญชีแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่าน" });
+        var role = PublicRole(request.Role);
+        var phone = request.Phone?.Trim() ?? "";
+        var serviceArea = request.ServiceArea?.Trim() ?? "";
+        if (TechnicianApplicationError(role, phone, serviceArea) is { } invalid) return BadRequest(new { message = invalid });
+        var fullName = suggestedName.Length >= 2 ? suggestedName[..Math.Min(120, suggestedName.Length)] : identity.Email.Split('@')[0];
+        user = new AppUser {
+            Id = await store.NextIdAsync("users"), FullName = fullName, Email = identity.Email, Role = role, PasswordHash = "", CreatedAt = DateTime.UtcNow,
+            ExternalLogins = [new ExternalLogin { Provider = identity.Provider, Subject = identity.Subject, Email = identity.Email, LinkedAt = DateTime.UtcNow }]
+        };
+        try { await store.Users.InsertOneAsync(user); }
+        catch (MongoWriteException) { return Conflict(new { message = "บัญชีนี้ถูกสร้างไปแล้ว กรุณาเข้าสู่ระบบอีกครั้ง" }); }
+        if (role == AppRoles.Technician) await CreateTechnicianProfileAsync(user, phone, serviceArea, request.ExperienceYears ?? 0);
+        return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
+    }
+
     [Authorize, HttpGet("auth/me")]
     public async Task<IActionResult> Me()
     {
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
-        return user is null ? NotFound() : Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return user is null ? NotFound() : Ok(ToAuthUser(user));
     }
 
     [Authorize, HttpPatch("auth/profile")]
@@ -75,7 +114,7 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         user.FullName = request.FullName.Trim();
         user.Email = email;
         await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
-        return Ok(new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return Ok(ToAuthUser(user));
     }
 
     [AllowAnonymous, HttpPost("auth/forgot-password")]
@@ -119,7 +158,9 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
     {
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         if (user is null) return Unauthorized();
-        if (hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+        // Google/Apple-only accounts may set a first password without a current one.
+        if (!string.IsNullOrEmpty(user.PasswordHash) && (string.IsNullOrEmpty(request.CurrentPassword)
+            || hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed))
             return BadRequest(new { message = "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
         user.PasswordHash = hasher.HashPassword(user, request.NewPassword);
         user.SessionVersion += 1;
@@ -796,6 +837,29 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         return null;
     }
 
+    private static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
+        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray());
+
+    /// <summary>Public sign-up can choose customer, technician or manager. It never grants Admin.</summary>
+    private static string PublicRole(string? role) => (role ?? "").Trim().ToLowerInvariant() switch {
+        "technician" or "ช่างแอร์" => AppRoles.Technician,
+        "manager" or "ผู้ดูแลอาคาร" => AppRoles.Manager,
+        _ => AppRoles.Customer
+    };
+
+    private static string? TechnicianApplicationError(string role, string phone, string serviceArea) =>
+        role != AppRoles.Technician ? null
+        : !IsPhone(phone) ? "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)"
+        : serviceArea.Length < 2 ? "กรุณาระบุพื้นที่ให้บริการ เช่น ลาดพร้าว จตุจักร"
+        : null;
+
+    private Task LinkExternalLoginAsync(AppUser user, ExternalIdentity identity)
+    {
+        var login = new ExternalLogin { Provider = identity.Provider, Subject = identity.Subject, Email = identity.Email, LinkedAt = DateTime.UtcNow };
+        (user.ExternalLogins ??= []).Add(login);
+        return store.Users.UpdateOneAsync(x => x.Id == user.Id, Builders<AppUser>.Update.Push(x => x.ExternalLogins, login));
+    }
+
     private ObjectResult NotApprovedResult(TechnicianProfile technician) => StatusCode(StatusCodes.Status403Forbidden, new {
         message = technician.Status == VerificationStates.Rejected
             ? "ผู้ดูแลระบบยังไม่อนุมัติบัญชีช่าง: " + (technician.VerificationNote ?? "กรุณาแก้ไขข้อมูลในโปรไฟล์")
@@ -866,6 +930,6 @@ public class ApiController(MongoStore store, IPasswordHasher<AppUser> hasher, IC
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(jwt["Issuer"] ?? "AirCareConnect", jwt["Audience"] ?? "AirCareConnect.Web", claims, expires: expires, signingCredentials: credentials);
-        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, new AuthUserDto(user.Id, user.FullName, user.Email, user.Role));
+        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToAuthUser(user));
     }
 }

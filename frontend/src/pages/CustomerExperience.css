@@ -471,3 +471,15 @@
 .auth-screen .auth-link-button{align-self:flex-start;min-height:44px;padding:0 2px;border:0;background:none;color:var(--ac-blue-deep);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .auth-screen .auth-link-button:hover{text-decoration:underline}
 .auth-screen .auth-link-button:focus-visible{outline:2px solid var(--ac-focus);outline-offset:2px;border-radius:4px}
+
+/* Google and Apple sign-in */
+.auth-screen .auth-social{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.auth-screen .auth-google-slot{display:flex;justify-content:center;min-height:44px;width:100%}
+.auth-screen .auth-apple-button{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;max-width:400px;min-height:44px;margin:0 auto;padding:0 16px;border:0;border-radius:999px;background:#000;color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+.auth-screen .auth-apple-button:hover:not(:disabled){background:#1d1d1f}
+.auth-screen .auth-apple-button:disabled{opacity:.6;cursor:default}
+.auth-screen .auth-apple-button:focus-visible{outline:2px solid var(--ac-focus);outline-offset:2px}
+.auth-screen .auth-social-divider{display:flex;align-items:center;gap:12px;margin-top:6px;color:var(--ac-ink-3);font-size:13px}
+.auth-screen .auth-social-divider::before,.auth-screen .auth-social-divider::after{content:"";flex:1;height:1px;background:var(--ac-frame)}
+.auth-screen .auth-social-pending{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--ac-frame);border-radius:12px;background:var(--ac-mist);font-size:14px;color:var(--ac-ink-2)}
+.auth-screen .auth-social-pending strong{color:var(--ac-ink);font-size:15px;overflow-wrap:anywhere}

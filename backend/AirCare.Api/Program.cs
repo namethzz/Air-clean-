@@ -15,6 +15,7 @@ if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls("http://0.0.0.0:" 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<MongoStore>();
 builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddSingleton<ExternalIdentityValidator>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var configuredOrigins = (builder.Configuration["FRONTEND_ORIGIN"] ?? "")

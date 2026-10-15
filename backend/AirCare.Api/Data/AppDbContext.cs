@@ -45,6 +45,12 @@ public class MongoStore {
   try { await SavedAddresses.Indexes.CreateOneAsync(new CreateIndexModel<SavedAddressRecord>(Builders<SavedAddressRecord>.IndexKeys.Ascending(x=>x.UserId).Ascending(x=>x.Label),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }
   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.PasswordResetTokenHash),new CreateIndexOptions{Sparse=true}));
+  // One AirClean account per Google/Apple account. Users without linked logins are left out of the index.
+  try {
+   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(
+    Builders<AppUser>.IndexKeys.Ascending("ExternalLogins.Provider").Ascending("ExternalLogins.Subject"),
+    new CreateIndexOptions<AppUser>{Unique=true,PartialFilterExpression=Builders<AppUser>.Filter.Exists("ExternalLogins.Subject")}));
+  } catch (MongoCommandException) { }
  }
  public async Task SeedAsync(IPasswordHasher<AppUser> hasher) {
   if(await Users.CountDocumentsAsync(FilterDefinition<AppUser>.Empty)>0) return;

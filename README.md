@@ -15,6 +15,7 @@ AirClean is a responsive air-conditioner service booking workspace built with Re
 - Technician sign-up is an application: phone, service area and experience are required, and the account sees no jobs until an administrator approves it on **ตรวจสอบช่าง**. A rejection carries a reason; the technician corrects the profile and it returns to the queue. Admins can also suspend an approved technician.
 - Payment is cash on delivery (เก็บเงินปลายทาง): the customer pays the technician directly in cash or by transfer when the job is finished, and both confirm in the app. AirClean does not collect money.
 - Password reset by email (single-use link, 30 minutes), change password on the profile page, and admin-created reset links (24 hours) for users without email access. Changing or resetting a password signs out the account's other sessions.
+- Sign in or sign up with Google or Apple. The API verifies the provider's ID token (signature, issuer, audience, expiry). A Google/Apple account with a verified email that matches an existing account is linked to it; otherwise the person picks a role (technicians add phone and area and wait for approval). Admin accounts stay password-only. Accounts created this way can set a password later on the profile page.
 - Saved addresses are stored in the account and appear on every device. Addresses saved by the earlier browser-only version move to the account the first time the booking form opens.
 - Map-based service address selection, privacy-protected nearby job discovery, booking status updates, technician GPS sharing, service reports and onsite-payment confirmations.
 - Responsive layouts for mobile phones, tablets and desktop browsers.
@@ -41,6 +42,9 @@ Configure these on the Render API service:
 - INITIAL_ADMIN_NAME: optional administrator display name
 - SMTP_HOST, SMTP_PORT (default 587), SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM: mail server for password reset emails. SMTP_ENABLE_SSL=false only for a local test server. Without SMTP, users are told a link was sent but nothing is delivered; an admin can create the link instead.
 - PASSWORD_RESET_URL: optional site address used in reset links; defaults to the first FRONTEND_ORIGIN
+- GOOGLE_CLIENT_ID: OAuth client ID (Web application) from Google Cloud Console; enables Sign in with Google
+- APPLE_CLIENT_ID: Services ID from the Apple Developer account; enables Sign in with Apple
+- GOOGLE_OIDC_AUTHORITY / APPLE_OIDC_AUTHORITY: test-only override for a local identity provider; ignored in Production
 - SEED_DEMO_DATA: demo fixtures are allowed only in non-production environments when explicitly set to true; production never seeds examples
 
 After deployment, open https://YOUR-API.onrender.com/health and confirm the response is healthy.
@@ -52,6 +56,7 @@ For the Render Static Site:
 - Build command: npm install && npm run build
 - Publish directory: dist
 - Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
+- Optional: VITE_GOOGLE_CLIENT_ID and VITE_APPLE_CLIENT_ID (same values as the API) to show the Google and Apple buttons; VITE_APPLE_REDIRECT_URI if the Apple Return URL is not the site's home page
 
 The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
 
@@ -80,4 +85,4 @@ Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, t
 
 ## Automated validation
 
-GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, technician approval, saved-address sync, password reset and session sign-out, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.
+GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, Google/Apple token verification and account linking (against a local test identity provider), technician approval, saved-address sync, password reset and session sign-out, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.

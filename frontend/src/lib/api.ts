@@ -7,9 +7,11 @@ export interface CreateServiceReportPayload {
   bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
   checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
 }
-interface AuthResponse { token: string; expiresAt: string; user: { id: number; fullName: string; email: string; role: string } }
+interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null }
+interface AuthResponse { token: string; expiresAt: string; user: ApiUser }
 export class ApiError extends Error {
-  constructor(message: string, public status?: number) { super(message); this.name = 'ApiError'; }
+  constructor(message: string, public status?: number, public data?: Record<string, unknown>) { super(message); this.name = 'ApiError'; }
+  get code(): string | undefined { return typeof this.data?.code === 'string' ? this.data.code : undefined; }
 }
 export function isApiConfigured(): boolean { return Boolean(API_BASE); }
 function requireApiBase(): string {
@@ -24,8 +26,8 @@ function roleFromApi(role: string): UserRole {
     default: return 'customer';
   }
 }
-function fromApiUser(user: AuthResponse['user']): UserProfile {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role) };
+function fromApiUser(user: ApiUser): UserProfile {
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [] };
 }
 function saveToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
@@ -48,8 +50,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   catch { throw new ApiError('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือสถานะเซิร์ฟเวอร์'); }
   if (!response.ok) {
     let message = '';
+    let data: Record<string, unknown> | undefined;
     try {
       const body = await response.json() as { message?: string; title?: string; errors?: Record<string, string[]> };
+      data = body as Record<string, unknown>;
       message = body.message || body.title || Object.values(body.errors || {}).flat().join(' ');
     } catch { /* Keep the status-based message. */ }
     if (!message) message = response.status === 401 ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือเซสชันหมดอายุ'
@@ -57,7 +61,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       : response.status === 404 ? 'ไม่พบข้อมูลที่ต้องการ'
       : response.status >= 500 ? 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่ภายหลัง'
       : 'ทำรายการไม่สำเร็จ (' + response.status + ')';
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, data);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -74,10 +78,10 @@ export async function register(fullName: string, email: string, password: string
   return fromApiUser(result.user);
 }
 export async function updateMyProfile(payload: { fullName: string; email: string }): Promise<UserProfile> {
-  const result = await request<{ id:number; fullName:string; email:string; role:string }>('/auth/profile', {
+  const result = await request<ApiUser>('/auth/profile', {
     method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim() })
   });
-  return { id:result.id, fullName:result.fullName, email:result.email, role:roleFromApi(result.role) };
+  return fromApiUser(result);
 }
 export async function forgotPassword(email: string): Promise<string> {
   const result = await request<{ message: string }>('/auth/forgot-password', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
@@ -88,9 +92,17 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return result.message;
 }
 /** Other devices are signed out; this browser keeps working with the new token. */
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+export async function changePassword(currentPassword: string, newPassword: string): Promise<UserProfile> {
   const result = await request<AuthResponse>('/auth/change-password', { method:'POST', body:JSON.stringify({ currentPassword, newPassword }) });
   saveToken(result.token);
+  return fromApiUser(result.user);
+}
+export interface ExternalSignupFields { role: Exclude<UserRole,'admin'>; fullName?: string; phone?: string; serviceArea?: string; experienceYears?: number; }
+/** Signs in with a Google or Apple ID token. Without `signup`, an unknown account throws ApiError with code 'signup_required'. */
+export async function externalLogin(provider: 'google'|'apple', idToken: string, signup?: ExternalSignupFields): Promise<UserProfile> {
+  const result = await request<AuthResponse>('/auth/external', { method:'POST', body:JSON.stringify({ provider, idToken, createAccount:Boolean(signup), ...signup }) });
+  saveToken(result.token);
+  return fromApiUser(result.user);
 }
 export async function createPasswordResetLink(email: string): Promise<{ link: string; expiresAt: string; fullName: string }> {
   return request('/admin/password-reset-links', { method:'POST', body:JSON.stringify({ email:email.trim() }) });
@@ -113,8 +125,7 @@ export async function deleteSavedAddress(id: string): Promise<void> {
 export async function fetchCurrentUser(): Promise<UserProfile | null> {
   if (!localStorage.getItem(TOKEN_KEY)) { clearAuth(); return null; }
   try {
-    const result = await request<{id:number;fullName:string;email:string;role:string}>('/auth/me');
-    return { id:result.id, fullName:result.fullName, email:result.email, role:roleFromApi(result.role) };
+    return fromApiUser(await request<ApiUser>('/auth/me'));
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) { clearAuth(); return null; }
     throw error;

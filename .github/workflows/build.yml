@@ -37,10 +37,16 @@ jobs:
           INITIAL_ADMIN_PASSWORD: isolated-ci-admin-password
           TEST_ADMIN_EMAIL: ci-admin@example.test
           TEST_ADMIN_PASSWORD: isolated-ci-admin-password
+          GOOGLE_CLIENT_ID: ci-google-client.apps.googleusercontent.com
+          APPLE_CLIENT_ID: ci.airclean.signin
+          GOOGLE_OIDC_AUTHORITY: http://localhost:5099/google
+          APPLE_OIDC_AUTHORITY: http://localhost:5099/apple
+          TEST_OIDC_PORT: 5099
         run: |
           dotnet backend/AirCare.Api/bin/Release/net8.0/AirCare.Api.dll > /tmp/airclean-api.log 2>&1 &
           api_pid=$!
           trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          python3 -m pip install --quiet cryptography
           if ! python3 tests/marketplace_smoke.py; then
             cat /tmp/airclean-api.log
             exit 1

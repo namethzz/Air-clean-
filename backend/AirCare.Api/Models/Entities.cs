@@ -17,7 +17,10 @@ public class AppUser {
  public int SessionVersion {get;set;}
  /// <summary>SHA-256 of the single active reset token. The token itself is never stored.</summary>
  public string? PasswordResetTokenHash {get;set;} public DateTime? PasswordResetExpiresAt {get;set;} public DateTime? PasswordResetRequestedAt {get;set;}
+ /// <summary>Google or Apple accounts linked to this user. Accounts created this way have an empty password hash.</summary>
+ public List<ExternalLogin> ExternalLogins {get;set;}=[];
 }
+public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
 [BsonIgnoreExtraElements]
 public class TechnicianProfile {
  [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Name {get;set;}=""; public string Title {get;set;}="ช่างแอร์"; public decimal Rating {get;set;} public int ReviewCount {get;set;} public int JobsCompleted {get;set;} public decimal BasePrice {get;set;} public string Area {get;set;}=""; public bool IsVerified {get;set;} public string AvailableText {get;set;}=""; public string SkillsCsv {get;set;}=""; public string Accent {get;set;}="sage";

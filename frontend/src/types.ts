@@ -2,7 +2,7 @@ export type PageKey='overview'|'technicians'|'nearbyJobs'|'bookings'|'tracking'|
 export type UserRole='customer'|'technician'|'manager'|'admin';
 export type BookingStatus='เปิดรับช่าง'|'รอเลือกช่าง'|'รอยืนยัน'|'ยืนยันแล้ว'|'กำลังเดินทาง'|'ถึงหน้างาน'|'กำลังดำเนินการ'|'รอชำระเงิน'|'มีปัญหาการชำระเงิน'|'เสร็จสิ้น'|'ยกเลิก';
 export type PaymentMethod='Cash'|'PromptPay';
-export interface UserProfile{id:number;fullName:string;email:string;role:UserRole;}
+export interface UserProfile{id:number;fullName:string;email:string;role:UserRole;hasPassword?:boolean;providers?:string[];}
 export interface SavedAddress{id:string;label:string;placeType:'บ้าน'|'คอนโด'|'หอพัก';address:string;building?:string;floor?:string;room?:string;note?:string;latitude:number;longitude:number;locationSelected?:boolean;}
 export interface Technician{id:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;basePrice:number;area:string;verified:boolean;availableText:string;skills:string[];accent:string;matchScore:number;matchReason:string;}
 export type VerificationStatus='Pending'|'Approved'|'Rejected';
