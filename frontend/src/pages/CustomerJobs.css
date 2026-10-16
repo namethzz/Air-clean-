@@ -2,24 +2,6 @@
    Tokens (--ac-*) come from components/ui/hero-financial.css. */
 
 /* ── List ── */
-.cj-row-date {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 56px;
-  border-radius: 12px;
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-}
-.cj-row-date strong {
-  font: 700 20px/1 var(--ac-display);
-}
-.cj-row-date span {
-  font-size: 12.5px;
-  line-height: 1.3;
-}
 
 /* ── Buttons ── */
 .cj-primary,
@@ -85,34 +67,6 @@
 }
 
 /* ── Empty ── */
-.cj-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  max-width: 520px;
-  padding: 24px 0;
-}
-.cj-empty-icon {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 18px;
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-}
-.cj-empty h1 {
-  margin: 6px 0 0;
-  font: 700 28px/1.35 var(--ac-display);
-  letter-spacing: -0.015em;
-}
-.cj-empty p {
-  margin: 0 0 8px;
-  font-size: 16.5px;
-  line-height: 1.8;
-  color: var(--ac-ink-2);
-}
 
 /* ── Technician extras ── */
 
@@ -127,60 +81,6 @@
 }
 
 /* ── Manager: buildings ── */
-.bd-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 860px;
-  font-family: var(--ac-text);
-  color: var(--ac-ink);
-}
-.bd-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.bd-head h1 {
-  margin: 0;
-  font: 700 26px/1.3 var(--ac-display);
-  letter-spacing: -0.015em;
-}
-.bd-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-@media (max-width: 520px) {
-  .bd-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.bd-stats div {
-  padding: 12px 14px;
-  border: 1px solid var(--ac-frame);
-  border-radius: 14px;
-  background: #fff;
-}
-.bd-stats div.due {
-  border-color: #f0c48a;
-  background: #fff8ec;
-}
-.bd-stats dt {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
-.bd-stats dd {
-  margin: 2px 0 0;
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.bd-empty h2 {
-  margin: 0;
-}
 .bd-list {
   display: flex;
   flex-direction: column;
@@ -243,68 +143,10 @@
   font-weight: 600;
   text-decoration: none;
 }
-.bd-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--ac-mist);
-  color: var(--ac-ink-2);
-  text-align: left;
-  font: inherit;
-}
-.bd-status > span {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.bd-status strong {
-  font-size: 15px;
-  color: var(--ac-ink);
-}
-.bd-status small {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
-.bd-status.active {
-  background: var(--ac-blue-tint);
-  cursor: pointer;
-}
-.bd-status.active strong {
-  color: var(--ac-blue-deep);
-}
-.bd-status.due {
-  background: #fff4dc;
-}
-.bd-status.due strong {
-  color: #7a5410;
-}
 .bd-actions {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
-}
-.bd-history-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ac-blue-deep);
-  font: inherit;
-  font-size: 14.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.bd-history-toggle[aria-expanded="true"] svg {
-  transform: rotate(180deg);
 }
 .bd-history {
   display: flex;
@@ -329,20 +171,6 @@
   font: inherit;
   cursor: pointer;
 }
-.bd-history-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.bd-history-main strong {
-  font-size: 15px;
-  color: var(--ac-ink);
-}
-.bd-history-main small {
-  font-size: 13px;
-  color: var(--ac-ink-2);
-}
 .bd-delete {
   display: flex;
   flex-wrap: wrap;
@@ -354,19 +182,8 @@
   font-size: 14px;
   color: #7a2a24;
 }
-.bd-delete-link {
-  align-self: center;
-}
 
 /* ── Building rooms ── */
-.bd-optional {
-  display: block;
-  margin-top: 2px;
-  font-style: normal;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ac-ink-3, #5d7089);
-}
 /* ───────── Price: the going rate over the offers, each offer's lines, and a change asked on site ───────── */
 .jb-market {
   margin-bottom: 4px;

@@ -1,0 +1,158 @@
+/*
+ * A manager's buildings (bd-): the summary band, then one card per building with the one thing that matters now
+ * (the job in progress, the rooms due, or the next cleaning) and the button to book.
+ */
+.bd {
+  max-width: 980px;
+}
+.bd-skel {
+  height: 220px;
+  border-radius: var(--v-radius-lg);
+}
+.bd-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 459px) {
+  .bd-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bd-summary div:nth-child(3) {
+    border-left: 0;
+  }
+  .bd-summary div:nth-child(n + 3) {
+    border-top: 1px solid rgb(255 255 255 / 0.16);
+  }
+}
+.bd-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bd-card {
+  gap: 14px;
+}
+.bd-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bd-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--v-radius);
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.bd-card-head h2 {
+  margin: 0;
+  font: 600 var(--v-text-xl) / 1.3 var(--v-font-head);
+  color: var(--v-ink);
+}
+.bd-card-head p {
+  margin: 2px 0 0;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+  overflow-wrap: anywhere;
+}
+.bd-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-2);
+}
+.bd-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bd-facts svg {
+  flex: none;
+  color: var(--v-ink-3);
+}
+.bd-facts .ui-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.bd-job {
+  box-shadow: none;
+  background: var(--v-blue-050);
+}
+.bd-due {
+  align-items: flex-start;
+  line-height: 1.5;
+}
+.bd-due svg {
+  flex: none;
+  margin-top: 2px;
+}
+.bd-next {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--v-radius-md);
+  background: var(--v-sunken);
+  font-size: var(--v-text-sm);
+  line-height: 1.5;
+  color: var(--v-ink-2);
+}
+.bd-next svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--v-blue-700);
+}
+.bd-next strong {
+  color: var(--v-ink);
+}
+.bd-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.bd-actions .ui-btn {
+  white-space: normal;
+  text-align: center;
+}
+@media (max-width: 459px) {
+  .bd-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.bd-history {
+  border-top: 1px solid var(--v-line);
+  padding-top: 12px;
+}
+.bd-history > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  width: fit-content;
+  color: var(--v-blue-700);
+  font-weight: 600;
+  cursor: pointer;
+}
+.bd-history[open] > summary {
+  margin-bottom: 8px;
+}
+.bd-hint {
+  margin: 4px 0 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+.bd-delete {
+  align-self: flex-start;
+}
