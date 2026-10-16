@@ -14,6 +14,8 @@ import './Membership.css';
 import HeroSection6 from '../components/ui/hero-section-6';
 import { heroShots } from '../assets/hero';
 import { ClipboardList, Search } from 'lucide-react';
+import { PriceBreakdown } from '../components/Pricing';
+import { bahtRange, cleanName, lastCleanedName, positionNames, positionOf, symptomName } from '../lib/pricing';
 
 interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; onOpenMembership:()=>void; onOpenMyJobs:()=>void; myJobs:Booking[]; }
 function prettyDate(date:string) {
@@ -122,9 +124,21 @@ function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Prop
             <div><span>จำนวนแอร์</span><strong>{job.unitCount||1} เครื่อง</strong></div>
             <div><span>วันและเวลา</span><strong>{prettyDate(job.date)} · {timeLabel(job)}</strong></div>
           </div>
-          <div className="nearby-job-description"><Wrench size={15}/><span>{job.unitLabel}</span></div>
+          <div className="nearby-job-description"><Wrench size={15}/><span>{[cleanName(Boolean(job.deep)),job.unitLabel,job.hardAccessUnits?`คอยล์ร้อนเข้าถึงยาก ${job.hardAccessUnits} เครื่อง`:''].filter(Boolean).join(' · ')}</span></div>
+          {(job.lastCleaned||job.symptoms?.length)?<div className="nearby-job-description"><Wind size={15}/><span>{[job.lastCleaned?'ล้างล่าสุด '+lastCleanedName(job.lastCleaned):'',...(job.symptoms??[]).map(symptomName)].filter(Boolean).join(' · ')}</span></div>:null}
           <div className="nearby-job-privacy"><ShieldCheck size={14}/><span>แสดงเฉพาะพื้นที่โดยประมาณ ที่อยู่เต็มจะแสดงหลังลูกค้ายืนยันช่าง</span></div>
-          <div className="nearby-job-price"><div><span>ราคาประเมินเริ่มต้น</span><strong>฿{job.price.toLocaleString()}</strong></div><small>{job.applicants?.length||0} ช่างสนใจแล้ว</small></div>
+          {(()=>{
+            // What this technician would quote, from their own price list, against the going rate for the job.
+            const quote=job.applicants?.[0]?.quote??job.yourQuote;
+            const position=quote!=null&&job.market?positionOf(quote,job.market):null;
+            return <>
+              <div className="nearby-job-price">
+                <div><span>{applied?'ราคาที่คุณเสนอ':'ราคาของคุณสำหรับงานนี้'}</span><strong>฿{(quote??job.price).toLocaleString()}</strong>{position&&<span className={'pr-pos is-'+position}>{positionNames[position]}</span>}</div>
+                <small>{job.market?`ราคากลาง ${bahtRange(job.market)}`:''}{job.market?' · ':''}{job.applicants?.length||0} ช่างสนใจแล้ว</small>
+              </div>
+              {!applied&&job.yourLines?.length?<details className="pr-details"><summary>คิดจากใบราคาของคุณ</summary><PriceBreakdown lines={job.yourLines}/></details>:null}
+            </>;
+          })()}
           {!applied&&clashes.length>0&&<p className={'clash-note'+(hard?' hard':'')}><CalendarX2 size={16}/><span><strong>{hard?'เวลาชนกับงานที่รับไว้':'อาจชนกับงานที่รับไว้'}</strong> {clashes.map(item=>`${item.job.code} ${timeLabel(item.job)}`).join(', ')}</span></p>}
           {!applied&&!clashes.length&&dayCount>0&&<p className="nearby-day-count">วันนั้นคุณมีงานแล้ว {dayCount} งาน</p>}
           {applied?<div className="nearby-applied-state"><CheckCircle2 size={17}/><div><strong>ส่งความสนใจแล้ว</strong><span>ลูกค้าจะเห็นโปรไฟล์และราคาที่คุณเสนอเพื่อใช้ตัดสินใจ</span></div></div>:

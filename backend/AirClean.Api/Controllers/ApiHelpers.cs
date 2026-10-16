@@ -129,15 +129,6 @@ internal static class ApiHelpers
         return nextService < today ? "attention" : nextService <= today.AddDays(30) ? "due" : "good";
     }
 
-    internal static decimal CalculateQuote(TechnicianProfile technician, string service, int unitCount)
-    {
-        var count = Math.Clamp(unitCount, 1, 30);
-        var price = technician.BasePrice * count;
-        if (service.Contains("ตรวจเช็ก", StringComparison.OrdinalIgnoreCase)) price += 300m * count;
-        if (service.Contains("แขวน", StringComparison.OrdinalIgnoreCase)) price += 250m * count;
-        return price;
-    }
-
     internal static double DistanceKm(double latitude1, double longitude1, double latitude2, double longitude2)
     {
         const double EarthRadiusKm = 6371.0;

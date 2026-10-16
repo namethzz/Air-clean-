@@ -29,7 +29,7 @@ import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
 import './pages/WorkspaceTheme.css';
 import {
-  reopenBooking, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
+  reopenBooking, answerPriceChange, proposePriceChange, withdrawPriceChange, type ProposeChangePayload, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
   createReview, createServiceReport, fetchAirConditioners, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type CompleteJobPayload, type CreateServiceReportPayload,
@@ -194,6 +194,7 @@ export default function App() {
         service:payload.service,unitLabel:payload.unitLabel,propertyType:payload.propertyType,unitCount:payload.unitCount,address:payload.address,
         scheduledAt:payload.date+'T'+payload.time+':00',price:payload.price,latitude:payload.latitude,longitude:payload.longitude,
         airConditionerId:payload.airConditionerId,timeWindow:payload.timeWindow,notes:payload.notes,placeId:payload.placeId,rooms:payload.rooms,contactPhone:payload.contactPhone,
+        items:payload.items,deep:payload.deep,hardAccessUnits:payload.hardAccessUnits,lastCleaned:payload.lastCleaned,symptoms:payload.symptoms,
       });
       if(payload.contactPhone&&payload.contactPhone!==user.phone)setUser({...user,phone:payload.contactPhone});
       setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
@@ -218,6 +219,19 @@ export default function App() {
       showNotice('ยืนยันช่างเรียบร้อยแล้ว ช่างจะเห็นงานในรายการของตน');return true;
     }catch(error){showNotice(errorMessage(error,'ยืนยันช่างไม่สำเร็จ กรุณาโหลดข้อมูลใหม่'));return false;}
   }
+  // Price changes on site: the technician asks, the customer approves or declines, the technician may take it back.
+  async function changeAction(id:number,run:()=>Promise<Booking>,done:string,failed:string):Promise<boolean>{
+    try{
+      const saved=await run();
+      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      showNotice(done);return true;
+    }catch(error){showNotice(errorMessage(error,failed));return false;}
+  }
+  const answerChange=(id:number,changeId:string,approve:boolean)=>changeAction(id,()=>answerPriceChange(id,changeId,approve),
+    approve?'อนุมัติแล้ว ยอดที่ต้องจ่ายอัปเดตแล้ว':'ไม่อนุมัติ ช่างจะทำตามรายการเดิมในราคาเดิม','ส่งคำตอบไม่สำเร็จ กรุณาลองใหม่');
+  const proposeChange=(id:number,payload:ProposeChangePayload)=>changeAction(id,()=>proposePriceChange(id,payload),
+    'ส่งคำขอให้ลูกค้าแล้ว ราคาจะเปลี่ยนเมื่อลูกค้ากดอนุมัติ','ส่งคำขอไม่สำเร็จ กรุณาลองใหม่');
+  const withdrawChange=(id:number,changeId:string)=>changeAction(id,()=>withdrawPriceChange(id,changeId),'ยกเลิกคำขอแล้ว ราคายังเป็นตามที่ตกลง','ยกเลิกคำขอไม่สำเร็จ');
   async function statusChange(id:number,status:BookingStatus){
     try{
       await updateBookingStatus(id,status);
@@ -304,8 +318,8 @@ export default function App() {
         return null;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')} onOpenMembership={()=>navigate('membership')} onOpenMyJobs={()=>navigate('bookings')} myJobs={state.bookings}/>;
       case 'membership':return user.role==='technician'||user.role==='admin'?<MembershipPage admin={user.role==='admin'} onNotice={showNotice}/>:null;
-      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onOpenProfile={()=>navigate('profile')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onRefresh={refreshBookings}/>;
-        if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onReopen={reopenJob} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
+      case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onOpenProfile={()=>navigate('profile')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onProposeChange={proposeChange} onWithdrawChange={withdrawChange} onRefresh={refreshBookings}/>;
+        if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onReopen={reopenJob} onAnswerChange={answerChange} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
       case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
       case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={(placeId,rooms)=>openBooking(undefined,placeId,rooms)} onOpenJob={openJob} onNotice={showNotice}/>:null;
@@ -354,7 +368,7 @@ export default function App() {
     {tabbed&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
     <UpdateBanner/>
     <PushPrompt key={user.id} userId={user.id} role={user.role}/>
-    {bookingModalOpen&&<BookingModal technicians={state.technicians} units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} initialRooms={bookingRooms} bookings={state.bookings} phone={user.phone} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
+    {bookingModalOpen&&<BookingModal units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} initialRooms={bookingRooms} bookings={state.bookings} phone={user.phone} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
     {notice&&<div className="sh-toast" role="status"><CheckCircle2 size={19} aria-hidden="true"/><span>{notice}</span><button type="button" className="sh-toast-close" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={16}/></button></div>}
   </div>;
 }

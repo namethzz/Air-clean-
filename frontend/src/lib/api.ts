@@ -1,4 +1,4 @@
-import type { AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { JobItem, LastCleaned, PriceGuide, PriceLine, PriceRange, PriceSheet, Symptom, AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -188,8 +188,26 @@ export async function fetchServiceReports(): Promise<ServiceReportRecord[]> { re
 export async function createBooking(payload: {
   service:string; unitLabel:string; propertyType:string; unitCount:number; address:string; scheduledAt:string;
   price:number; notes?:string; timeWindow?:string; placeId?:number; rooms?:string[]; contactPhone?:string; latitude?:number; longitude?:number; airConditionerId?:number;
+  items?:JobItem[]; deep?:boolean; hardAccessUnits?:number; lastCleaned?:LastCleaned; symptoms?:Symptom[];
 }): Promise<Booking> {
   return request<Booking>('/bookings', { method:'POST', body:JSON.stringify(payload) });
+}
+/** The going rate for a job as described, and how the typical price adds up. */
+export async function fetchPriceEstimate(job:{items:JobItem[];deep:boolean;hardAccessUnits:number}):Promise<{range:PriceRange;lines:PriceLine[]}> {
+  return request('/price-estimate',{method:'POST',body:JSON.stringify(job)});
+}
+export async function fetchPriceGuide():Promise<PriceGuide> { return request<PriceGuide>('/price-guide'); }
+export type ProposeChangePayload =
+  | { kind:'correction'; reason:string; items:JobItem[]; deep:boolean; hardAccessUnits:number }
+  | { kind:'extra'; reason:string; extras:{label:string;amount:number}[] };
+export async function proposePriceChange(bookingId:number,payload:ProposeChangePayload):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/changes',{method:'POST',body:JSON.stringify(payload)});
+}
+export async function answerPriceChange(bookingId:number,changeId:string,approve:boolean):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/changes/'+encodeURIComponent(changeId)+'/answer',{method:'POST',body:JSON.stringify({approve})});
+}
+export async function withdrawPriceChange(bookingId:number,changeId:string):Promise<Booking> {
+  return request<Booking>('/bookings/'+bookingId+'/changes/'+encodeURIComponent(changeId),{method:'DELETE'});
 }
 export async function fetchNearbyJobs(latitude:number,longitude:number,radiusKm=25):Promise<Booking[]> {
   const query=new URLSearchParams({latitude:String(latitude),longitude:String(longitude),radiusKm:String(radiusKm)});
@@ -245,7 +263,7 @@ export async function approveServiceReport(id:number): Promise<void> {
 }
 
 export interface TechnicianProfilePayload {
-  title: string; area: string; basePrice: number; availableText: string; skills: string; phone: string; experienceYears: number;
+  title: string; area: string; basePrice: number; availableText: string; skills: string; phone: string; experienceYears: number; prices?: PriceSheet;
 }
 export function fetchMyTechnicianProfile(): Promise<TechnicianApplication> { return request<TechnicianApplication>('/technicians/me'); }
 export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<TechnicianApplication> {

@@ -36,12 +36,16 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         foreach (var job in rows.Where(EnsureFuzz))
             await store.Bookings.UpdateOneAsync(x => x.Id == job.Id && x.FuzzLatitude == null, Builders<Booking>.Update
                 .Set(x => x.FuzzLatitude, job.FuzzLatitude).Set(x => x.FuzzLongitude, job.FuzzLongitude));
+        var sheet = Pricing.SheetOf(technician);
+        List<PriceLineDto> yourLines(Booking job) => Pricing.Lines(sheet, Pricing.JobOf(job)).Select(DtoMapper.ToDto).ToList();
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
             .Select(x => new { Booking = x, DistanceKm = BlurredDistanceKm(latitude, longitude, x) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, x.DistanceKm), technician.Id))
+            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, x.DistanceKm), technician.Id) with {
+                // What this technician would quote, so they see it before they offer.
+                YourLines = yourLines(x.Booking), YourQuote = Pricing.Total(Pricing.Lines(sheet, Pricing.JobOf(x.Booking))) })
             .ToList();
         return Ok(nearby);
     }
@@ -63,10 +67,14 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         booking.Applicants ??= [];
         if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
             return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });
+        // The quote is the technician's own price list applied to the job, kept line by line with the list it came from.
+        var sheet = Pricing.SheetOf(technician);
+        var lines = Pricing.Lines(sheet, Pricing.JobOf(booking));
         var applicant = new BookingApplicant {
+            Lines = lines, Sheet = sheet,
             TechnicianId = technician.Id, Name = technician.Name, Initials = DtoMapper.Initials(technician.Name),
             Title = technician.Title, Rating = technician.Rating, ReviewCount = technician.ReviewCount,
-            JobsCompleted = technician.JobsCompleted, Quote = CalculateQuote(technician, booking.Service, Math.Max(1, booking.UnitCount)),
+            JobsCompleted = technician.JobsCompleted, Quote = Pricing.Total(lines),
             Area = technician.Area, Verified = technician.IsVerified, AppliedAt = DateTime.UtcNow, Note = request.Note?.Trim(), PhotoId = technician.PhotoId
         };
         var previous = booking.Status;
@@ -108,6 +116,9 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         booking.TechnicianPhone = chosenProfile?.Phone;
         booking.TechnicianPhotoId = chosenProfile?.PhotoId;
         booking.Price = chosen.Quote;
+        // The price is now fixed to these lines; a change on site is priced from the same list and needs the customer's yes.
+        booking.PriceLines = chosen.Lines ?? [];
+        booking.AgreedSheet = chosen.Sheet ?? (chosenProfile is null ? null : Pricing.SheetOf(chosenProfile));
         foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
         booking.Status = BookingStates.Confirmed;
         booking.UpdatedAt = DateTime.UtcNow;

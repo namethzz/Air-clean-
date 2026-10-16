@@ -43,6 +43,11 @@ public abstract class AirCleanControllerBase : ControllerBase
         return booking.CustomerId == CurrentUserId;
     }
 
+    /// <summary>The price lists of every approved technician: what the going rate for a job is worked out from.</summary>
+    protected async Task<List<PriceSheet>> MarketSheetsAsync() =>
+        (await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync())
+            .Where(x => x.Status == VerificationStates.Approved).Select(Pricing.SheetOf).ToList();
+
     protected async Task<TechnicianProfile?> EnsureCurrentTechnicianProfileAsync()
     {
         var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();

@@ -38,12 +38,19 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
             return BadRequest(new { message = "กรุณากรอกข้อมูลบริการให้ครบ" });
         var phone = request.Phone?.Trim() ?? profile.Phone;
         if (!IsPhone(phone)) return BadRequest(new { message = "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)" });
+        // The price list; the single base price stays as its standard wall-unit clean for older screens.
+        var prices = request.Prices is null ? null : DtoMapper.FromDto(request.Prices);
+        if (prices is not null && (prices.WallDeep < prices.Wall || prices.HangingDeep < prices.Hanging || prices.CassetteDeep < prices.Cassette))
+            return BadRequest(new { message = "ราคาล้างใหญ่ต้องไม่ต่ำกว่าล้างธรรมดาของแอร์แบบเดียวกัน" });
         // Update only editable fields; verification, reviews and job totals remain system-managed.
         var update = Builders<TechnicianProfile>.Update
             .Set(x => x.Title, request.Title.Trim()).Set(x => x.Area, request.Area.Trim())
-            .Set(x => x.BasePrice, request.BasePrice).Set(x => x.AvailableText, request.AvailableText.Trim())
+            .Set(x => x.BasePrice, prices?.Wall ?? request.BasePrice).Set(x => x.AvailableText, request.AvailableText.Trim())
             .Set(x => x.SkillsCsv, string.Join(",", request.Skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Distinct()))
             .Set(x => x.Phone, phone).Set(x => x.ExperienceYears, request.ExperienceYears ?? profile.ExperienceYears);
+        // A new base price alone (older apps) moves the whole list with it, unless the technician set the list themselves.
+        if (prices is not null) update = update.Set(x => x.Prices, prices);
+        else if (request.BasePrice != profile.BasePrice && profile.Prices is not null) update = update.Set(x => x.Prices!.Wall, request.BasePrice);
         // A rejected application goes back to the admin queue once the technician corrects it.
         if (profile.Status == VerificationStates.Rejected)
             update = update.Set(x => x.VerificationStatus, VerificationStates.Pending).Set(x => x.IsVerified, false).Set(x => x.AppliedAt, DateTime.UtcNow);

@@ -48,9 +48,15 @@ export function guideFor(booking: Booking): JobGuide {
   return { short: tidy(guide.short), title: tidy(guide.title), hint: tidy(guide.hint) };
 }
 
+/** The technician asked to change the price on site and the customer has not answered yet. */
+export const awaitingPriceAnswer = (booking: Booking) =>
+  booking.pendingChange?.status === 'Pending' && ['ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ'].includes(booking.status);
+
 function rawGuide(booking: Booking): JobGuide {
   // A real name is set off by spaces ("รอ Nameth ตอบรับ"); the generic word joins the Thai ("รอช่างตอบรับ").
   const tech = booking.technician && booking.technician !== '-' ? ` ${booking.technician.trim()} ` : 'ช่าง';
+  if (awaitingPriceAnswer(booking))
+    return { short: `${tech}ขอปรับราคา รอคุณตอบ`, title: `${tech}ขอปรับราคา`, hint: 'ราคาจะเปลี่ยนเมื่อคุณกดอนุมัติเท่านั้น ถ้าไม่อนุมัติ ช่างทำตามรายการเดิมในราคาเดิม' };
   const offers = booking.applicants?.length ?? 0;
   switch (booking.status) {
     case 'เปิดรับช่าง':
@@ -83,6 +89,7 @@ function rawGuide(booking: Booking): JobGuide {
 
 /** True when the customer is the one who has to act next. */
 export function needsAction(booking: Booking, _reports: ServiceReportRecord[] = []): boolean {
+  if (awaitingPriceAnswer(booking)) return true;
   if (booking.status === 'หมดเวลาเลือกช่าง') return true;
   if (booking.status === 'รอเลือกช่าง') return (booking.applicants?.length ?? 0) > 0;
   if (booking.status === 'รอชำระเงิน') return !booking.customerConfirmedPayment;

@@ -1,0 +1,337 @@
+/*
+ * Describing a job and reading its price (pr-): unit rows, standard or deep clean, the going rate, and a price line
+ * by line. Shared by the request sheet, the offers, the technician's price list and changes on site.
+ */
+
+/* Unit rows */
+.pr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+}
+.pr-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-sunken);
+}
+.pr-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v-gap-3);
+  width: 100%;
+  padding: 0;
+  font-weight: 600;
+  color: var(--v-ink);
+}
+/* A legend does not stretch on its own: float it so the row's own layout carries it */
+.pr-row > .pr-row-head {
+  float: left;
+}
+.pr-row > .pr-row-head + * {
+  clear: both;
+}
+.pr-row .ui-option {
+  background: var(--v-surface);
+}
+.pr-row .ui-option[aria-checked="true"] {
+  background: var(--v-blue-050);
+}
+.pr-row-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v-gap-4) var(--v-gap-6);
+}
+.pr-row-line > .ui-field {
+  min-width: 0;
+}
+.rq-stepper.is-sm button {
+  width: 44px;
+  height: 44px;
+}
+.rq-stepper.is-sm input {
+  width: 64px;
+  height: 44px;
+  font-size: 1.25rem;
+}
+.rq-stepper input[readonly] {
+  background: var(--v-sunken);
+}
+.pr-add {
+  align-self: flex-start;
+}
+
+/* Standard or deep */
+.pr-cleans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+.pr-clean {
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+.pr-clean-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.pr-clean-head strong {
+  font: 600 var(--v-text-lg) / 1.3 var(--v-font-head);
+}
+.pr-clean-price {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.pr-clean-price b {
+  font-size: var(--v-text-lg);
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.pr-clean ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--v-text-sm);
+  line-height: 1.5;
+  color: var(--v-ink-2);
+}
+.pr-clean li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.pr-clean li svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--v-done);
+}
+.pr-why {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-2);
+}
+.pr-why svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--v-blue-700);
+}
+.pr-why strong {
+  color: var(--v-ink);
+}
+
+/* A price, line by line */
+.pr-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--v-text-sm);
+}
+.pr-lines th,
+.pr-lines td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--v-line);
+  vertical-align: top;
+}
+.pr-lines th {
+  padding-right: 12px;
+  font-weight: 500;
+  color: var(--v-ink-2);
+  text-align: left;
+}
+.pr-lines th small {
+  color: var(--v-ink-3);
+  white-space: nowrap;
+}
+.pr-lines td {
+  font-weight: 600;
+  color: var(--v-ink);
+  text-align: right;
+  white-space: nowrap;
+}
+.pr-lines .pr-line-reason {
+  display: block;
+  margin-top: 2px;
+  white-space: normal;
+}
+.pr-lines tfoot th,
+.pr-lines tfoot td {
+  border-bottom: 0;
+  padding-top: 10px;
+  font-size: var(--v-text-md);
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.pr-lines .is-extra .ui-badge {
+  margin-right: 4px;
+}
+
+/* The going rate: a bar from low to high with the typical price, and where a quote sits on it */
+.pr-market {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--v-radius-md);
+  background: var(--v-blue-050);
+}
+.pr-market-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.pr-market-head span {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-2);
+}
+.pr-market-head strong {
+  font: 600 var(--v-text-xl) / 1.2 var(--v-font-head);
+  color: var(--v-ink);
+}
+.pr-market p {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-2);
+}
+.pr-pos {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pr-pos.is-typical {
+  background: var(--v-done-bg);
+  color: var(--v-done);
+}
+.pr-pos.is-low {
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.pr-pos.is-high {
+  background: var(--v-wait-bg);
+  color: var(--v-wait);
+}
+/* On a vest-blue plate the tags sit on white */
+.ui-plate:not(.is-quiet) .pr-pos {
+  background: var(--v-on-blue);
+}
+
+/* What the price covers, and the promise that it does not change without a yes */
+.pr-promise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-2);
+}
+.pr-promise strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--v-ink);
+}
+.pr-promise strong svg {
+  flex: none;
+  color: var(--v-done);
+}
+.pr-promise ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+.pr-details {
+  font-size: var(--v-text-sm);
+}
+.pr-details > summary {
+  width: fit-content;
+  color: var(--v-blue-700);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pr-details[open] > summary {
+  margin-bottom: 6px;
+}
+.ui-plate:not(.is-quiet) .pr-details > summary {
+  color: var(--v-on-blue);
+}
+
+/* Asking for a price change on site (pc-) */
+.pc-hint {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-2);
+}
+.pc-extras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-3);
+}
+.pc-extra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  align-items: end;
+  gap: var(--v-gap-3);
+}
+.pc-remove {
+  min-height: var(--v-control);
+}
+@media (max-width: 459px) {
+  .pc-extra {
+    grid-template-columns: minmax(0, 1fr) 96px;
+  }
+  .pc-remove {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-height: 0;
+  }
+}
+
+/* The agreed price on the technician's job, and a request waiting for the customer */
+.tj-price .pr-lines {
+  margin: 4px 0;
+}
+.tj-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--v-radius-md);
+  background: var(--v-wait-bg);
+  color: var(--v-ink);
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+}
+.tj-pending strong {
+  font-size: var(--v-text-md);
+}

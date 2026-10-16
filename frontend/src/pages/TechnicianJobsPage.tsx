@@ -11,7 +11,10 @@ import { RoomBoard } from '../components/Rooms';
 import { isClosed, isOffer, techClosed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
 import { clashesWith } from '../lib/clash';
 import './Membership.css';
-import type { CompleteJobPayload } from '../lib/api';
+import type { CompleteJobPayload, ProposeChangePayload } from '../lib/api';
+import PriceChangeSheet from '../components/PriceChangeSheet';
+import { PriceBreakdown } from '../components/Pricing';
+import { cleanName, lastCleanedName, symptomName } from '../lib/pricing';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
 import './CustomerJobs.css';
@@ -32,6 +35,8 @@ interface Props {
   onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
   onProgress: (id: number, unitsDone: number, roomsDone?: string[]) => Promise<boolean>;
   onReschedule: (id: number, scheduledAt: string, timeWindow?: string, reason?: string) => Promise<boolean>;
+  onProposeChange: (id: number, payload: ProposeChangePayload) => Promise<boolean>;
+  onWithdrawChange: (id: number, changeId: string) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -314,7 +319,7 @@ export default function TechnicianJobsPage(props: Props) {
   </div>;
 }
 
-function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule }: Props & { booking: Booking; onBack: () => void }) {
+function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule, onProposeChange, onWithdrawChange }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
   const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
@@ -347,6 +352,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       })()}
       {offer && <div className="tj-offer">
         <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
+        {booking.applicants?.[0]?.lines?.length ? <details className="pr-details"><summary>คิดจากใบราคาของคุณ</summary><PriceBreakdown lines={booking.applicants[0].lines}/></details> : null}
         {booking.offerDeadline && <p className="cj-note"><Clock3 size={15}/> ลูกค้าจะเลือกช่างภายใน {new Date(booking.offerDeadline).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. ถ้าไม่เลือก ข้อเสนอจะหมดอายุและคุณได้รับแจ้ง</p>}
         <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
       </div>}
@@ -362,6 +368,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       <p className="tj-address">{booking.address}</p>
       {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {formatPhone(booking.customerPhone)}</a></div>}
       <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
+      <p className="cj-note">{conditionText(booking)}</p>
       {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
         destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
         technician={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
@@ -374,6 +381,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
     {going && booking.notes && <section className="cj-block tj-notes"><h3>ข้อมูลจากลูกค้า</h3><p>{booking.notes}</p></section>}
     {going && booking.rooms?.length ? <RoomChecklist booking={booking} onProgress={onProgress}/> : going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
 
+    {going && booking.status !== 'รอชำระเงิน' && <PriceOnSite booking={booking} onPropose={payload => onProposeChange(booking.id, payload)} onWithdraw={changeId => onWithdrawChange(booking.id, changeId)}/>}
     {going && !techClosed(booking) && <FinishJob booking={booking} onComplete={onComplete}/>}
 
     {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id}/></section>}
@@ -399,9 +407,43 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       <dl className="cj-facts">
         <div><dt>พื้นที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+        <div><dt>งานและสภาพแอร์</dt><dd>{conditionText(booking)}</dd></div>
       </dl>
     </section>}
   </article>;
+}
+
+/** "ล้างธรรมดา · ล้างล่าสุดเกิน 1 ปี · มีกลิ่นอับ": the clean asked for and what the customer said about the units. */
+function conditionText(booking: Booking): string {
+  return [cleanName(Boolean(booking.deep)), booking.hardAccessUnits ? `คอยล์ร้อนเข้าถึงยาก ${booking.hardAccessUnits} เครื่อง` : '',
+    booking.lastCleaned ? 'ล้างล่าสุด ' + lastCleanedName(booking.lastCleaned) : '', ...(booking.symptoms ?? []).map(symptomName)].filter(Boolean).join(' · ');
+}
+
+/**
+ * The price agreed with the customer, and the one way to change it: ask in the app. While a request waits the
+ * job cannot be closed, so what is collected is always what the customer agreed to.
+ */
+function PriceOnSite({ booking, onPropose, onWithdraw }: { booking: Booking; onPropose: (payload: ProposeChangePayload) => Promise<boolean>; onWithdraw: (changeId: string) => Promise<boolean> }) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pending = booking.pendingChange?.status === 'Pending' ? booking.pendingChange : null;
+  const last = [...(booking.changes ?? [])].reverse().find(item => item.status === 'Approved' || item.status === 'Declined');
+  return <section className="cj-block tj-price">
+    <h3>ราคาที่ตกลงกับลูกค้า</h3>
+    {booking.priceLines?.length ? <PriceBreakdown lines={booking.priceLines} totalLabel="ยอดที่เก็บจากลูกค้า"/> : <p className="cj-amount">฿{booking.price.toLocaleString()}</p>}
+    {last && !pending && <p className="cj-note">คำขอล่าสุด: ลูกค้า{last.status === 'Approved' ? 'อนุมัติ' : 'ไม่อนุมัติ'} ({last.kind === 'correction' ? 'ปรับรายการแอร์' : 'งานเพิ่ม'} ฿{last.newPrice.toLocaleString()})</p>}
+    {pending
+      ? <div className="tj-pending" role="status">
+        <strong>รอลูกค้าตอบ: ราคาใหม่ ฿{pending.newPrice.toLocaleString()} (เดิม ฿{pending.oldPrice.toLocaleString()})</strong>
+        <span>“{pending.reason}” · ลูกค้าได้รับแจ้งแล้ว ให้ลูกค้ากดอนุมัติในแอป ระหว่างนี้ยังปิดงานไม่ได้</span>
+        <button type="button" className="cj-ghost" disabled={busy} onClick={async () => { setBusy(true); await onWithdraw(pending.id); setBusy(false); }}>{busy ? 'กำลังยกเลิก…' : 'ยกเลิกคำขอ'}</button>
+      </div>
+      : <>
+        <p className="cj-note">แอร์ไม่ตรงกับที่ลูกค้าแจ้ง หรือต้องทำงานเพิ่ม? ขอในแอปให้ลูกค้ากดอนุมัติก่อน ห้ามเก็บเงินเกินยอดในแอป</p>
+        <button type="button" className="cj-ghost" onClick={() => setAsking(true)}>ขอปรับราคา / งานเพิ่ม</button>
+      </>}
+    {asking && <PriceChangeSheet booking={booking} onSend={onPropose} onClose={() => setAsking(false)}/>}
+  </section>;
 }
 
 function localDate(offsetDays = 0) {
@@ -522,6 +564,8 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
   const [photos, setPhotos] = useState({ after: 0, failed: false });
   // At least one "after" photo, unless uploading failed (bad signal must not block closing the job).
   const photosReady = photos.after > 0 || photos.failed;
+  // The amount is not settled while the customer has not answered a price change.
+  const waiting = booking.pendingChange?.status === 'Pending';
   async function finish() {
     setBusy(true);
     const ok = await onComplete(booking.id, { method, summary: note.trim() || undefined, ...checks });
@@ -552,7 +596,8 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
         <div><button type="button" className="cj-primary" disabled={busy} onClick={() => void finish()}>{busy ? 'กำลังบันทึก...' : 'ยืนยันปิดงาน'}</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setAsking(false)}>ยกเลิก</button></div>
       </div>
       : <>
-        <button type="button" className="cj-primary full" disabled={!photosReady} onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>
+        <button type="button" className="cj-primary full" disabled={!photosReady || waiting} onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>
+        {waiting && <p className="cj-note tj-photo-needed">รอลูกค้าตอบคำขอปรับราคาก่อน หรือยกเลิกคำขอ</p>}
         {!photosReady && <p className="cj-note tj-photo-needed">เพิ่มรูปหลังล้างก่อนปิดงาน</p>}
         {photos.failed && photos.after === 0 && <p className="cj-note tj-photo-needed">อัปโหลดรูปไม่ได้ ปิดงานต่อได้ แล้วเพิ่มรูปภายหลังภายใน 1 วัน</p>}
       </>}

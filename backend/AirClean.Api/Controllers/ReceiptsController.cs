@@ -65,8 +65,9 @@ public class ReceiptsController(MongoStore db, Notifier notifier) : AirCleanCont
         var tech = await store.Technicians.Find(x => x.Id == booking.TechnicianId).FirstOrDefaultAsync();
         var paidAt = booking.Events.LastOrDefault(x => x.ToStatus == BookingStates.Completed)?.CreatedAt ?? booking.UpdatedAt;
         var payer = booking.ReceiptPayer ?? customer?.Billing ?? new BillingInfo { Name = customer?.FullName ?? booking.CustomerName };
-        var count = Math.Max(1, booking.UnitCount);
-        var lines = new List<ReceiptLineDto> { new($"{booking.Service}{(string.IsNullOrWhiteSpace(booking.UnitLabel) ? "" : " · " + booking.UnitLabel)}", count, Math.Round(booking.Price / count, 2), booking.Price) };
+        // The agreed lines and any extra work the customer approved on site; older jobs have one line for the whole job.
+        var lines = Pricing.AgreedLines(booking).Select(x => new ReceiptLineDto(x.Kind == "extra" ? "งานเพิ่ม: " + x.Label : x.Label, x.Quantity, x.UnitPrice, x.Amount)).ToList();
+        if (booking.PriceLines.Count == 0 && !string.IsNullOrWhiteSpace(booking.UnitLabel)) lines[0] = lines[0] with { Description = lines[0].Description + " · " + booking.UnitLabel };
         var culture = System.Globalization.CultureInfo.InvariantCulture;
         BillingDto ToDto(BillingInfo info) => new(info.Name, info.TaxId, info.Branch, info.Address);
         return new ReceiptDto(booking.ReceiptNo is not null, booking.ReceiptNo, booking.ReceiptIssuedAt?.ToString("O", culture), booking.Code,

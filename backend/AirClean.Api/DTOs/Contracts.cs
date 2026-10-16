@@ -8,15 +8,18 @@ public record LoginResponse(string Token,DateTime ExpiresAt,AuthUserDto User);
 public record TechnicianDto(int Id,string Name,string Initials,string Title,decimal Rating,int ReviewCount,int JobsCompleted,decimal BasePrice,string Area,bool Verified,string AvailableText,string[] Skills,string Accent,int MatchScore,string MatchReason);
 public record ServiceRecordDto(int Id,string Date,string Technician,string Service,decimal Price,string Summary,string Status);
 public record AirConditionerDto(int Id,string Label,string Room,string Brand,string Model,string Type,string LastServiceDate,string NextServiceDate,string Health,string SerialNumber,IReadOnlyList<ServiceRecordDto> Services);
-public record BookingApplicantDto(int TechnicianId,string Name,string Initials,string Title,decimal Rating,int ReviewCount,int JobsCompleted,decimal Quote,string Area,bool Verified,bool Selected,string AppliedAt,string? Note,string? PhotoId=null);
-public record BookingDto(int Id,string Code,string Customer,int TechnicianId,string Technician,string TechnicianInitials,string Service,string UnitLabel,string Address,string Date,string Time,decimal Price,string Status,string CreatedAt,double? Latitude,double? Longitude,double? TechnicianLatitude,double? TechnicianLongitude,double? LocationAccuracy,string? LocationUpdatedAt,string TravelStatus,string? PaymentMethod,string PaymentStatus,bool CustomerConfirmedPayment,bool TechnicianConfirmedPayment,string PropertyType,int UnitCount,IReadOnlyList<BookingApplicantDto> Applicants,bool CurrentTechnicianApplied,double? DistanceKm,int? AirConditionerId,int? CustomerRating,BookingIssueDto? Issue=null,string? TimeWindow=null,string? Notes=null,int UnitsDone=0,int? PlaceId=null,IReadOnlyList<BookingRoomDto>? Rooms=null,string? CustomerPhone=null,string? TechnicianPhone=null,string? OfferDeadline=null,string? TechnicianPhotoId=null);
+public record BookingApplicantDto(int TechnicianId,string Name,string Initials,string Title,decimal Rating,int ReviewCount,int JobsCompleted,decimal Quote,string Area,bool Verified,bool Selected,string AppliedAt,string? Note,string? PhotoId=null,IReadOnlyList<PriceLineDto>? Lines=null,string? Position=null);
+public record BookingDto(int Id,string Code,string Customer,int TechnicianId,string Technician,string TechnicianInitials,string Service,string UnitLabel,string Address,string Date,string Time,decimal Price,string Status,string CreatedAt,double? Latitude,double? Longitude,double? TechnicianLatitude,double? TechnicianLongitude,double? LocationAccuracy,string? LocationUpdatedAt,string TravelStatus,string? PaymentMethod,string PaymentStatus,bool CustomerConfirmedPayment,bool TechnicianConfirmedPayment,string PropertyType,int UnitCount,IReadOnlyList<BookingApplicantDto> Applicants,bool CurrentTechnicianApplied,double? DistanceKm,int? AirConditionerId,int? CustomerRating,BookingIssueDto? Issue=null,string? TimeWindow=null,string? Notes=null,int UnitsDone=0,int? PlaceId=null,IReadOnlyList<BookingRoomDto>? Rooms=null,string? CustomerPhone=null,string? TechnicianPhone=null,string? OfferDeadline=null,string? TechnicianPhotoId=null,
+  IReadOnlyList<JobItemDto>? Items=null,bool Deep=false,int HardAccessUnits=0,string? LastCleaned=null,IReadOnlyList<string>? Symptoms=null,PriceRangeDto? Market=null,
+  IReadOnlyList<PriceLineDto>? PriceLines=null,PriceChangeDto? PendingChange=null,IReadOnlyList<PriceChangeDto>? Changes=null,decimal? YourQuote=null,IReadOnlyList<PriceLineDto>? YourLines=null,PriceSheetDto? AgreedSheet=null);
 public record RescheduleRequestDto([Required] DateTime ScheduledAt,[MaxLength(11)] string? TimeWindow,[MaxLength(200)] string? Reason);
 public record BookingIssueDto(string Kind,string Reason,string ReportedBy,string ReportedAt,bool Open,string? Resolution,string? ResolutionNote,string? ResolvedAt);
 public record IssuePartyDto(string Name,string? Email,string? Phone);
 public record AdminIssueDto(int BookingId,string Code,string Status,string Service,int UnitCount,decimal Price,string ScheduledAt,string Address,string? PaymentMethod,BookingIssueDto Issue,IssuePartyDto Customer,IssuePartyDto Technician,IReadOnlyList<IssueEventDto> History);
 public record IssueEventDto(string At,string Status,string? Notes);
 public record ResolveIssueRequest([Required] string Action,[MaxLength(1000)] string? Note,string? Method);
-public record CreateBookingRequest([Required,MaxLength(100)] string Service,[Required,MaxLength(180)] string UnitLabel,[Required,MaxLength(40)] string PropertyType,[Range(1,300)] int UnitCount,[Required,MaxLength(300)] string Address,[Required] DateTime ScheduledAt,[Range(0,100000)] decimal Price,[MaxLength(1000)] string? Notes,double? Latitude=null,double? Longitude=null,int? AirConditionerId=null,[MaxLength(11)] string? TimeWindow=null,int? PlaceId=null,List<string>? Rooms=null,[MaxLength(30)] string? ContactPhone=null);
+public record CreateBookingRequest([Required,MaxLength(100)] string Service,[Required,MaxLength(180)] string UnitLabel,[Required,MaxLength(40)] string PropertyType,[Range(1,300)] int UnitCount,[Required,MaxLength(300)] string Address,[Required] DateTime ScheduledAt,[Range(0,100000)] decimal Price,[MaxLength(1000)] string? Notes,double? Latitude=null,double? Longitude=null,int? AirConditionerId=null,[MaxLength(11)] string? TimeWindow=null,int? PlaceId=null,List<string>? Rooms=null,[MaxLength(30)] string? ContactPhone=null,
+  List<JobItemDto>? Items=null,bool Deep=false,[Range(0,300)] int HardAccessUnits=0,[MaxLength(20)] string? LastCleaned=null,List<string>? Symptoms=null);
 public record ApplyForBookingRequest([MaxLength(500)] string? Note);
 public record ConfirmBookingTechnicianRequest([Required,Range(1,int.MaxValue)] int TechnicianId);
 public record UpdateBookingStatusRequest([Required] string Status,[MaxLength(500)] string? Notes);
@@ -26,7 +29,7 @@ public record OnsitePaymentRequest([Required] string Method,[Required] bool Conf
 public record PaymentIssueRequest([Required,MaxLength(1000)] string Reason);
 public record CreateServiceReportRequest([Range(1,int.MaxValue)] int BookingId,[Required,MaxLength(2000)] string Summary,bool CleanedFilter,bool CleanedCoil,bool CheckedDrain,bool CheckedCooling,[MaxLength(500)] string? BeforePhotoUrl,[MaxLength(500)] string? AfterPhotoUrl);
 public record CreateReviewRequest([Range(1,5)] int Rating,[MaxLength(1000)] string Comment);
-public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Title,[Required,MaxLength(200)] string Area,[Range(1,100000)] decimal BasePrice,[Required,MaxLength(120)] string AvailableText,[Required,MaxLength(500)] string Skills,[MaxLength(30)] string? Phone=null,[Range(0,60)] int? ExperienceYears=null);
+public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Title,[Required,MaxLength(200)] string Area,[Range(1,100000)] decimal BasePrice,[Required,MaxLength(120)] string AvailableText,[Required,MaxLength(500)] string Skills,[MaxLength(30)] string? Phone=null,[Range(0,60)] int? ExperienceYears=null,PriceSheetDto? Prices=null);
 
 public record CreateAirConditionerRequest([Required,MinLength(1),MaxLength(80)] string Label,[MaxLength(80)] string? Room,[MaxLength(60)] string? Brand,[MaxLength(80)] string? Model,[MaxLength(80)] string? Type,[MaxLength(80)] string? SerialNumber,DateTime? LastServiceDate);
 public record TechnicianVerificationRequest(bool Verified,[MaxLength(500)] string? Note=null);
@@ -36,7 +39,7 @@ public record TechnicianStatsDto(int JobsCompleted,int JobsActive,int JobsCancel
 public record TechnicianReviewDto(int Rating,string Comment,string Customer,string BookingCode,string CreatedAt);
 public record TechnicianJobDto(int Id,string Code,string Status,string Date,string Time,string Customer,string Area,string Service,int UnitCount,decimal Price,int? CustomerRating,int Photos);
 public record TechnicianDetailDto(TechnicianApplicationDto Profile,string AccountCreatedAt,string[] SignIn,TechnicianStatsDto Stats,IReadOnlyList<TechnicianJobDto> Jobs,IReadOnlyList<TechnicianReviewDto> Reviews);
-public record TechnicianApplicationDto(int Id,int UserId,string Name,string Email,string Phone,string Title,string Area,decimal BasePrice,string AvailableText,string[] Skills,int ExperienceYears,decimal Rating,int ReviewCount,int JobsCompleted,bool Verified,string VerificationStatus,string? VerificationNote,string? AppliedAt,string? ReviewedAt,string? PhotoId=null);
+public record TechnicianApplicationDto(int Id,int UserId,string Name,string Email,string Phone,string Title,string Area,decimal BasePrice,string AvailableText,string[] Skills,int ExperienceYears,decimal Rating,int ReviewCount,int JobsCompleted,bool Verified,string VerificationStatus,string? VerificationNote,string? AppliedAt,string? ReviewedAt,string? PhotoId=null,PriceSheetDto? Prices=null);
 public record ExternalLoginRequest([Required,MaxLength(20)] string Provider,[Required,MaxLength(8000)] string IdToken,bool CreateAccount=false,[MaxLength(30)] string? Role=null,[MaxLength(120)] string? FullName=null,[MaxLength(30)] string? Phone=null,[MaxLength(200)] string? ServiceArea=null,[Range(0,60)] int? ExperienceYears=null);
 public record ForgotPasswordRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record ResetPasswordRequest([Required,MinLength(20),MaxLength(200)] string Token,[Required,MinLength(8),MaxLength(128)] string NewPassword);
@@ -71,3 +74,19 @@ public record MembershipSettingsDto([Range(0,100000)] decimal MonthlyFee,[Range(
 public record MemberRowDto(int TechnicianId,string Name,string Phone,string State,string? MemberUntil,int DaysLeft);
 public record AdminMembershipDto(MembershipSettingsDto Settings,IReadOnlyList<MembershipPaymentDto> Payments,IReadOnlyList<MemberRowDto> Members,bool AutoCheck=false);
 public record GrantMembershipRequest([Range(1,365)] int Days,[MaxLength(200)] string? Note=null);
+
+/// <summary>Some units of one kind (wall, hanging, cassette); Large of them are over 24,000 BTU.</summary>
+public record JobItemDto([Required,MaxLength(20)] string Kind,[Range(1,300)] int Count,[Range(0,300)] int Large=0);
+public record PriceLineDto(string Kind,string Label,int Quantity,decimal UnitPrice,decimal Amount,string? Reason=null);
+public record PriceRangeDto(decimal Low,decimal Mid,decimal High,int Technicians,bool Reference);
+public record PriceSheetDto([Range(50,20000)] decimal Wall,[Range(50,20000)] decimal WallDeep,[Range(50,20000)] decimal Hanging,[Range(50,20000)] decimal HangingDeep,
+  [Range(50,20000)] decimal Cassette,[Range(50,20000)] decimal CassetteDeep,[Range(0,10000)] decimal Large,[Range(0,10000)] decimal HardAccess);
+public record PriceEstimateRequest([Required] List<JobItemDto> Items,bool Deep=false,[Range(0,300)] int HardAccessUnits=0);
+public record PriceEstimateDto(PriceRangeDto Range,IReadOnlyList<PriceLineDto> Lines);
+public record PriceGuideDto(PriceSheetDto Typical,PriceSheetDto Low,PriceSheetDto High,int Technicians,bool Reference);
+public record PriceChangeDto(string Id,string Kind,string Status,IReadOnlyList<PriceLineDto> Lines,string Reason,decimal OldPrice,decimal NewPrice,string CreatedAt,string? AnsweredAt,
+  IReadOnlyList<JobItemDto>? Items=null,bool? Deep=null,int? HardAccessUnits=null);
+public record ExtraItemDto([Required,MinLength(2),MaxLength(80)] string Label,[Range(1,50000)] decimal Amount);
+/// <summary>A correction (Items/Deep/HardAccessUnits, priced from the agreed list) or extra work (Extras with their own prices).</summary>
+public record ProposeChangeRequest([Required,MaxLength(20)] string Kind,[Required,MinLength(3),MaxLength(300)] string Reason,List<JobItemDto>? Items=null,bool? Deep=null,[Range(0,300)] int? HardAccessUnits=null,List<ExtraItemDto>? Extras=null);
+public record AnswerChangeRequest(bool Approve);

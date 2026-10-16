@@ -9,11 +9,13 @@ export interface SavedAddress{id:string;label:string;placeType:PlaceType;unitCou
 export interface Technician{id:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;basePrice:number;area:string;verified:boolean;availableText:string;skills:string[];accent:string;matchScore:number;matchReason:string;}
 export interface AppNotification{id:string;title:string;body:string;target:'bookings'|'approvals'|'nearbyJobs'|'profile'|string;bookingId?:number|null;createdAt:string;read:boolean;}
 export type VerificationStatus='Pending'|'Approved'|'Rejected';
-export interface TechnicianApplication{id:number;userId:number;name:string;email:string;phone:string;title:string;area:string;basePrice:number;availableText:string;skills:string[];experienceYears:number;rating:number;reviewCount:number;jobsCompleted:number;verified:boolean;verificationStatus:VerificationStatus;verificationNote?:string|null;appliedAt?:string|null;reviewedAt?:string|null;photoId?:string|null;}
+export interface TechnicianApplication{id:number;userId:number;name:string;email:string;phone:string;title:string;area:string;basePrice:number;availableText:string;skills:string[];experienceYears:number;rating:number;reviewCount:number;jobsCompleted:number;verified:boolean;verificationStatus:VerificationStatus;verificationNote?:string|null;appliedAt?:string|null;reviewedAt?:string|null;photoId?:string|null;prices?:PriceSheet|null;}
 export interface ServiceRecord{id:number;date:string;technician:string;service:string;price:number;summary:string;status:'เสร็จสิ้น'|'รอตรวจสอบ';}
 export interface AirConditioner{id:number;label:string;room:string;brand:string;model:string;type:string;lastServiceDate:string;nextServiceDate:string;health:'good'|'due'|'attention';serialNumber:string;services:ServiceRecord[];}
-export interface BookingApplicant{technicianId:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;quote:number;area:string;verified:boolean;selected:boolean;appliedAt:string;note?:string|null;photoId?:string|null;}
-export interface Booking{id:number;code:string;customer:string;technicianId:number;technician:string;technicianInitials:string;service:string;unitLabel:string;address:string;date:string;time:string;price:number;status:BookingStatus;createdAt:string;latitude?:number|null;longitude?:number|null;technicianLatitude?:number|null;technicianLongitude?:number|null;locationAccuracy?:number|null;locationUpdatedAt?:string|null;travelStatus?:string;paymentMethod?:PaymentMethod|null;paymentStatus?:string;customerConfirmedPayment?:boolean;technicianConfirmedPayment?:boolean;propertyType?:string;unitCount?:number;applicants?:BookingApplicant[];currentTechnicianApplied?:boolean;distanceKm?:number|null;airConditionerId?:number|null;customerRating?:number|null;issue?:BookingIssue|null;timeWindow?:string|null;notes?:string|null;unitsDone?:number;placeId?:number|null;rooms?:{name:string;units:number;done:boolean}[]|null;customerPhone?:string|null;technicianPhone?:string|null;offerDeadline?:string|null;technicianPhotoId?:string|null;}
+export interface BookingApplicant{technicianId:number;name:string;initials:string;title:string;rating:number;reviewCount:number;jobsCompleted:number;quote:number;area:string;verified:boolean;selected:boolean;appliedAt:string;note?:string|null;photoId?:string|null;lines?:PriceLine[]|null;position?:PricePosition|null;}
+export interface Booking{id:number;code:string;customer:string;technicianId:number;technician:string;technicianInitials:string;service:string;unitLabel:string;address:string;date:string;time:string;price:number;status:BookingStatus;createdAt:string;latitude?:number|null;longitude?:number|null;technicianLatitude?:number|null;technicianLongitude?:number|null;locationAccuracy?:number|null;locationUpdatedAt?:string|null;travelStatus?:string;paymentMethod?:PaymentMethod|null;paymentStatus?:string;customerConfirmedPayment?:boolean;technicianConfirmedPayment?:boolean;propertyType?:string;unitCount?:number;applicants?:BookingApplicant[];currentTechnicianApplied?:boolean;distanceKm?:number|null;airConditionerId?:number|null;customerRating?:number|null;issue?:BookingIssue|null;timeWindow?:string|null;notes?:string|null;unitsDone?:number;placeId?:number|null;rooms?:{name:string;units:number;done:boolean}[]|null;customerPhone?:string|null;technicianPhone?:string|null;offerDeadline?:string|null;technicianPhotoId?:string|null;
+  items?:JobItem[]|null;deep?:boolean;hardAccessUnits?:number;lastCleaned?:LastCleaned|null;symptoms?:Symptom[]|null;market?:PriceRange|null;priceLines?:PriceLine[]|null;
+  pendingChange?:PriceChange|null;changes?:PriceChange[]|null;yourQuote?:number|null;yourLines?:PriceLine[]|null;agreedSheet?:PriceSheet|null;}
 export type IssueKind='Payment'|'Service';
 export type IssueResolution='Paid'|'Cancelled'|'Closed';
 export interface BookingIssue{kind:IssueKind;reason:string;reportedBy:string;reportedAt:string;open:boolean;resolution?:IssueResolution|null;resolutionNote?:string|null;resolvedAt?:string|null;}
@@ -37,3 +39,20 @@ export interface Membership{state:MembershipState;memberUntil?:string|null;daysL
 export interface MembershipSettings{monthlyFee:number;trialDays:number;promptPayId:string;payeeName:string;}
 export interface MemberRow{technicianId:number;name:string;phone:string;state:MembershipState;memberUntil?:string|null;daysLeft:number;}
 export interface AdminMembership{settings:MembershipSettings;payments:MembershipPayment[];members:MemberRow[];autoCheck?:boolean;}
+
+/** Kinds of indoor unit a customer can tell apart by looking. */
+export type AcKind='wall'|'hanging'|'cassette';
+/** Some units of one kind; `large` of them are over 24,000 BTU. */
+export interface JobItem{kind:AcKind;count:number;large:number;}
+export type LastCleaned='under6m'|'6to12m'|'over1y'|'unknown';
+export type Symptom='drip'|'warm'|'smell'|'noise';
+/** One line of a price. Kind is clean, large, access or extra (work added on site). */
+export interface PriceLine{kind:'clean'|'large'|'access'|'extra'|string;label:string;quantity:number;unitPrice:number;amount:number;reason?:string|null;}
+/** What technicians in the system charge for a job: most between low and high, mid typical. Reference: too few technicians yet. */
+export interface PriceRange{low:number;mid:number;high:number;technicians:number;reference:boolean;}
+export type PricePosition='low'|'typical'|'high';
+/** A technician's price list, baht per unit. */
+export interface PriceSheet{wall:number;wallDeep:number;hanging:number;hangingDeep:number;cassette:number;cassetteDeep:number;large:number;hardAccess:number;}
+export interface PriceGuide{typical:PriceSheet;low:PriceSheet;high:PriceSheet;technicians:number;reference:boolean;}
+/** A change the technician asked for on site; nothing changes until the customer approves. */
+export interface PriceChange{id:string;kind:'correction'|'extra';status:'Pending'|'Approved'|'Declined'|'Withdrawn';lines:PriceLine[];reason:string;oldPrice:number;newPrice:number;createdAt:string;answeredAt?:string|null;items?:JobItem[]|null;deep?:boolean|null;hardAccessUnits?:number|null;}

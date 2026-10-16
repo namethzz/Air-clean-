@@ -119,35 +119,29 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.rq-extra b {
-  margin-left: 4px;
+/* Where the outdoor unit is: three plain choices, and how many when some are hard to reach */
+.rq-access {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.rq-access .ui-option b {
   color: var(--v-blue-700);
   font-weight: 600;
   white-space: nowrap;
+}
+.rq-access-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 4px;
 }
 .rq-phone {
   max-width: 320px;
   font-size: 1.125rem;
   letter-spacing: 0.02em;
 }
-.rq-terms {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 28px 0 0;
-  padding: 14px 16px;
-  border-radius: var(--v-radius);
-  background: var(--v-blue-050);
-  color: var(--v-ink-2);
-  font-size: var(--v-text-sm);
-  line-height: 1.6;
-}
-.rq-terms svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--v-blue-700);
-}
-
 /* The foot: the running estimate and the one button */
 .rq-foot {
   display: flex;
