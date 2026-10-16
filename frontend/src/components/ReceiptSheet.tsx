@@ -35,7 +35,7 @@ export default function ReceiptSheet({ bookingId, canIssue, companyFirst = false
         </div>
       </header>
       {error && <p className="jp-error" role="alert">{error}</p>}
-      {!receipt && !error && <p className="rc-loading"><Loader2 size={22} className="lp-spin"/> กำลังโหลด…</p>}
+      {!receipt && !error && <p className="rc-loading"><Loader2 size={22} className="ui-spin"/> กำลังโหลด…</p>}
       {receipt && !receipt.issued && (canIssue
         ? <PayerForm receipt={receipt} companyFirst={companyFirst} onIssue={async (payer, remember) => setReceipt(await issueReceipt(bookingId, payer, remember))}/>
         : <p className="rc-note">ลูกค้ายังไม่ได้ออกใบเสร็จสำหรับงานนี้</p>)}

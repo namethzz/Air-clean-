@@ -1,11 +1,12 @@
 import { timeLabel } from '../lib/time';
-import { Building2, ChevronRight, History } from 'lucide-react';
-import HeroFinancial from '../components/ui/hero-financial';
+import { ArrowRight, Building2, ChevronRight, History, Plus } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
-import { formatThaiDate, openBookings, pickNextStep } from '../lib/nextStep';
-import { guideFor } from '../lib/jobFlow';
+import { openBookings, pickNextStep } from '../lib/nextStep';
+import { guideFor, needsAction } from '../lib/jobFlow';
 import type { Booking, PageKey, ServiceReportRecord, UserRole } from '../types';
-import './CustomerExperience.css';
+import { AirCleaningPhoto } from '../components/ui/hero-financial-utils/assets-index';
+import './Jobs.css';
+import './Home.css';
 
 interface Props {
   role?: UserRole;
@@ -34,48 +35,73 @@ const firstSteps = [
   { title: 'เลือกช่างจากข้อเสนอ', text: 'ช่างใกล้บ้านเสนอราคาและโปรไฟล์ให้คุณเปรียบเทียบ' },
   { title: 'ช่างมาล้างแอร์', text: 'ดูตำแหน่งช่างระหว่างเดินทาง และจ่ายเงินปลายทางเมื่อล้างเสร็จ' },
 ];
+const day = (date: string) => new Date(date + 'T00:00:00');
 
-/** Customer overview: one next step, then the rest of what is in progress. */
+/** Customer and building manager home: the one thing to do next, then the rest of what is in progress. */
 export default function CustomerHome({ role, bookings, reports, userName, onNavigate, onOpenJob, onNewBooking }: Props) {
   const manager = role === 'manager';
   const step = pickNextStep(bookings, reports);
   const others = openBookings(bookings).filter(item => item.id !== step.bookingId).slice(0, 5);
   const doneCount = bookings.filter(item => item.status === 'เสร็จสิ้น').length;
   const go = () => (step.to === 'newBooking' ? onNewBooking() : onOpenJob(step.bookingId));
+  const start = step.tone === 'start';
 
-  return <div className="ac-home">
-    <p className="ac-home-hello">สวัสดี คุณ{firstName(userName)}</p>
-    <HeroFinancial compact withPhoto={step.tone === 'start'} eyebrow={step.eyebrow} heading={step.title} description={step.text} primaryLabel={step.cta} onStart={go}/>
+  return <div className="ui-page hm">
+    <p className="hm-hello">สวัสดี คุณ{firstName(userName)}</p>
 
-    {bookings.length === 0 && <ol className="ac-home-steps" aria-label="ขั้นตอนการใช้งาน">{(manager ? managerSteps : firstSteps).map(item => <li key={item.title}><strong>{item.title}</strong><span>{item.text}</span></li>)}</ol>}
-
-    {others.length > 0 && <section aria-labelledby="ac-home-list-title">
-      <div className="ac-home-list-head">
-        <h2 id="ac-home-list-title">งานอื่นของคุณ</h2>
-        <button type="button" className="text-button" onClick={() => onOpenJob()}>ดูทั้งหมด <ChevronRight size={16}/></button>
+    <section className={'hm-next' + (start ? ' is-start' : '')} aria-labelledby="hm-next-title">
+      <div className="hm-next-body">
+        <h2 id="hm-next-title">{step.title}</h2>
+        <p>{step.text}</p>
+        <button type="button" className="hm-next-cta" onClick={go}>{start && <Plus size={20} strokeWidth={2.4}/>}{step.cta}{!start && <ArrowRight size={19}/>}</button>
       </div>
-      <ul className="ac-home-list">{others.map(item => <li key={item.id}>
-        <button type="button" className="ac-home-row" onClick={() => onOpenJob(item.id)} aria-label={`${item.service} ${item.status} เปิดดูงาน`}>
-          <span className="ac-home-date"><strong>{formatThaiDate(item.date).split(' ')[0]}</strong><span>{formatThaiDate(item.date).split(' ').slice(1).join(' ')}</span></span>
-          <span className="ac-home-main"><strong>{item.service}</strong><span>{guideFor(item).short} · {timeLabel(item)}</span></span>
-          <StatusBadge status={item.status}/>
-          <ChevronRight size={18} aria-hidden="true"/>
-        </button>
-      </li>)}</ul>
+      {start && <img className="hm-next-photo" src={AirCleaningPhoto.src} alt="" aria-hidden="true"/>}
+      {step.tone === 'action' && <div className="ui-strip hm-next-strip" role="status"><ChevronRight size={18} aria-hidden="true"/><span>ถึงตาคุณ{step.eyebrow && step.eyebrow !== 'ต้องทำตอนนี้' ? ` · ${step.eyebrow}` : ''}</span></div>}
+    </section>
+
+    {bookings.length === 0 && <section className="ui-section" aria-labelledby="hm-how">
+      <div className="ui-section-head"><h2 id="hm-how">ใช้งานอย่างไร</h2></div>
+      <ol className="hm-steps">{(manager ? managerSteps : firstSteps).map((item, index) => <li key={item.title}>
+        <span className="hm-step-num ui-num" aria-hidden="true">{index + 1}</span>
+        <div><strong>{item.title}</strong><span>{item.text}</span></div>
+      </li>)}</ol>
     </section>}
 
-    {bookings.length > 0 && others.length === 0 && <button type="button" className="text-button ac-home-all" onClick={() => onOpenJob()}>ดูงานทั้งหมด <ChevronRight size={16}/></button>}
+    {others.length > 0 && <section className="ui-section" aria-labelledby="hm-list-title">
+      <div className="ui-section-head">
+        <h2 id="hm-list-title">งานอื่นของคุณ</h2>
+        <button type="button" className="ui-btn is-ghost is-sm" onClick={() => onOpenJob()}>ดูทั้งหมด <ChevronRight size={16}/></button>
+      </div>
+      <ul className="jb-rows">{others.map(item => {
+        const turn = needsAction(item, reports);
+        return <li key={item.id}>
+          <button type="button" className={'jb-row' + (turn ? ' is-turn' : '')} onClick={() => onOpenJob(item.id)}>
+            <span className="jb-date"><strong>{day(item.date).getDate()}</strong><small>{day(item.date).toLocaleDateString('th-TH', { month: 'short' })}</small></span>
+            <span className="jb-row-text">
+              <strong>{item.service}{item.unitCount && item.unitCount > 1 ? ` · ${item.unitCount} เครื่อง` : ''}</strong>
+              <span>{guideFor(item).short}</span>
+              <small>{timeLabel(item)}</small>
+              {turn ? <span className="ui-badge is-turn">ถึงตาคุณ</span> : <StatusBadge status={item.status}/>}
+            </span>
+            <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
+          </button>
+        </li>;
+      })}</ul>
+    </section>}
 
-    {manager && <button type="button" className="ac-home-passport" onClick={() => onNavigate('buildings')}>
-      <span className="ac-home-passport-icon"><Building2 size={20}/></span>
-      <span><strong>อาคารของฉัน</strong><small>ข้อมูลอาคาร จำนวนแอร์ ผู้ติดต่อหน้างาน และรอบล้างของแต่ละอาคาร</small></span>
-      <ChevronRight size={18} aria-hidden="true"/>
-    </button>}
+    {bookings.length > 0 && others.length === 0 && <button type="button" className="ui-btn is-ghost hm-all" onClick={() => onOpenJob()}>ดูงานทั้งหมด <ChevronRight size={16}/></button>}
 
-    <button type="button" className="ac-home-passport" onClick={() => onNavigate('history')}>
-      <span className="ac-home-passport-icon"><History size={20}/></span>
-      <span><strong>ประวัติการล้างแอร์</strong><small>{doneCount ? `ล้างไปแล้ว ${doneCount} ครั้ง · ดูวันที่ ช่าง และรอบล้างครั้งถัดไป` : 'งานที่ล้างเสร็จจะถูกเก็บไว้ที่นี่ให้อัตโนมัติ'}</small></span>
-      <ChevronRight size={18} aria-hidden="true"/>
-    </button>
+    <ul className="ui-list hm-links">
+      {manager && <li><button type="button" className="ui-row" onClick={() => onNavigate('buildings')}>
+        <span className="ui-row-lead"><Building2 size={22}/></span>
+        <span className="ui-row-text"><strong>อาคารของฉัน</strong><span>ข้อมูลอาคาร จำนวนแอร์ ผู้ติดต่อหน้างาน และรอบล้างของแต่ละอาคาร</span></span>
+        <span className="ui-row-trail"><ChevronRight size={18}/></span>
+      </button></li>}
+      <li><button type="button" className="ui-row" onClick={() => onNavigate('history')}>
+        <span className="ui-row-lead"><History size={22}/></span>
+        <span className="ui-row-text"><strong>ประวัติการล้างแอร์</strong><span>{doneCount ? `ล้างไปแล้ว ${doneCount} ครั้ง · ดูวันที่ ช่าง และรอบล้างครั้งถัดไป` : 'งานที่ล้างเสร็จจะถูกเก็บไว้ที่นี่ให้อัตโนมัติ'}</span></span>
+        <span className="ui-row-trail"><ChevronRight size={18}/></span>
+      </button></li>
+    </ul>
   </div>;
 }

@@ -319,7 +319,7 @@ export default function App() {
         {tabbed
           ?<span className="sh-band-mark" aria-hidden="true"><BrandMark className="w-[80%] h-auto"/></span>
           :<button type="button" className="sh-band-btn" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={22}/></button>}
-        <div className="sh-band-text"><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>
+        <div className="sh-band-text"><h1>{titleFor(user.role,page)}</h1><span>{todayLabel()}</span></div>
         {bell}
       </header>
       {dataError&&<div className="ui-alert is-problem sh-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button type="button" className="ui-btn is-sm" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}

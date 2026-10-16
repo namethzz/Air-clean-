@@ -23,7 +23,7 @@ function Thumb({ photo, onOpen, onRemove }: { photo: JobPhoto; onOpen?: () => vo
   const { url, failed } = useAuthImage(photo.id);
   return <figure className="jp-thumb">
     <button type="button" className="jp-thumb-img" onClick={onOpen} aria-label={`ดูรูป${kindLabel[photo.kind]}`} disabled={!onOpen}>
-      {url ? <img src={url} alt={`รูป${kindLabel[photo.kind]}`}/> : failed ? <ImageOff size={20}/> : <Loader2 size={20} className="lp-spin"/>}
+      {url ? <img src={url} alt={`รูป${kindLabel[photo.kind]}`}/> : failed ? <ImageOff size={20}/> : <Loader2 size={20} className="ui-spin"/>}
     </button>
     {onRemove && <button type="button" className="jp-remove" onClick={onRemove} aria-label="ลบรูปนี้"><X size={14}/></button>}
   </figure>;
@@ -43,7 +43,7 @@ function Viewer({ photos, index, onClose, onMove }: { photos: JobPhoto[]; index:
   }, [index, photos.length, onClose, onMove]);
   return <div className="jp-viewer" role="dialog" aria-modal="true" aria-label="รูปงาน" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <button type="button" className="jp-viewer-close" onClick={onClose} aria-label="ปิด"><X size={22}/></button>
-    {url ? <img src={url} alt={`รูป${kindLabel[photo.kind]}`}/> : failed ? <p>โหลดรูปไม่สำเร็จ</p> : <Loader2 size={28} className="lp-spin"/>}
+    {url ? <img src={url} alt={`รูป${kindLabel[photo.kind]}`}/> : failed ? <p>โหลดรูปไม่สำเร็จ</p> : <Loader2 size={28} className="ui-spin"/>}
     <p className="jp-viewer-caption">{kindLabel[photo.kind]} · {index + 1}/{photos.length}</p>
     {index > 0 && <button type="button" className="jp-viewer-nav prev" onClick={() => onMove(index - 1)} aria-label="รูปก่อนหน้า"><ChevronLeft size={26}/></button>}
     {index < photos.length - 1 && <button type="button" className="jp-viewer-nav next" onClick={() => onMove(index + 1)} aria-label="รูปถัดไป"><ChevronRight size={26}/></button>}
@@ -104,7 +104,7 @@ export function JobPhotoPicker({ bookingId, onChange }: { bookingId: number; onC
       <span className="jp-kind">{kindLabel[kind]}{kind === 'after' ? ' *' : ' (ถ้ามี)'}</span>
       <div className="jp-grid">
         {photos.filter(p => p.kind === kind).map(photo => <Thumb key={photo.id} photo={photo} onRemove={() => void remove(photo)}/>)}
-        {Array.from({ length: uploading[kind] }, (_, i) => <figure key={'u' + i} className="jp-thumb"><span className="jp-thumb-img"><Loader2 size={20} className="lp-spin"/></span></figure>)}
+        {Array.from({ length: uploading[kind] }, (_, i) => <figure key={'u' + i} className="jp-thumb"><span className="jp-thumb-img"><Loader2 size={20} className="ui-spin"/></span></figure>)}
         {photos.length < 8 && <button type="button" className="jp-add" onClick={() => inputs[kind].current?.click()}>
           {photos.some(p => p.kind === kind) ? <Plus size={22}/> : <Camera size={22}/>}<span>{photos.some(p => p.kind === kind) ? 'เพิ่ม' : 'ถ่ายรูป'}</span>
         </button>}

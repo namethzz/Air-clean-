@@ -160,9 +160,9 @@ export default function PhotoEditor({ user, onClose, onSaved }: { user: UserProf
         {error && <div className="pf-alert bad" role="alert"><XCircle size={17}/><span>{error}</span></div>}
         <div className="pe-actions">
           <button type="button" className="pf-button" onClick={() => fileRef.current?.click()} disabled={opening || !!busy}>
-            {opening ? <Loader2 size={18} className="lp-spin"/> : <Camera size={18}/>}{opening ? 'กำลังเปิดรูป…' : user.photoId ? 'เปลี่ยนรูป' : 'เลือกรูป'}</button>
+            {opening ? <Loader2 size={18} className="ui-spin"/> : <Camera size={18}/>}{opening ? 'กำลังเปิดรูป…' : user.photoId ? 'เปลี่ยนรูป' : 'เลือกรูป'}</button>
           {user.photoId && <button type="button" className="pf-button ghost danger" onClick={() => void remove()} disabled={!!busy}>
-            {busy === 'remove' ? <Loader2 size={18} className="lp-spin"/> : <Trash2 size={18}/>}{busy === 'remove' ? 'กำลังลบ…' : 'ลบรูป'}</button>}
+            {busy === 'remove' ? <Loader2 size={18} className="ui-spin"/> : <Trash2 size={18}/>}{busy === 'remove' ? 'กำลังลบ…' : 'ลบรูป'}</button>}
         </div>
         <p className="pf-fine">ถ่ายใหม่หรือเลือกจากคลังรูปก็ได้ ระบบจะย่อรูปให้เหลือขนาดเล็กก่อนส่ง</p>
       </div> : <div className="pe-edit">
@@ -185,7 +185,7 @@ export default function PhotoEditor({ user, onClose, onSaved }: { user: UserProf
         {error && <div className="pf-alert bad" role="alert"><XCircle size={17}/><span>{error}</span></div>}
         <div className="pe-actions">
           <button type="button" className="pf-button" onClick={() => void save()} disabled={!!busy}>
-            {busy === 'save' && <Loader2 size={18} className="lp-spin"/>}{busy === 'save' ? 'กำลังบันทึก…' : 'บันทึกรูป'}</button>
+            {busy === 'save' && <Loader2 size={18} className="ui-spin"/>}{busy === 'save' ? 'กำลังบันทึก…' : 'บันทึกรูป'}</button>
           <button type="button" className="pf-button ghost" onClick={() => fileRef.current?.click()} disabled={!!busy}>เลือกรูปอื่น</button>
         </div>
       </div>}

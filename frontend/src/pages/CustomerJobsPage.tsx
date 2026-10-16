@@ -12,9 +12,11 @@ import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import { currentStep, guideFor, isClosedForCustomer, journeySteps, minutesToPick, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
-import Stepper, { useIsWide } from '../components/JobStepper';
+import { useIsWide } from '../components/JobStepper';
 import Avatar from '../components/Avatar';
+import { EmptyState, Plate } from '../components/kit';
 import './CustomerJobs.css';
+import './Jobs.css';
 
 export interface JobFocus { id: number; token: number; }
 interface Props {
@@ -41,11 +43,14 @@ const checklist = [
   { key: 'checkedCooling', label: 'ตรวจการทำงานของเครื่อง' },
 ] as const;
 
+const day = (date: string) => new Date(date + 'T00:00:00');
 function shortDate(date: string) {
-  return new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
+  return day(date).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
 }
+const units = (booking: Booking) => booking.unitCount && booking.unitCount > 1 ? ` · ${booking.unitCount} เครื่อง` : '';
+const baht = (value: number) => '฿' + value.toLocaleString();
 
-/** Customer's single place for a job: offers, tracking, payment and the service report. */
+/** Customer's single place for a job: offers, tracking, payment and the service report. Building managers use it too. */
 export default function CustomerJobsPage(props: Props) {
   const { bookings, reports, focus, onNewBooking, onRefresh } = props;
   const wide = useIsWide();
@@ -75,51 +80,58 @@ export default function CustomerJobsPage(props: Props) {
   const now = useNow(open.some(item => item.offerDeadline && item.status === 'รอเลือกช่าง') ? 30000 : 0);
 
   if (!bookings.length) {
-    return <div className="cj-empty">
-      <span className="cj-empty-icon"><Wind size={30}/></span>
-      <h1>ยังไม่มีงานล้างแอร์</h1>
-      <p>ส่งคำขอครั้งเดียว ช่างในพื้นที่ที่สนใจจะเสนอราคาให้คุณเลือก</p>
-      <button type="button" className="cj-primary" onClick={onNewBooking}><Plus size={18}/> ขอช่างล้างแอร์</button>
+    return <div className="ui-page is-narrow">
+      <EmptyState icon={Wind} title="ยังไม่มีงานล้างแอร์"
+        action={<button type="button" className="ui-btn is-primary is-lg" onClick={onNewBooking}><Plus size={20}/> ขอช่างล้างแอร์</button>}>
+        ส่งคำขอครั้งเดียว ช่างในพื้นที่ที่สนใจจะเสนอราคาให้คุณเลือก
+      </EmptyState>
     </div>;
   }
 
-  return <div className={'cj-page' + (selected && !wide ? ' cj-show-detail' : '')}>
-    <section className="cj-list" aria-label="รายการงาน">
-      <div className="cj-list-head">
-        <h1>งานของฉัน</h1>
-        {actionCount > 0 && <span className="cj-action-pill">{actionCount} งานรอคุณ</span>}
-      </div>
-      <div className="cj-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>กำลังดำเนินการ <span>{open.length}</span></button>
-        <button type="button" role="tab" aria-selected={tab === 'closed'} className={tab === 'closed' ? 'active' : ''} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span>{closed.length}</span></button>
+  return <div className={'jb' + (selected && !wide ? ' is-detail' : '')}>
+    <section className="jb-list" aria-label="รายการงาน">
+      {actionCount > 0 && <p className="jb-list-turn"><span className="ui-badge is-turn">{actionCount} งานรอคุณ</span> งานที่มีป้ายนี้ต้องให้คุณทำต่อ</p>}
+      <div className="ui-tabs" role="tablist" aria-label="กลุ่มงาน">
+        <button type="button" role="tab" aria-selected={tab === 'open'} onClick={() => setTab('open')}>กำลังดำเนินการ <span className="ui-num">{open.length}</span></button>
+        <button type="button" role="tab" aria-selected={tab === 'closed'} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span className="ui-num">{closed.length}</span></button>
       </div>
       {shown.length === 0
-        ? <p className="cj-list-empty">{tab === 'open' ? 'ไม่มีงานที่กำลังดำเนินการ' : 'ยังไม่มีงานที่ปิดแล้ว'}</p>
-        : <ul>{shown.map(item => {
+        ? <p className="jb-none">{tab === 'open' ? 'ไม่มีงานที่กำลังดำเนินการ' : 'ยังไม่มีงานที่ปิดแล้ว'}</p>
+        : <ul className="jb-rows">{shown.map(item => {
           const urgent = needsAction(item, reports);
           const guide = guideFor(item);
           const left = minutesToPick(item, now);
+          const choosing = left != null && (item.applicants?.length ?? 0) > 0;
+          const active = selected?.id === item.id;
           return <li key={item.id}>
-            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
-              <span className="cj-row-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><span>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</span></span>
-              <span className="cj-row-main">
-                <strong>{item.service}{item.unitCount && item.unitCount > 1 ? ` · ${item.unitCount} เครื่อง` : ''}</strong>
-                <span className={urgent ? 'cj-row-urgent' : ''}>{left != null && (item.applicants?.length ?? 0) > 0 ? `${guide.short} · เลือกภายใน ${left} นาที` : guide.short}</span>
+            <button type="button" className={'jb-row' + (active ? ' is-active' : '') + (urgent ? ' is-turn' : '')} aria-current={active ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
+              <span className="jb-date"><strong>{day(item.date).getDate()}</strong><small>{day(item.date).toLocaleDateString('th-TH', { month: 'short' })}</small></span>
+              <span className="jb-row-text">
+                <strong>{item.service}{units(item)}</strong>
+                <span>{guide.short}</span>
                 <small>{shortDate(item.date)} · {timeLabel(item)}</small>
+                {urgent ? <span className="ui-badge is-turn">{choosing ? `เลือกช่างใน ${left} นาที` : 'ถึงตาคุณ'}</span> : <StatusBadge status={item.status}/>}
               </span>
-              <ChevronRight size={18} aria-hidden="true"/>
+              <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
             </button>
           </li>;
         })}</ul>}
-      <button type="button" className="cj-add" onClick={onNewBooking}><Plus size={17}/> ขอช่างล้างแอร์</button>
+      <button type="button" className="ui-btn is-ghost jb-add" onClick={onNewBooking}><Plus size={18}/> ขอช่างล้างแอร์</button>
     </section>
 
-    <section className="cj-detail" aria-label="รายละเอียดงาน">
-      {selected ? <JobDetail key={selected.id} {...props} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="cj-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
+    <section className="jb-detail" aria-label="รายละเอียดงาน">
+      {selected ? <JobDetail key={selected.id} {...props} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="jb-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
     </section>
   </div>;
 }
 
+/** What the customer has to do now, said on the reflective strip; null when nothing is theirs to do. */
+function turnFor(booking: Booking): string | null {
+  if (booking.status === 'หมดเวลาเลือกช่าง') return 'เปิดรับข้อเสนออีกครั้ง หรือเลือกวันนัดใหม่ ด้านล่าง';
+  if (booking.status === 'รอชำระเงิน' && !booking.customerConfirmedPayment) return 'จ่ายเงินให้ช่าง แล้วกดยืนยันด้านล่าง';
+  if (booking.status === 'เสร็จสิ้น' && !booking.customerRating && !isClosedForCustomer(booking)) return 'ให้คะแนนช่างด้านล่าง';
+  return null;
+}
 
 function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician, onStatusChange, onPaymentConfirm, onPaymentIssue, onReview, onReportProblem, onOpenPassport, onRefresh, onReschedule, onReopen }: Props & { booking: Booking; onBack: () => void }) {
   const guide = guideFor(booking);
@@ -130,71 +142,92 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
   const hasTech = !choosing && !cancelled && booking.status !== 'หมดเวลาเลือกช่าง' && booking.technicianId > 0 && booking.technician && booking.technician !== '-';
   const lapsed = booking.status === 'หมดเวลาเลือกช่าง';
   const cancellable = choosing || lapsed;
+  const counting = booking.status === 'รอเลือกช่าง' && booking.offerDeadline && (booking.applicants?.length ?? 0) > 0;
+  const turn = turnFor(booking);
 
-  return <article className="cj-article">
-    <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
-    <header className="cj-head">
-      <div><span className="cj-code">{booking.code}</span><h2>{booking.service}</h2><p>{shortDate(booking.date)} · {timeLabel(booking)}</p></div>
-      <StatusBadge status={booking.status}/>
+  return <article className="jb-job">
+    <button type="button" className="ui-btn is-ghost is-sm jb-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
+    <header className={'jb-hero' + (cancelled ? ' is-off' : '')}>
+      <div className="jb-hero-top">
+        <span className="jb-code ui-num">{booking.code}</span>
+        <span className="jb-hero-status">{booking.status}</span>
+      </div>
+      <h2>{booking.service}{units(booking)}</h2>
+      <p className="jb-when"><CalendarClock size={16} aria-hidden="true"/> {shortDate(booking.date)} · {timeLabel(booking)}</p>
+      {!cancelled && <Journey step={currentStep(booking)}/>}
+      <div className="jb-guide">
+        <strong>{guide.title}</strong>
+        <p>{guide.hint}</p>
+      </div>
+      {counting ? <PickClock deadline={booking.offerDeadline!} onTimeUp={onRefresh}/> : turn && <div className="ui-strip jb-turn" role="status"><ChevronRight size={18} aria-hidden="true"/><span>{turn}</span></div>}
     </header>
 
-    {!cancelled && <Stepper labels={journeySteps} step={currentStep(booking)}/>}
+    {booking.rooms?.length && !cancelled && (booking.unitsDone ?? 0) > 0 ? <section className="ui-card"><RoomBoard rooms={booking.rooms}/></section> : null}
+    {!booking.rooms?.length && (booking.unitsDone ?? 0) > 0 && booking.status !== 'เสร็จสิ้น' && !cancelled && <section className="ui-card jb-units">
+      <p>ช่างล้างไปแล้ว <strong className="ui-num">{booking.unitsDone}</strong> จาก {booking.unitCount} เครื่อง</p>
+      <div className="jb-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, ((booking.unitsDone ?? 0) / Math.max(1, booking.unitCount ?? 1)) * 100)}%` }}/></div>
+    </section>}
 
-    <section className={'cj-now' + (needsAction(booking, reports) ? ' urgent' : '')}>
-      <h3>{guide.title}</h3>
-      <p>{guide.hint}</p>
-      {booking.rooms?.length && booking.status !== 'ยกเลิก' && (booking.unitsDone ?? 0) > 0 ? <RoomBoard rooms={booking.rooms}/> : null}
-      {!booking.rooms?.length && (booking.unitsDone ?? 0) > 0 && booking.status !== 'เสร็จสิ้น' && booking.status !== 'ยกเลิก' && <div className="cj-unit-progress">
-        <span>ช่างล้างไปแล้ว <strong>{booking.unitsDone}</strong> จาก {booking.unitCount} เครื่อง</span>
-        <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, ((booking.unitsDone ?? 0) / Math.max(1, booking.unitCount ?? 1)) * 100)}%` }}/></div>
-      </div>}
-      {booking.status === 'รอเลือกช่าง' && booking.offerDeadline && (booking.applicants?.length ?? 0) > 0 && <PickClock deadline={booking.offerDeadline} onTimeUp={onRefresh}/>}
-      {choosing && <Offers booking={booking} onSelect={onSelectTechnician} onRefresh={onRefresh}/>}
-      {lapsed && <Reopen booking={booking} onReopen={() => onReopen(booking.id)} onNewDate={() => setMoving(true)}/>}
-      {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
-      {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
-      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> จ่ายแล้ว ฿{booking.price.toLocaleString()}{booking.paymentMethod ? ` · ${booking.paymentMethod === 'PromptPay' ? 'โอน' : 'เงินสด'}` : ''}</p>}
-      {booking.status === 'เสร็จสิ้น' && <Review booking={booking} onReview={onReview}/>}
-    </section>
-
-    {booking.status === 'เสร็จสิ้น' && <AfterService booking={booking} onNewBooking={onNewBooking} onOpenPassport={onOpenPassport} onReportProblem={onReportProblem}/>}
+    {choosing && <Offers booking={booking} onSelect={onSelectTechnician} onRefresh={onRefresh}/>}
+    {lapsed && <Reopen booking={booking} onReopen={() => onReopen(booking.id)} onNewDate={() => setMoving(true)}/>}
+    {(booking.status === 'กำลังเดินทาง' || booking.status === 'ถึงหน้างาน') && <Tracking booking={booking}/>}
+    {(booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') && <Payment booking={booking} onConfirm={onPaymentConfirm} onIssue={onPaymentIssue}/>}
+    {booking.status === 'เสร็จสิ้น' && <Review booking={booking} onReview={onReview}/>}
 
     {hasTech && <TechnicianCard booking={booking}/>}
-
+    {booking.status === 'เสร็จสิ้น' && <AfterService booking={booking} onNewBooking={onNewBooking} onOpenPassport={onOpenPassport} onReportProblem={onReportProblem}/>}
     {report && <ReportBlock report={report}/>}
-    {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง"/></section>}
+    {booking.status === 'เสร็จสิ้น' && <JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง"/>}
 
-    <section className="cj-block">
-      <h3>รายละเอียดงาน</h3>
-      <dl className="cj-facts">
+    <section className="ui-card jb-facts-card">
+      <h2>รายละเอียดงาน</h2>
+      <dl className="jb-facts">
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
         {booking.rooms?.length ? <div><dt>ห้อง</dt><dd>{booking.rooms.length} ห้อง · {booking.rooms.map(room => room.name).slice(0, 12).join(', ')}{booking.rooms.length > 12 ? ' …' : ''}</dd></div> : null}
-        {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="cj-pre">{booking.notes}</dd></div>}
-        <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
+        {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="jb-pre">{booking.notes}</dd></div>}
+        <div><dt>{choosing ? 'ราคาประเมินเริ่มต้น' : 'ราคาที่ตกลง'}</dt><dd><span className="ui-num">{baht(booking.price)}</span> · เก็บเงินปลายทาง</dd></div>
       </dl>
-      {canReschedule(booking, 'customer') && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวัน / เวลานัด</button>}
+      {(canReschedule(booking, 'customer') || cancellable) && <div className="jb-facts-actions">
+        {canReschedule(booking, 'customer') && <button type="button" className="ui-btn" onClick={() => setMoving(true)}><CalendarClock size={18}/> เปลี่ยนวัน / เวลานัด</button>}
+        {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
+      </div>}
       {moving && <RescheduleSheet booking={booking} side="customer" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
-      {cancellable && <CancelRequest onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
     </section>
   </article>;
+}
+
+/** The five stages, drawn as a line of stops on the blue band: done, now, and still to come. */
+function Journey({ step }: { step: number }) {
+  return <ol className="jb-journey" aria-label="ความคืบหน้า">
+    {journeySteps.map((label, index) => {
+      const state = step >= journeySteps.length || index < step ? 'done' : index === step ? 'now' : 'next';
+      return <li key={label} className={'is-' + state} aria-current={state === 'now' ? 'step' : undefined}>
+        <span className="jb-stop">{state === 'done' ? <Check size={14} strokeWidth={3}/> : index + 1}</span>
+        <span className="jb-stop-label">{label}</span>
+      </li>;
+    })}
+  </ol>;
 }
 
 /** Who is coming: the person first, then the one thing to do with them while the job is open — call. */
 function TechnicianCard({ booking }: { booking: Booking }) {
   const chosen = booking.applicants?.find(item => item.selected);
   const open = !['เสร็จสิ้น', 'ยกเลิก'].includes(booking.status);
-  return <section className="cj-block cj-tech">
-    <h3>ช่างของคุณ</h3>
-    <div className="cj-person">
-      <span className="cj-avatar" aria-hidden="true"><Avatar name={booking.technician} photoId={booking.technicianPhotoId}/></span>
+  return <section className="ui-card jb-tech">
+    <h2>ช่างของคุณ</h2>
+    <div className="jb-person">
+      <span className="jb-avatar" aria-hidden="true"><Avatar name={booking.technician} photoId={booking.technicianPhotoId}/></span>
       <div>
-        <strong>{booking.technician}{chosen?.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong>
-        {chosen && <small>{chosen.title}{chosen.rating ? <> · <Star size={13} fill="currentColor" aria-hidden="true"/> {chosen.rating.toFixed(1)}</> : null}</small>}
+        <strong>{booking.technician}</strong>
+        <span>
+          {chosen?.verified && <span className="ui-badge is-done">ผ่านการตรวจสอบ</span>}
+          {chosen && <>{chosen.title}{chosen.rating ? <> · <Star size={14} fill="currentColor" aria-hidden="true"/> {chosen.rating.toFixed(1)}</> : null}</>}
+        </span>
       </div>
     </div>
-    {booking.technicianPhone && open && <a className="cj-primary full cj-call-btn" href={telLink(booking.technicianPhone)} aria-label={`โทรหาช่าง ${formatPhone(booking.technicianPhone)}`}>
-      <Phone size={18}/><span>โทรหาช่าง</span><span className="cj-call-number">{formatPhone(booking.technicianPhone)}</span>
+    {booking.technicianPhone && open && <a className="ui-btn is-primary is-lg is-block jb-call" href={telLink(booking.technicianPhone)} aria-label={`โทรหาช่าง ${formatPhone(booking.technicianPhone)}`}>
+      <Phone size={20}/><span>โทรหาช่าง</span><span className="ui-num jb-call-number">{formatPhone(booking.technicianPhone)}</span>
     </a>}
   </section>;
 }
@@ -213,7 +246,7 @@ function useNow(every: number) {
 
 const PICK_WINDOW_MS = 60 * 60 * 1000;
 
-/** The hour to choose, as a clock and a draining bar. Red in the last 10 minutes; refreshes the job when it runs out. */
+/** The hour to choose, on the reflective strip: a clock and a draining bar. Refreshes the job when it runs out. */
 function PickClock({ deadline, onTimeUp }: { deadline: string; onTimeUp: () => void }) {
   const now = useNow(1000);
   const end = new Date(deadline).getTime();
@@ -223,12 +256,12 @@ function PickClock({ deadline, onTimeUp }: { deadline: string; onTimeUp: () => v
   const minutes = Math.floor(left / 60000), seconds = Math.floor((left % 60000) / 1000);
   const clock = new Date(end).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const low = left <= 10 * 60000;
-  return <div className={'cj-clock' + (low ? ' low' : '')} role="timer" aria-live="off" aria-label={`เหลือเวลาเลือกช่าง ${minutes} นาที`}>
-    <Timer size={20}/>
-    <div>
-      <strong>{left === 0 ? 'หมดเวลาแล้ว กำลังอัปเดต…' : <>เหลือเวลาเลือกช่าง <b>{minutes}:{String(seconds).padStart(2, '0')}</b></>}</strong>
-      <span>เลือกภายใน {clock} น. ไม่อย่างนั้นข้อเสนอจะหมดอายุ และช่างจะไปรับงานอื่น</span>
-      <div className="cj-progress" aria-hidden="true"><span style={{ width: `${Math.min(100, (left / PICK_WINDOW_MS) * 100)}%` }}/></div>
+  return <div className={'ui-strip jb-clock' + (low ? ' is-low' : '')} role="timer" aria-live="off" aria-label={`เหลือเวลาเลือกช่าง ${minutes} นาที`}>
+    <Timer size={20} aria-hidden="true"/>
+    <div className="jb-clock-text">
+      <strong>{left === 0 ? 'หมดเวลาแล้ว กำลังอัปเดต…' : <>เลือกช่างภายใน <b className="ui-num">{minutes}:{String(seconds).padStart(2, '0')}</b></>}</strong>
+      <span>ก่อน {clock} น. ไม่อย่างนั้นข้อเสนอจะหมดอายุ</span>
+      <div className="jb-clock-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, (left / PICK_WINDOW_MS) * 100)}%` }}/></div>
     </div>
   </div>;
 }
@@ -237,16 +270,17 @@ function PickClock({ deadline, onTimeUp }: { deadline: string; onTimeUp: () => v
 function Reopen({ booking, onReopen, onNewDate }: { booking: Booking; onReopen: () => Promise<boolean>; onNewDate: () => void }) {
   const [busy, setBusy] = useState(false);
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const passed = new Date(booking.date + 'T00:00:00') < today;
-  return <div className="cj-reopen">
+  const passed = day(booking.date) < today;
+  return <section className="ui-card">
     {passed
-      ? <><p className="cj-note"><CalendarClock size={15}/> วันนัดเดิม ({shortDate(booking.date)}) ผ่านไปแล้ว เลือกวันใหม่ก่อน แล้วค่อยเปิดรับข้อเสนอ</p>
-        <button type="button" className="cj-primary full" onClick={onNewDate}><CalendarClock size={17}/> เลือกวันนัดใหม่</button></>
-      : <><button type="button" className="cj-primary full" disabled={busy} onClick={async () => { setBusy(true); await onReopen(); setBusy(false); }}><RotateCcw size={17}/> {busy ? 'กำลังเปิดรับ…' : 'เปิดรับข้อเสนออีกครั้ง'}</button>
-        <p className="cj-note">ช่างใกล้บ้านจะเห็นงานนี้อีกครั้ง และเมื่อมีข้อเสนอแรก คุณมีเวลาเลือก 1 ชั่วโมง</p></>}
-  </div>;
+      ? <><p className="jb-note"><CalendarClock size={16}/> วันนัดเดิม ({shortDate(booking.date)}) ผ่านไปแล้ว เลือกวันใหม่ก่อน แล้วค่อยเปิดรับข้อเสนอ</p>
+        <button type="button" className="ui-btn is-primary is-lg is-block" onClick={onNewDate}><CalendarClock size={19}/> เลือกวันนัดใหม่</button></>
+      : <><button type="button" className="ui-btn is-primary is-lg is-block" disabled={busy} aria-busy={busy} onClick={async () => { setBusy(true); await onReopen(); setBusy(false); }}><RotateCcw size={19}/> {busy ? 'กำลังเปิดรับ…' : 'เปิดรับข้อเสนออีกครั้ง'}</button>
+        <p className="jb-note">ช่างใกล้บ้านจะเห็นงานนี้อีกครั้ง และเมื่อมีข้อเสนอแรก คุณมีเวลาเลือก 1 ชั่วโมง</p></>}
+  </section>;
 }
 
+/** Offers as plates: the first in the chosen order is the blue one, the rest are white. Choosing asks once more. */
 function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: Props['onSelectTechnician']; onRefresh: () => void }) {
   const [sort, setSort] = useState<'price' | 'rating'>('price');
   const [asking, setAsking] = useState<number | null>(null);
@@ -254,7 +288,11 @@ function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: 
   const offers = [...(booking.applicants ?? [])].sort((a, b) => sort === 'price' ? a.quote - b.quote : b.rating - a.rating);
   const cheapest = offers.length > 1 ? Math.min(...offers.map(item => item.quote)) : null;
 
-  if (!offers.length) return <div className="cj-wait"><Clock3 size={18}/><span>ยังไม่มีข้อเสนอ ระบบตรวจให้อัตโนมัติทุกไม่กี่วินาที</span></div>;
+  if (!offers.length) return <section className="jb-waiting" aria-live="polite">
+    <div className="ui-alert is-info"><Clock3 size={18}/><span><strong>ยังไม่มีข้อเสนอ</strong>ช่างใกล้บ้านเห็นคำขอแล้ว ข้อเสนอจะขึ้นที่นี่ทันที ระบบตรวจให้อัตโนมัติ</span></div>
+    <div className="ui-skeleton jb-skel" aria-hidden="true"/>
+    <div className="ui-skeleton jb-skel is-short" aria-hidden="true"/>
+  </section>;
 
   async function choose(offer: BookingApplicant) {
     setBusy(true);
@@ -264,29 +302,40 @@ function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: 
     if (ok) onRefresh();
   }
 
-  return <div className="cj-offers">
-    {offers.length > 1 && <div className="cj-sort" role="group" aria-label="เรียงข้อเสนอ">
-      <span>เรียงตาม</span>
-      <button type="button" className={sort === 'price' ? 'active' : ''} aria-pressed={sort === 'price'} onClick={() => setSort('price')}>ราคาต่ำสุด</button>
-      <button type="button" className={sort === 'rating' ? 'active' : ''} aria-pressed={sort === 'rating'} onClick={() => setSort('rating')}>คะแนนสูงสุด</button>
-    </div>}
-    <ul>{offers.map(offer => <li key={offer.technicianId} className="cj-offer">
-      <div className="cj-offer-top">
-        <span className="cj-avatar"><Avatar name={offer.name} photoId={offer.photoId}/></span>
-        <div className="cj-offer-who"><strong>{offer.name}{offer.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong><small>{offer.title}</small></div>
-        <div className="cj-offer-price"><strong>฿{offer.quote.toLocaleString()}</strong>{cheapest === offer.quote && <span>ต่ำสุด</span>}</div>
-      </div>
-      <p className="cj-offer-stats"><span><Star size={14} fill="currentColor"/> {offer.rating.toFixed(1)} ({offer.reviewCount} รีวิว)</span><span><Wrench size={14}/> {offer.jobsCompleted} งาน</span><span><MapPin size={14}/> {offer.area}</span></p>
-      {offer.note && <p className="cj-offer-note">“{offer.note}”</p>}
-      {asking === offer.technicianId
-        ? <div className="cj-confirm" role="alertdialog" aria-label={`ยืนยันเลือก ${offer.name}`}>
-          <p>เลือก {offer.name} ในราคา ฿{offer.quote.toLocaleString()} และเปิดที่อยู่เต็มให้ช่างคนนี้</p>
-          <div><button type="button" className="cj-primary" disabled={busy} onClick={() => void choose(offer)}>{busy ? 'กำลังยืนยัน...' : 'ยืนยันเลือกช่างคนนี้'}</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setAsking(null)}>ยกเลิก</button></div>
-        </div>
-        : <button type="button" className="cj-primary full" disabled={busy || offer.selected} onClick={() => setAsking(offer.technicianId)}>เลือกช่างคนนี้ <ChevronRight size={16}/></button>}
-    </li>)}</ul>
-    <p className="cj-note"><ShieldCheck size={15}/> ราคานี้ช่างเป็นผู้เสนอ ยังไม่มีการเก็บเงินจนกว่างานจะเสร็จ</p>
-  </div>;
+  return <section className="ui-section jb-offers" aria-label="ข้อเสนอจากช่าง">
+    <div className="ui-section-head">
+      <h2>ข้อเสนอ {offers.length} ราย</h2>
+      {offers.length > 1 && <div className="jb-sort" role="group" aria-label="เรียงข้อเสนอ">
+        <button type="button" className="ui-chip" aria-pressed={sort === 'price'} onClick={() => setSort('price')}>ราคาต่ำสุด</button>
+        <button type="button" className="ui-chip" aria-pressed={sort === 'rating'} onClick={() => setSort('rating')}>คะแนนสูงสุด</button>
+      </div>}
+    </div>
+    <ul className="jb-plates">{offers.map((offer, index) => {
+      const lead = index === 0;
+      return <li key={offer.technicianId}>
+        <Plate quiet={!lead} className="jb-offer"
+          num={baht(offer.quote)}
+          side={<span className="jb-offer-avatar"><Avatar name={offer.name} photoId={offer.photoId}/></span>}
+          meta={<>
+            <span className="jb-offer-name"><strong>{offer.name}</strong>{offer.verified && <span className="ui-plate-tag"><ShieldCheck size={13}/> ตรวจแล้ว</span>}{cheapest === offer.quote && <span className="ui-plate-tag">ถูกที่สุด</span>}</span>
+            <span className="jb-offer-stats"><span><Star size={14} fill="currentColor" aria-hidden="true"/> {offer.rating.toFixed(1)} ({offer.reviewCount} รีวิว)</span><span><Wrench size={14} aria-hidden="true"/> {offer.jobsCompleted} งาน</span><span><MapPin size={14} aria-hidden="true"/> {offer.area}</span></span>
+            {offer.note && <span className="jb-offer-note">“{offer.note}”</span>}
+          </>}/>
+        {asking === offer.technicianId
+          ? <div className="jb-confirm" role="alertdialog" aria-label={`ยืนยันเลือก ${offer.name}`}>
+            <p>เลือก <strong>{offer.name}</strong> ในราคา <strong className="ui-num">{baht(offer.quote)}</strong> ที่อยู่เต็มและเบอร์ของคุณจะเปิดให้ช่างคนนี้เท่านั้น</p>
+            <div className="jb-confirm-actions">
+              <button type="button" className="ui-btn is-primary is-lg" disabled={busy} aria-busy={busy} onClick={() => void choose(offer)}>{busy ? 'กำลังยืนยัน…' : 'ยืนยันเลือกช่างคนนี้'}</button>
+              <button type="button" className="ui-btn is-lg" disabled={busy} onClick={() => setAsking(null)}>ยังไม่เลือก</button>
+            </div>
+          </div>
+          : <button type="button" className={'ui-btn is-lg is-block jb-pick-btn' + (lead ? ' is-primary' : '')} disabled={busy || offer.selected} onClick={() => setAsking(offer.technicianId)}>
+            <span>เลือก {offer.name.split(' ')[0]}</span> <span className="ui-num">{baht(offer.quote)}</span> <ChevronRight size={18}/>
+          </button>}
+      </li>;
+    })}</ul>
+    <p className="jb-note"><ShieldCheck size={16}/> ราคานี้ช่างเป็นผู้เสนอ ยังไม่มีการเก็บเงินจนกว่างานจะเสร็จ</p>
+  </section>;
 }
 
 function Tracking({ booking }: { booking: Booking }) {
@@ -297,14 +346,14 @@ function Tracking({ booking }: { booking: Booking }) {
   const mapsUrl = hasDestination
     ? `https://www.google.com/maps/dir/?api=1&destination=${booking.latitude},${booking.longitude}&travelmode=driving`
     : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(booking.address)}&travelmode=driving`;
-  if (!hasDestination) return <p className="cj-note">งานนี้ยังไม่มีพิกัดสำหรับแสดงแผนที่</p>;
+  if (!hasDestination) return <p className="ui-alert">งานนี้ยังไม่มีพิกัดสำหรับแสดงแผนที่</p>;
   const destination = { latitude: booking.latitude!, longitude: booking.longitude!, label: 'สถานที่ให้บริการ', kind: 'destination' as const };
   const technician = hasTech ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: booking.technician, kind: 'technician' as const } : undefined;
-  return <div className="cj-track">
-    <LocationMap key={booking.id} center={technician ?? destination} destination={destination} technician={technician} accuracy={booking.locationAccuracy ?? undefined} height={260} zoom={14}/>
-    <p className="cj-note">{technician ? (time ? `ตำแหน่งช่างอัปเดตล่าสุด ${time} น.` : 'มีตำแหน่งช่างแล้ว') : 'รอช่างแชร์ตำแหน่ง ต้องให้ช่างเปิดหน้าแอปและอนุญาต GPS'}</p>
-    <a className="cj-ghost" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={16}/> เปิดใน Google Maps</a>
-  </div>;
+  return <section className="ui-card jb-track">
+    <div className="ui-card-head"><div><h2>ตำแหน่งช่าง</h2><p>{technician ? (time ? `อัปเดตล่าสุด ${time} น.` : 'มีตำแหน่งช่างแล้ว') : 'รอช่างแชร์ตำแหน่ง ช่างต้องเปิดแอปและอนุญาต GPS'}</p></div></div>
+    <div className="jb-map"><LocationMap key={booking.id} center={technician ?? destination} destination={destination} technician={technician} accuracy={booking.locationAccuracy ?? undefined} height={280} zoom={14}/></div>
+    <a className="ui-btn" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={18}/> เปิดใน Google Maps</a>
+  </section>;
 }
 
 function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm: Props['onPaymentConfirm']; onIssue: Props['onPaymentIssue'] }) {
@@ -314,34 +363,37 @@ function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
   const underReview = booking.status === 'มีปัญหาการชำระเงิน';
   const youPaid = Boolean(booking.customerConfirmedPayment);
   const techGotIt = Boolean(booking.technicianConfirmedPayment);
-  return <div className="cj-pay">
-    <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
-    {!underReview && !youPaid && <div className="cj-methods" role="group" aria-label="วิธีจ่ายเงินปลายทาง">
-      <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
-      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> โอนให้ช่าง</button>
-    </div>}
-    <ul className="cj-checks">
-      <li className={youPaid ? 'ok' : ''}><CheckCircle2 size={17}/> {youPaid ? 'คุณยืนยันว่าชำระแล้ว' : 'รอคุณยืนยันการชำระเงิน'}</li>
-      <li className={techGotIt ? 'ok' : ''}><CheckCircle2 size={17}/> {techGotIt ? 'ช่างยืนยันว่าได้รับเงินแล้ว' : 'รอช่างยืนยันว่าได้รับเงิน'}</li>
-    </ul>
-    {!underReview && !youPaid && <button type="button" className="cj-primary full" onClick={() => onConfirm(booking.id, method)}>ฉันชำระเงินแล้ว <Check size={17}/></button>}
-    {!underReview && (reporting
-      ? <div className="cj-confirm">
-        <label htmlFor={`issue-${booking.id}`}>เกิดปัญหาอะไรกับการชำระเงิน</label>
-        <textarea id={`issue-${booking.id}`} rows={3} value={reason} maxLength={500} onChange={event => setReason(event.target.value)}/>
-        <div><button type="button" className="cj-primary" disabled={!reason.trim()} onClick={() => { onIssue(booking.id, reason.trim()); setReporting(false); }}>ส่งให้ผู้ดูแลตรวจสอบ</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
+  return <section className="ui-card jb-pay" aria-label="ชำระเงิน">
+    <Plate num={baht(booking.price)} unit="เก็บเงินปลายทาง" meta={<span>จ่ายให้ <strong>{booking.technician}</strong> โดยตรงเมื่อล้างเสร็จ</span>}/>
+    {!underReview && !youPaid && <div className="ui-field">
+      <span className="ui-label" id={`pay-how-${booking.id}`}>จ่ายด้วย</span>
+      <div className="ui-tabs" role="group" aria-labelledby={`pay-how-${booking.id}`}>
+        <button type="button" aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={18}/> เงินสด</button>
+        <button type="button" aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={18}/> โอนให้ช่าง</button>
       </div>
-      : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>)}
-    <p className="cj-note">เก็บเงินปลายทาง: จ่ายให้ช่างโดยตรงเมื่อล้างเสร็จ AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง หากโอน ให้ตรวจชื่อบัญชีช่างก่อนโอน</p>
-  </div>;
+    </div>}
+    <ul className="jb-checks">
+      <li className={youPaid ? 'is-ok' : ''}><CheckCircle2 size={19}/> {youPaid ? 'คุณยืนยันว่าชำระแล้ว' : 'รอคุณยืนยันการชำระเงิน'}</li>
+      <li className={techGotIt ? 'is-ok' : ''}><CheckCircle2 size={19}/> {techGotIt ? 'ช่างยืนยันว่าได้รับเงินแล้ว' : 'รอช่างยืนยันว่าได้รับเงิน'}</li>
+    </ul>
+    {!underReview && !youPaid && <button type="button" className="ui-btn is-primary is-lg is-block" onClick={() => onConfirm(booking.id, method)}>ฉันจ่ายเงินแล้ว <Check size={19}/></button>}
+    {!underReview && (reporting
+      ? <div className="jb-confirm">
+        <div className="ui-field"><label htmlFor={`issue-${booking.id}`}>เกิดปัญหาอะไรกับการชำระเงิน</label>
+          <textarea className="ui-textarea" id={`issue-${booking.id}`} rows={3} value={reason} maxLength={500} onChange={event => setReason(event.target.value)}/></div>
+        <div className="jb-confirm-actions"><button type="button" className="ui-btn is-primary" disabled={!reason.trim()} onClick={() => { onIssue(booking.id, reason.trim()); setReporting(false); }}>ส่งให้ผู้ดูแลตรวจสอบ</button><button type="button" className="ui-btn" onClick={() => setReporting(false)}>ยกเลิก</button></div>
+      </div>
+      : <button type="button" className="ui-btn is-ghost is-sm jb-quiet-link" onClick={() => setReporting(true)}><AlertTriangle size={16}/> แจ้งปัญหาการชำระเงิน</button>)}
+    <p className="jb-note">AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง ถ้าโอน ตรวจชื่อบัญชีช่างก่อนโอน</p>
+  </section>;
 }
 
 function ReportBlock({ report }: { report: ServiceReportRecord }) {
-  return <section className="cj-block">
-    <h3>สรุปงานจากช่าง</h3>
-    <p className="cj-report-summary">{report.summary}</p>
-    <ul className="cj-checklist">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'ok' : ''}><Check size={15} strokeWidth={3}/> {item.label}</li>)}</ul>
-    {(report.beforePhotoUrl || report.afterPhotoUrl) && <p className="cj-photos">{report.beforePhotoUrl && <a href={report.beforePhotoUrl} target="_blank" rel="noreferrer">ดูภาพก่อนทำ</a>}{report.afterPhotoUrl && <a href={report.afterPhotoUrl} target="_blank" rel="noreferrer">ดูภาพหลังทำ</a>}</p>}
+  return <section className="ui-card">
+    <h2>สรุปงานจากช่าง</h2>
+    <p className="jb-report">{report.summary}</p>
+    <ul className="jb-checks is-grid">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'is-ok' : ''}><Check size={17} strokeWidth={3}/> {item.label}</li>)}</ul>
+    {(report.beforePhotoUrl || report.afterPhotoUrl) && <p className="jb-photo-links">{report.beforePhotoUrl && <a className="ui-link" href={report.beforePhotoUrl} target="_blank" rel="noreferrer">ดูภาพก่อนทำ</a>}{report.afterPhotoUrl && <a className="ui-link" href={report.afterPhotoUrl} target="_blank" rel="noreferrer">ดูภาพหลังทำ</a>}</p>}
   </section>;
 }
 
@@ -352,7 +404,7 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [receipt, setReceipt] = useState(false);
-  const next = new Date(booking.date + 'T00:00:00');
+  const next = day(booking.date);
   next.setMonth(next.getMonth() + 6);
   async function send() {
     setBusy(true);
@@ -360,26 +412,26 @@ function AfterService({ booking, onNewBooking, onOpenPassport, onReportProblem }
     setBusy(false);
     if (ok) { setSent(true); setReporting(false); }
   }
-  return <section className="cj-block cj-after">
-    <h3>ขั้นต่อไป</h3>
-    <div className="cj-next-clean"><CalendarClock size={20}/><div><strong>ล้างครั้งถัดไปแนะนำ {next.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong><span>ล้างทุก 6 เดือนช่วยให้แอร์เย็นเร็ว ประหยัดไฟ และลดฝุ่น</span></div></div>
-    <div className="cj-after-actions">
-      <button type="button" className="cj-primary" onClick={onNewBooking}><RotateCcw size={16}/> ขอช่างล้างแอร์อีกครั้ง</button>
-      <button type="button" className="cj-ghost" onClick={onOpenPassport}><History size={16}/> ดูประวัติการล้างแอร์</button>
-      {booking.paymentStatus === 'Paid' && <button type="button" className="cj-ghost" onClick={() => setReceipt(true)}><FileText size={16}/> ใบเสร็จรับเงิน</button>}
+  return <section className="ui-card jb-after">
+    <h2>ขั้นต่อไป</h2>
+    <div className="jb-next"><CalendarClock size={22} aria-hidden="true"/><div><strong>ล้างครั้งถัดไป {next.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong><span>ล้างทุก 6 เดือนช่วยให้แอร์เย็นเร็ว ประหยัดไฟ และลดฝุ่น</span></div></div>
+    <div className="jb-after-actions">
+      <button type="button" className="ui-btn is-primary" onClick={onNewBooking}><RotateCcw size={18}/> ขอช่างล้างแอร์อีกครั้ง</button>
+      <button type="button" className="ui-btn" onClick={onOpenPassport}><History size={18}/> ประวัติการล้างแอร์</button>
+      {booking.paymentStatus === 'Paid' && <button type="button" className="ui-btn" onClick={() => setReceipt(true)}><FileText size={18}/> ใบเสร็จรับเงิน</button>}
     </div>
     {receipt && <ReceiptSheet bookingId={booking.id} canIssue companyFirst={booking.placeId != null} onClose={() => setReceipt(false)}/>}
     {booking.issue?.kind === 'Service' && !booking.issue.open && booking.issue.resolutionNote && !sent &&
-      <p className="cj-done"><CheckCircle2 size={18}/> ผู้ดูแลปิดเรื่องที่คุณแจ้งแล้ว: {booking.issue.resolutionNote}</p>}
+      <p className="ui-alert is-done"><CheckCircle2 size={18}/><span>ผู้ดูแลปิดเรื่องที่คุณแจ้งแล้ว: {booking.issue.resolutionNote}</span></p>}
     {sent || (booking.issue?.kind === 'Service' && booking.issue.open)
-      ? <p className="cj-done"><CheckCircle2 size={18}/> ส่งเรื่องให้ผู้ดูแลแล้ว จะติดต่อกลับเร็วที่สุด</p>
+      ? <p className="ui-alert is-done"><CheckCircle2 size={18}/><span>ส่งเรื่องให้ผู้ดูแลแล้ว จะติดต่อกลับเร็วที่สุด</span></p>
       : reporting
-        ? <div className="cj-confirm">
-          <label htmlFor={`problem-${booking.id}`}>เกิดปัญหาอะไรกับงานนี้</label>
-          <textarea id={`problem-${booking.id}`} rows={3} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="เช่น ล้างแล้วน้ำยังหยด หรือมีปัญหาเรื่องเงิน"/>
-          <div><button type="button" className="cj-primary" disabled={busy || reason.trim().length < 3} onClick={() => void send()}>{busy ? 'กำลังส่ง...' : 'ส่งให้ผู้ดูแล'}</button><button type="button" className="cj-ghost" onClick={() => setReporting(false)}>ยกเลิก</button></div>
+        ? <div className="jb-confirm">
+          <div className="ui-field"><label htmlFor={`problem-${booking.id}`}>เกิดปัญหาอะไรกับงานนี้</label>
+            <textarea className="ui-textarea" id={`problem-${booking.id}`} rows={3} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} placeholder="เช่น ล้างแล้วน้ำยังหยด หรือมีปัญหาเรื่องเงิน"/></div>
+          <div className="jb-confirm-actions"><button type="button" className="ui-btn is-primary" disabled={busy || reason.trim().length < 3} aria-busy={busy} onClick={() => void send()}>{busy ? 'กำลังส่ง…' : 'ส่งให้ผู้ดูแล'}</button><button type="button" className="ui-btn" onClick={() => setReporting(false)}>ยกเลิก</button></div>
         </div>
-        : <button type="button" className="cj-link" onClick={() => setReporting(true)}><AlertTriangle size={15}/> มีปัญหากับงานนี้</button>}
+        : <button type="button" className="ui-btn is-ghost is-sm jb-quiet-link" onClick={() => setReporting(true)}><AlertTriangle size={16}/> มีปัญหากับงานนี้</button>}
   </section>;
 }
 
@@ -388,29 +440,29 @@ function Review({ booking, onReview }: { booking: Booking; onReview: Props['onRe
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   if (booking.customerRating) {
-    return <p className="cj-done"><Star size={18} fill="currentColor"/> คุณให้คะแนนช่าง {booking.customerRating} จาก 5 ดาวแล้ว</p>;
+    return <p className="ui-alert is-done"><Star size={18} fill="currentColor"/><span>คุณให้คะแนนช่าง {booking.customerRating} จาก 5 ดาวแล้ว ขอบคุณครับ</span></p>;
   }
   async function send() {
     setBusy(true);
     await onReview(booking.id, rating, comment);
     setBusy(false);
   }
-  return <div className="cj-review">
-    <p className="cj-review-ask">ให้คะแนน {booking.technician} เพื่อช่วยลูกค้าคนอื่นเลือกช่าง</p>
-    <div className="cj-stars" role="radiogroup" aria-label="คะแนนช่าง">
-      {[1, 2, 3, 4, 5].map(value => <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} ดาว`} className={value <= rating ? 'on' : ''} onClick={() => setRating(value)}><Star size={26} fill={value <= rating ? 'currentColor' : 'none'}/></button>)}
+  return <section className="ui-card jb-review" aria-label="ให้คะแนนช่าง">
+    <div className="ui-card-head"><div><h2>ให้คะแนน {booking.technician}</h2><p>ช่วยลูกค้าคนอื่นเลือกช่าง ใช้เวลาไม่ถึงนาที</p></div></div>
+    <div className="jb-stars" role="radiogroup" aria-label="คะแนนช่าง">
+      {[1, 2, 3, 4, 5].map(value => <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} ดาว`} className={value <= rating ? 'is-on' : ''} onClick={() => setRating(value)}><Star size={30} fill={value <= rating ? 'currentColor' : 'none'}/></button>)}
     </div>
-    <label htmlFor={`review-${booking.id}`} className="cj-review-label">ความเห็นเพิ่มเติม (ไม่บังคับ)</label>
-    <textarea id={`review-${booking.id}`} rows={3} maxLength={1000} value={comment} onChange={event => setComment(event.target.value)} placeholder="เช่น มาตรงเวลา ทำความสะอาดเรียบร้อย"/>
-    <button type="button" className="cj-primary full" disabled={!rating || busy} onClick={() => void send()}>{busy ? 'กำลังส่ง...' : 'ส่งคะแนน'}</button>
-  </div>;
+    <div className="ui-field"><label htmlFor={`review-${booking.id}`}>ความเห็นเพิ่มเติม (ไม่บังคับ)</label>
+      <textarea className="ui-textarea" id={`review-${booking.id}`} rows={3} maxLength={1000} value={comment} onChange={event => setComment(event.target.value)} placeholder="เช่น มาตรงเวลา ทำความสะอาดเรียบร้อย"/></div>
+    <button type="button" className="ui-btn is-primary is-lg is-block" disabled={!rating || busy} aria-busy={busy} onClick={() => void send()}>{busy ? 'กำลังส่ง…' : rating ? `ส่งคะแนน ${rating} ดาว` : 'เลือกจำนวนดาวก่อน'}</button>
+  </section>;
 }
 
 function CancelRequest({ onConfirm }: { onConfirm: () => void }) {
   const [asking, setAsking] = useState(false);
-  if (!asking) return <button type="button" className="cj-link danger" onClick={() => setAsking(true)}>ยกเลิกคำขอนี้</button>;
-  return <div className="cj-confirm" role="alertdialog" aria-label="ยืนยันยกเลิกคำขอ">
+  if (!asking) return <button type="button" className="ui-btn is-danger" onClick={() => setAsking(true)}>ยกเลิกคำขอนี้</button>;
+  return <div className="jb-confirm is-danger" role="alertdialog" aria-label="ยืนยันยกเลิกคำขอ">
     <p>ยกเลิกคำขอนี้? ช่างที่เสนอราคาไว้จะไม่เห็นงานอีก</p>
-    <div><button type="button" className="cj-danger" onClick={onConfirm}>ยกเลิกคำขอ</button><button type="button" className="cj-ghost" onClick={() => setAsking(false)}>เก็บไว้</button></div>
+    <div className="jb-confirm-actions"><button type="button" className="ui-btn is-danger" onClick={onConfirm}>ยกเลิกคำขอ</button><button type="button" className="ui-btn" onClick={() => setAsking(false)}>เก็บคำขอไว้</button></div>
   </div>;
 }

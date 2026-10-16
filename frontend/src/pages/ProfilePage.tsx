@@ -97,7 +97,7 @@ export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembershi
         {profile ? <ServiceProfileForm profile={profile} onSaved={setProfile}/>
           : profileError ? <div className="pf-card"><div className="pf-alert bad" role="alert"><XCircle size={17}/><span>{profileError}</span></div>
             <button type="button" className="pf-button" onClick={() => setAttempt(n => n + 1)}>ลองโหลดอีกครั้ง</button></div>
-          : <p className="pf-loading" role="status"><Loader2 size={18} className="lp-spin"/> กำลังโหลด…</p>}
+          : <p className="pf-loading" role="status"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p>}
       </div>
       <div role="tabpanel" id="pf-panel-documents" aria-labelledby="pf-tab-documents" hidden={tab !== 'documents'}>
         <TechnicianDocuments onChange={setDocuments}/>

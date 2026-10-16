@@ -33,7 +33,7 @@ function TechnicianMembership({ onNotice }: { onNotice: (message: string) => voi
   useEffect(load, [load]);
 
   if (error) return <div className="ms-page"><div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> ลองใหม่</button></div></div>;
-  if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="lp-spin"/> กำลังโหลด…</p></div>;
+  if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p></div>;
 
   const expired = data.state === 'Expired';
   const soon = !expired && data.state !== 'NotApproved' && data.daysLeft <= 7;
@@ -158,7 +158,7 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
       </ol>
       {turnedDown && <div className="ms-turned-down" role="alert"><XCircle size={18}/><div><strong>สลิปไม่ผ่านการตรวจ</strong><span>{turnedDown}</span></div></div>}
       {error && <div className="auth-error" role="alert">{error}</div>}
-      <button type="button" className="cj-primary full" disabled={!slip || busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="lp-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
+      <button type="button" className="cj-primary full" disabled={!slip || busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="ui-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
       <p className="ms-fine">{data.autoCheck ? <><ShieldCheck size={13}/> ระบบตรวจสลิปกับธนาคารทันที ถ้าเงินเข้าบัญชี AirClean ครบ ต่ออายุให้เลย สลิปปลอมหรือสลิปที่เคยใช้แล้วจะไม่ผ่าน</> : 'ผู้ดูแลตรวจยอดเงินเข้าแล้วต่ออายุให้ ส่วนใหญ่ภายในวันเดียวกัน'}</p>
     </>}
   </section>;
@@ -172,7 +172,7 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
   const load = useCallback(() => { setError(''); fetchAdminMembership().then(setData).catch(reason => setError(errorText(reason, 'โหลดข้อมูลไม่สำเร็จ'))); }, []);
   useEffect(load, [load]);
   if (error) return <div className="ms-page"><div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> ลองใหม่</button></div></div>;
-  if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="lp-spin"/> กำลังโหลด…</p></div>;
+  if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p></div>;
   const pending = data.payments.filter(item => item.status === 'Pending');
   const done = data.payments.filter(item => item.status !== 'Pending');
   const expired = data.members.filter(item => item.state === 'Expired').length;

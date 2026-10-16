@@ -163,7 +163,7 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
 
     {error && <div className="pf-alert bad" role="alert"><XCircle size={17}/>{error}</div>}
     {(dirty || saving || savedNote) && <div className={'pf-savebar' + (dirty || saving ? '' : ' done')} role="status">
-      {saving ? <Loader2 size={17} className="lp-spin"/> : dirty ? <span className="pf-savebar-dot" aria-hidden="true"/> : <CheckCircle2 size={17}/>}
+      {saving ? <Loader2 size={17} className="ui-spin"/> : dirty ? <span className="pf-savebar-dot" aria-hidden="true"/> : <CheckCircle2 size={17}/>}
       <span>{saving ? 'กำลังบันทึก…' : dirty ? 'มีการแก้ไขที่ยังไม่บันทึก' : savedNote}</span>
       {dirty && !saving && <button type="button" className="pf-savebar-undo" onClick={() => { setForm(base); setShowProblems(false); setError(''); }}>ยกเลิก</button>}
       {(dirty || saving) && <button type="submit" className="pf-savebar-save" disabled={saving}>บันทึก</button>}

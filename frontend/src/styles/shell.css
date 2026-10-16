@@ -315,7 +315,8 @@
   flex: 1;
   min-width: 0;
 }
-.sh-band-text strong {
+.sh-band-text h1 {
+  margin: 0;
   overflow: hidden;
   font: 600 var(--v-text-lg) / 1.25 var(--v-font-head);
   text-overflow: ellipsis;
