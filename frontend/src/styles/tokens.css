@@ -1,0 +1,119 @@
+/*
+ * AirClean design tokens: the motorcycle-taxi vest in AirClean blue.
+ * Vest-blue fields carry the shell and the plates, plain white cards sit on a cool ground, and the hi-vis lime
+ * appears only for "your turn now". Kanit sets numerals and headings; IBM Plex Sans Thai Looped sets text.
+ * See .impeccable/surfaces/frontend-src-app-tsx.md and docs/redesign/PLAN.md.
+ */
+:root {
+  /* Vest blue */
+  --v-blue-900: #0b2f74;
+  --v-blue-800: #0f3f99;
+  --v-blue-700: #1450b8;
+  --v-blue-600: #1756c8;
+  --v-blue-500: #1f6fe0;
+  --v-blue-400: #3d8bef;
+  --v-blue-100: #e9f1fd;
+  --v-blue-050: #f4f8fe;
+  --v-on-blue: #ffffff;
+  --v-on-blue-2: #cfe0fb;
+
+  /* Ink and ground */
+  --v-ink: #0f1e33;
+  --v-ink-2: #33445c;
+  --v-ink-3: #52627a;
+  --v-placeholder: #66768c;
+  --v-ground: #eef3f9;
+  --v-surface: #ffffff;
+  --v-sunken: #f5f8fc;
+  --v-line: #d8e1ec;
+  --v-line-strong: #b9c7d8;
+
+  /* Reflective strip: only for "your turn now" */
+  --v-lime: #d9f84a;
+  --v-lime-deep: #b9dc1f;
+  --v-lime-ink: #0f1e33;
+
+  /* States: colour only where it means something */
+  --v-done: #0e7a5f;
+  --v-done-bg: #e3f5ee;
+  --v-wait: #9a5b00;
+  --v-wait-bg: #fff4dd;
+  --v-problem: #b42318;
+  --v-problem-bg: #fdecea;
+
+  /* Type */
+  --v-font-head: "Kanit", "IBM Plex Sans Thai Looped", "Noto Sans Thai", sans-serif;
+  --v-font-text: "IBM Plex Sans Thai Looped", "IBM Plex Sans Thai", "Noto Sans Thai", sans-serif;
+  --v-text-xs: 0.75rem;
+  --v-text-sm: 0.875rem;
+  --v-text-md: 1rem;
+  --v-text-lg: 1.125rem;
+  --v-text-xl: 1.375rem;
+  --v-text-2xl: 1.75rem;
+  --v-text-3xl: 2.25rem;
+  --v-num: 2.5rem;
+
+  /* Space, shape, depth, motion */
+  --v-gap-1: 4px;
+  --v-gap-2: 8px;
+  --v-gap-3: 12px;
+  --v-gap-4: 16px;
+  --v-gap-5: 20px;
+  --v-gap-6: 24px;
+  --v-gap-8: 32px;
+  --v-gap-10: 40px;
+  --v-radius-sm: 8px;
+  --v-radius: 12px;
+  --v-radius-md: 14px;
+  --v-radius-lg: 18px;
+  --v-control: 48px;
+  --v-control-lg: 52px;
+  --v-shadow-card: 0 1px 2px rgb(15 30 51 / 0.05), 0 6px 16px -10px rgb(15 30 51 / 0.18);
+  --v-shadow-raised: 0 24px 48px -22px rgb(11 47 116 / 0.45);
+  --v-shadow-plate: 0 10px 24px -14px rgb(11 47 116 / 0.65);
+  --v-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --v-fast: 160ms;
+  --v-slow: 260ms;
+}
+
+/*
+ * Signed-in screens: the older page stylesheets read the --ac-* names, so point those at the new world.
+ * Each role's pages are rebuilt on the ui-* components in later steps; these keep the rest coherent meanwhile.
+ */
+.ac-shell {
+  --ac-blue: var(--v-blue-600);
+  --ac-blue-deep: var(--v-blue-700);
+  --ac-blue-tint: var(--v-blue-100);
+  --ac-ink: var(--v-ink);
+  --ac-ink-2: var(--v-ink-2);
+  --ac-ink-3: var(--v-ink-3);
+  --ac-white: var(--v-surface);
+  --ac-mist: var(--v-ground);
+  --ac-frame: var(--v-line);
+  --ac-coolant: var(--v-done);
+  --ac-amber: var(--v-wait);
+  --ac-red: var(--v-problem);
+  --ac-focus: var(--v-blue-500);
+  --ac-display: var(--v-font-head);
+  --ac-text: var(--v-font-text);
+  font-family: var(--v-font-text);
+  color: var(--v-ink);
+  background: var(--v-ground);
+  accent-color: var(--v-blue-600);
+  caret-color: var(--v-blue-600);
+}
+.ac-shell ::selection {
+  background: #c6dafb;
+  color: var(--v-ink);
+}
+.ac-shell :focus-visible {
+  outline: 2px solid var(--v-blue-500);
+  outline-offset: 2px;
+}
+.ac-shell input::placeholder,
+.ac-shell textarea::placeholder {
+  color: var(--v-placeholder);
+}
+.ac-shell {
+  scrollbar-color: var(--v-line-strong) transparent;
+}

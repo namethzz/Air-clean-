@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
 import BrandMark from './components/BrandMark';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -309,24 +309,28 @@ export default function App() {
   }
 
   const bell = <NotificationBell onOpen={openNotification} onSetupPush={setupPush}/>;
-  const customer = books(user.role)||user.role==='technician'; // they get the phone bottom bar
-  return <div className="app-shell ac-shell" data-role={user.role}>
-    <div className={'mobile-nav-backdrop '+(mobileNavOpen?'visible':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
-    <div className={'sidebar-container '+(mobileNavOpen?'mobile-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={books(user.role)?()=>openBooking():undefined} actionCount={actionCount}/></div>
-    <main className="main-shell">
+  const tabbed = books(user.role)||user.role==='technician'; // they get the phone bottom bar
+  return <div className={'sh ac-shell'+(tabbed?' has-tabbar':'')} data-role={user.role}>
+    <div className={'sh-scrim'+(mobileNavOpen?' is-open':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
+    <div className={'sh-rail-wrap'+(mobileNavOpen?' is-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={books(user.role)?()=>openBooking():undefined} actionCount={actionCount}/></div>
+    <main className="sh-main">
       <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={bell}/>
-      {customer
-        ?<div className="mobile-page-bar customer-bar"><span className="customer-bar-mark"><BrandMark className="w-[82%] h-auto"/></span><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}</div>
-        :<div className="mobile-page-bar"><button className="icon-button" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={20}/></button><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}{user.role!=='technician'&&<button className="icon-button" onClick={()=>openBooking()} aria-label="จองบริการ"><Activity size={19}/></button>}</div>}
-      {dataError&&<div className="app-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button className="outline-button" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
-      <div className="page-content">{content}</div>
-      <footer className="app-footer"><span>© 2026 AirClean</span>{!apiConnected&&<span className="footer-center" role="status"><WifiOff size={13}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>
+      <header className="sh-band">
+        {tabbed
+          ?<span className="sh-band-mark" aria-hidden="true"><BrandMark className="w-[80%] h-auto"/></span>
+          :<button type="button" className="sh-band-btn" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={22}/></button>}
+        <div className="sh-band-text"><h1>{titleFor(user.role,page)}</h1><span>{todayLabel()}</span></div>
+        {bell}
+      </header>
+      {dataError&&<div className="ui-alert is-problem sh-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button type="button" className="ui-btn is-sm" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
+      {isLoading&&<div className="sh-progress" role="status"><span className="sr-only">กำลังโหลดข้อมูล</span></div>}
+      <div className="sh-content">{content}</div>
+      <footer className="sh-foot"><span>© 2026 AirClean</span>{!apiConnected&&<span className="sh-offline" role="status"><WifiOff size={14}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>
     </main>
-    {customer&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
+    {tabbed&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
     <UpdateBanner/>
     <PushPrompt key={user.id} userId={user.id} role={user.role}/>
     {bookingModalOpen&&<BookingModal technicians={state.technicians} units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} initialRooms={bookingRooms} bookings={state.bookings} phone={user.phone} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
-    {notice&&<div className="toast-notice" role="status"><div className="toast-check"><CheckCircle2 size={17}/></div><span>{notice}</span><button className="icon-button" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={15}/></button></div>}
-    {isLoading&&<div className="loading-indicator"><span/>กำลังโหลดข้อมูล...</div>}
+    {notice&&<div className="sh-toast" role="status"><CheckCircle2 size={19} aria-hidden="true"/><span>{notice}</span><button type="button" className="sh-toast-close" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={16}/></button></div>}
   </div>;
 }

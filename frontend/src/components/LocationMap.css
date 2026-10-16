@@ -90,42 +90,6 @@
   color: #829188;
   pointer-events: none;
 }
-.location-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.place-type-picker {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-}
-.place-type-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid #e0e9e0;
-  border-radius: 8px;
-  background: #fff;
-  color: #7b9283;
-  padding: 10px;
-  font-size: 10px;
-}
-.place-type-option.active {
-  border-color: #95c8ab;
-  background: #eaf5ed;
-  color: #2d765c;
-  font-weight: 600;
-}
-.location-feedback {
-  margin: 0;
-  font-size: 9px;
-  color: #397d63;
-  background: #edf7ef;
-  border-radius: 7px;
-  padding: 8px 10px;
-}
 .tracking-page-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
@@ -384,9 +348,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tracking-job-option .status-badge {
-  font-size: 8px;
-}
 .tracking-runtime-note {
   font-size: 8px;
   line-height: 1.7;
@@ -415,9 +376,6 @@
 }
 .booking-modal-wide .booking-form {
   gap: 15px;
-}
-.booking-modal-wide .location-picker {
-  padding-bottom: 2px;
 }
 .tracking-page-layout .primary-button,
 .tracking-page-layout .outline-button {

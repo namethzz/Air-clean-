@@ -1,0 +1,27 @@
+# AirClean redesign — plan and progress
+
+This is the source of truth for the whole-app redesign. **To resume after an interruption** (tokens ran out, a new session): read this file and `PRODUCT.md`, then carry on with the first step that is not ticked. Each step ends with a commit, a push to `claude/pensive-gauss-8os2ph`, and a pull request the owner merges. Before starting a step, check whether the previous PR was merged (`git fetch origin main`). If it was, restart the branch from `origin/main`.
+
+Rules for every step
+- Keep behaviour, API calls and statuses as they are. Change how things look and read, not what they do, unless the owner agrees.
+- Thai copy, and an action-named label on every control. Errors say what went wrong and how to fix it.
+- Check every screen at 390px (phone), 820px (tablet) and 1280–1440px (desktop). Check states too: empty, loading, error, long text.
+- Keep: the AirClean name, the logo (`docs/brand/`, `BrandMark.tsx`) and the brand blue.
+- Run `npm test`, `npm run build`, and `dotnet test` when the backend changes. Run the smoke test when API behaviour changes.
+
+## Steps
+
+- [x] **0. Product record.** `PRODUCT.md` (users, purpose, positioning, brand commitments). Owner answers 2026-10-16: the customer is the primary user; technicians use phones on site, are not confident with tech, and want fitting jobs, clear pay, easy accept/decline, job status and earnings; customers are city workers; keep the logo, name and blue.
+- [x] **1. Direction.** Owner chose **A · ป้ายเสื้อวิน** (the motorcycle-taxi vest plate in AirClean blue). The contract is in `.impeccable/surfaces/frontend-src-app-tsx.md`: vest-blue bands and plates, white cards on a cool ground, hi-vis lime only for "your turn", Kanit numerals and headings, IBM Plex Sans Thai Looped text, 52px controls on phones.
+- [x] **2. Foundation.** `frontend/src/styles/tokens.css` (vest-blue palette, ink and ground, lime for "your turn", state colours, Kanit + IBM Plex Sans Thai Looped, spacing, radius, shadows, motion). It also points the old `--ac-*` names at the new world inside the app. `styles/ui.css` has the `ui-*` components: page head, buttons, fields, cards, lists and rows, **plate** and **strip**, badges, chips, tabs, alerts, empty state, skeleton, sheet. `styles/shell.css` and the rewritten `Sidebar`, `Topbar`, `BottomNav` and `App` frame give a blue rail plus a top bar on wide screens, and a blue band plus a tab bar on phones and tablets (the admin gets a slide-in menu). `components/kit.tsx` has `PageHead`, `Plate`, `Strip` and `EmptyState`. `StatusBadge` now uses `ui-badge`. Old frame CSS was removed.
+- [x] **3. Customer.** Home (`CustomerHome`, `Home.css`): the one next step on a blue band, with the strip when it is the customer's turn. Jobs (`CustomerJobsPage`, `Jobs.css`): list with whose-turn badges, job page on a blue band with the five stops, offers on plates with a countdown strip, inline confirms, payment, review. The request flow (`components/Request.css`): `BookingModal` is a `Sheet` with the estimate and the send button pinned at the foot, and each problem shown next to its field (scrolled to and focused); `VisitTimePicker`, `LocationPicker` (saved places with a delete confirm) and `Rooms` (picker, board, roster editor) are rebuilt on `ui-*`. `Reschedule` uses the sheet. `ReceiptSheet` (`Receipt.css`, prints the same). History (`CleaningHistoryPage`, `History.css`). Job photos (`JobPhotos.css`: gallery, viewer, technician picker). New kit pieces: `Sheet` (focus trap, Escape closes the top sheet only, scroll lock), `Problem`; new ui pieces: `ui-option`, `ui-check`, `ui-problem`, `ui-spin`. Profile was already on the new look from PR #37/#38 and stays.
+- [ ] **4. Technician.** Nearby jobs (offer flow), my jobs and the day's schedule, the job page (travel, arrival, cleaning, report and photos, payment), membership and slip, profile, service and documents.
+- [ ] **5. Building manager.** Home, buildings and rooms, bulk booking, jobs, receipts.
+- [ ] **6. Admin.** Overview, technician approvals and documents, all technicians, bookings, reported issues, membership and slips, reports, tracking.
+- [ ] **7. Public pages.** Landing page, sign-in and sign-up, password reset, privacy and terms.
+- [ ] **8. Finish.** Review against the direction contract, write `DESIGN.md` from the built result, refresh `docs/screenshots/` and the README.
+
+## Log
+- 2026-10-16: Step 3 done. Notes for later steps: the building page's job row shows its status badge out of line (fix in step 5); `MembershipPage` still uses `jp-error` and `cj-*` (step 4); `lp-danger` is still used by `TechnicianJobsPage` and `BuildingsPage`. Unused customer CSS was purged from `index.css`, `CustomerExperience.css`, `CustomerJobs.css` and `LocationMap.css`.
+- 2026-10-16: Step 1 done (owner chose A). Step 2 done: tokens, ui-* components, new frame. Pages still use their old layouts and are rebuilt in steps 3–6. Startup for screenshots: Docker+Mongo, API on DB `airclean_css` port 5080, Vite on 5173 with `VITE_API_BASE_URL=http://localhost:5080/api`.
+- 2026-10-16: Step 0 done. Direction roll ran degraded (the roll service is blocked by the sandbox network), with grounded directions only.

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Phone, X } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import type { Booking } from '../types';
 import VisitTimePicker, { defaultVisit, visitPayload, type Visit } from './VisitTimePicker';
 import { timeLabel } from '../lib/time';
+import { Problem, Sheet } from './kit';
 
 export type RescheduleSide = 'customer' | 'technician';
 const visitDay = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -41,23 +42,16 @@ export function RescheduleSheet({ booking, side, onSend, onClose }: { booking: B
     setBusy(false);
     if (ok) onClose();
   }
-  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="modal-card booking-modal-wide" role="dialog" aria-modal="true" aria-labelledby="rs-title">
-      <div className="modal-header">
-        <div><h2 id="rs-title">เปลี่ยนวันนัด</h2><p>นัดเดิม {visitDay(booking.date)} {timeLabel(booking)}</p></div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="ปิดหน้าต่าง"><X size={19}/></button>
+  return <Sheet title="เปลี่ยนวันนัด" sub={`นัดเดิม ${visitDay(booking.date)} ${timeLabel(booking)}`} onClose={onClose} footer={<>
+    {error && <Problem>{error}</Problem>}
+    <button type="button" className="ui-btn is-primary is-lg is-block" disabled={busy} aria-busy={busy} onClick={() => void send()}>{busy ? 'กำลังบันทึก…' : 'ยืนยันวันนัดใหม่'}</button>
+  </>}>
+    {chosen(booking)
+      ? <div className="rq-call">
+        <p>โทรตกลงวันเวลาใหม่กับ{other}ก่อน แล้วเลือกวันที่ตกลงกันด้านล่าง {other}จะได้รับแจ้งทันที</p>
+        {phone && <a className="ui-btn is-block" href={telLink(phone)}><Phone size={18}/> โทรหา{other} <span className="ui-num">{formatPhone(phone)}</span></a>}
       </div>
-      <div className="booking-form">
-        {chosen(booking)
-          ? <div className="rs-call">
-            <p>โทรตกลงวันเวลาใหม่กับ{other}ก่อน แล้วเลือกวันที่ตกลงกันด้านล่าง {other}จะได้รับแจ้งทันที</p>
-            {phone && <a className="cj-primary" href={telLink(phone)}><Phone size={17}/> โทรหา{other} {formatPhone(phone)}</a>}
-          </div>
-          : <p className="rs-note">ช่างที่เสนอราคาไว้จะได้รับแจ้งวันนัดใหม่</p>}
-        <VisitTimePicker value={visit} onChange={setVisit}/>
-        {error && <div className="auth-error" role="alert">{error}</div>}
-        <button type="button" className="primary-button full-width" disabled={busy} onClick={() => void send()}>{busy ? 'กำลังบันทึก…' : 'เปลี่ยนเป็นวันนี้'}</button>
-      </div>
-    </section>
-  </div>;
+      : <p className="rq-note">ช่างที่เสนอราคาไว้จะได้รับแจ้งวันนัดใหม่</p>}
+    <VisitTimePicker value={visit} onChange={setVisit}/>
+  </Sheet>;
 }

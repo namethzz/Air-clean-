@@ -1,0 +1,223 @@
+/* ───────────────────────── Cleaning history ───────────────────────── */
+.hs {
+  max-width: 880px;
+}
+
+/* When the next cleaning is due. Once it is, the band turns vest blue and the button turns hi-vis. */
+.hs-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-card);
+}
+.hs-next-body {
+  min-width: 0;
+}
+.hs-next-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-blue-700);
+}
+.hs-next h2 {
+  margin: 6px 0 4px;
+  font: 600 2rem / 1.15 var(--v-font-head);
+  color: var(--v-ink);
+  text-wrap: balance;
+}
+.hs-next p {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+.hs-next .ui-btn {
+  flex: none;
+}
+.hs-next.is-due {
+  border-color: transparent;
+  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
+  box-shadow: var(--v-shadow-plate);
+}
+.hs-next.is-due h2 {
+  color: var(--v-on-blue);
+}
+.hs-next.is-due p,
+.hs-next.is-due .hs-next-label {
+  color: var(--v-on-blue-2);
+}
+.hs-next.is-due :focus-visible {
+  outline-color: var(--v-lime);
+}
+@media (max-width: 559px) {
+  .hs-next {
+    padding: 20px;
+  }
+  .hs-next .ui-btn {
+    width: 100%;
+  }
+}
+
+/* Totals */
+.hs-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+}
+.hs-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 16px;
+}
+.hs-stats div + div {
+  border-left: 1px solid var(--v-line);
+}
+.hs-stats dt {
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-ink-3);
+}
+.hs-stats dd {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-2);
+}
+.hs-stats dd .ui-num,
+.hs-stats dd.ui-num {
+  font-size: var(--v-text-xl);
+  font-weight: 600;
+  color: var(--v-ink);
+}
+@media (max-width: 399px) {
+  .hs-stats div {
+    padding: 12px;
+  }
+  .hs-stats dd .ui-num,
+  .hs-stats dd.ui-num {
+    font-size: var(--v-text-lg);
+  }
+}
+
+/* One cleaning */
+.hs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hs-item {
+  overflow: hidden;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-card);
+}
+.hs-open {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 18px;
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--v-fast) var(--v-ease);
+}
+.hs-open:hover {
+  background: var(--v-blue-050);
+}
+.hs-open .jb-row-go {
+  align-self: center;
+  color: var(--v-ink-3);
+}
+.hs-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+.hs-main strong {
+  font-weight: 600;
+  line-height: 1.4;
+}
+.hs-main > span:not(.hs-checks) {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-2);
+}
+.hs-main small {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.hs-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.hs-checks em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--v-done-bg);
+  color: var(--v-done);
+  font-size: var(--v-text-xs);
+  font-style: normal;
+  font-weight: 600;
+}
+.hs-summary {
+  margin-top: 4px;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-2);
+}
+.hs-item-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 48px;
+  padding: 4px 8px 4px 80px;
+  border-top: 1px solid var(--v-line);
+}
+.hs-rating {
+  display: inline-flex;
+  gap: 2px;
+  color: #e2a000;
+}
+.hs-unrated {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+@media (max-width: 399px) {
+  .hs-item-foot {
+    padding-left: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hs-open {
+    transition: none;
+  }
+}

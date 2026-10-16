@@ -19,7 +19,7 @@ export function usePrivateImage(path: string | null) {
 export default function PrivateImage({ path, alt, onOpen }: { path: string; alt: string; onOpen?: (url: string) => void }) {
   const { url, failed } = usePrivateImage(path);
   return <button type="button" className="pi-thumb" disabled={!url || !onOpen} onClick={() => url && onOpen?.(url)} aria-label={onOpen ? `ดู${alt}` : alt}>
-    {url ? <img src={url} alt={alt}/> : failed ? <ImageOff size={20} aria-label="โหลดรูปไม่สำเร็จ"/> : <Loader2 size={20} className="lp-spin" aria-label="กำลังโหลด"/>}
+    {url ? <img src={url} alt={alt}/> : failed ? <ImageOff size={20} aria-label="โหลดรูปไม่สำเร็จ"/> : <Loader2 size={20} className="ui-spin" aria-label="กำลังโหลด"/>}
   </button>;
 }
 

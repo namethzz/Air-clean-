@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
+import { useId, useState } from 'react';
+import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react';
 import { timeLabel, timeWindows } from '../lib/time';
+import { Sheet } from './kit';
+import './Request.css';
 
 /** A day plus either a window ("12:00-17:00") or one exact time. */
 export interface Visit { date: string; window: string | null; time: string; }
@@ -41,39 +43,34 @@ export function visitPayload(visit: Visit): { time: string; timeWindow?: string 
 }
 
 const weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const longDay = (day: string) => new Date(day + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' });
 
 /** A month grid in a sheet, so "another day" works the same on every phone and computer. */
 function CalendarSheet({ value, min, max, onPick, onClose }: { value: string; min: string; max: string; onPick: (day: string) => void; onClose: () => void }) {
   const [month, setMonth] = useState(() => value.slice(0, 7));
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', key);
-    return () => document.removeEventListener('keydown', key);
-  }, [onClose]);
   const first = new Date(month + '-01T00:00:00');
   const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const cells = [...Array(first.getDay()).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`)];
   const shift = (step: number) => setMonth(isoDay(new Date(first.getFullYear(), first.getMonth() + step, 15)).slice(0, 7));
-  return <div className="vt-sheet-backdrop" role="presentation" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="vt-sheet" role="dialog" aria-modal="true" aria-label="เลือกวัน">
-      <header>
-        <button type="button" onClick={() => shift(-1)} disabled={month <= min.slice(0, 7)} aria-label="เดือนก่อนหน้า"><ChevronLeft size={20}/></button>
-        <strong>{first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong>
-        <button type="button" onClick={() => shift(1)} disabled={month >= max.slice(0, 7)} aria-label="เดือนถัดไป"><ChevronRight size={20}/></button>
-        <button type="button" className="vt-sheet-close" onClick={onClose} aria-label="ปิด"><X size={20}/></button>
-      </header>
-      <div className="vt-grid" role="grid">
-        {weekdays.map(day => <span key={day} className="vt-weekday">{day}</span>)}
-        {cells.map((day, index) => day
-          ? <button type="button" key={day} disabled={day < min || day > max || !dayOpen(day)} className={'vt-cell' + (day === value ? ' active' : '') + (day === today() ? ' today' : '')} onClick={() => onPick(day)}>{Number(day.slice(8))}</button>
-          : <span key={'e' + index}/>)}
-      </div>
-    </section>
-  </div>;
+  return <Sheet title="เลือกวัน" onClose={onClose} className="tm-calendar">
+    <div className="tm-month">
+      <button type="button" className="ui-icon-btn" onClick={() => shift(-1)} disabled={month <= min.slice(0, 7)} aria-label="เดือนก่อนหน้า"><ChevronLeft size={20}/></button>
+      <strong aria-live="polite">{first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong>
+      <button type="button" className="ui-icon-btn" onClick={() => shift(1)} disabled={month >= max.slice(0, 7)} aria-label="เดือนถัดไป"><ChevronRight size={20}/></button>
+    </div>
+    <div className="tm-grid">
+      {weekdays.map(day => <span key={day} className="tm-weekday" aria-hidden="true">{day}</span>)}
+      {cells.map((day, index) => day
+        ? <button type="button" key={day} disabled={day < min || day > max || !dayOpen(day)} aria-pressed={day === value} aria-current={day === today() ? 'date' : undefined}
+          aria-label={longDay(day)} className="tm-cell ui-num" onClick={() => onPick(day)}>{Number(day.slice(8))}</button>
+        : <span key={'e' + index}/>)}
+    </div>
+  </Sheet>;
 }
 
-/** Day cards for the coming week plus a calendar, and a time window (or an exact time) for the visit. */
+/** Day tiles for the coming week plus a calendar, and a time window (or an exact time) for the visit. */
 export default function VisitTimePicker({ value, onChange }: { value: Visit; onChange: (value: Visit) => void }) {
+  const id = useId();
   const [calendar, setCalendar] = useState(false);
   const start = dayOpen(today()) ? today() : addDays(today(), 1);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
@@ -89,45 +86,46 @@ export default function VisitTimePicker({ value, onChange }: { value: Visit; onC
   const payload = visitPayload(value);
   const label = (day: string) => day === today() ? 'วันนี้' : day === addDays(today(), 1) ? 'พรุ่งนี้' : new Date(day + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short' });
 
-  return <>
-    <div className="bk-field">
-      <span className="bk-label" id="vt-day-label">วันที่สะดวก</span>
-      <div className="vt-days" role="radiogroup" aria-labelledby="vt-day-label">
-        {days.map(day => <button type="button" role="radio" aria-checked={value.date === day} key={day} className={'vt-day' + (value.date === day ? ' active' : '')} onClick={() => pickDay(day)}>
-          <span>{label(day)}</span><strong>{Number(day.slice(8))}</strong><small>{new Date(day + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</small>
+  return <div className="tm">
+    <div className="ui-field">
+      <span className="ui-label" id={id + 'day'}>วันที่สะดวก</span>
+      <div className="tm-days" role="radiogroup" aria-labelledby={id + 'day'}>
+        {days.map(day => <button type="button" role="radio" aria-checked={value.date === day} key={day} className="tm-day" onClick={() => pickDay(day)} aria-label={longDay(day)}>
+          <span aria-hidden="true">{label(day)}</span><strong className="ui-num" aria-hidden="true">{Number(day.slice(8))}</strong><small aria-hidden="true">{new Date(day + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</small>
         </button>)}
-        <button type="button" className={'vt-day vt-day-other' + (other ? ' active' : '')} onClick={() => setCalendar(true)} aria-haspopup="dialog">
-          <CalendarDays size={20}/><small>{other ? new Date(value.date + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : 'วันอื่น'}</small>
+        <button type="button" className="tm-day is-other" aria-pressed={other} onClick={() => setCalendar(true)} aria-haspopup="dialog">
+          <CalendarDays size={22} aria-hidden="true"/><small>{other ? new Date(value.date + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : 'วันอื่น'}</small>
         </button>
       </div>
     </div>
     {calendar && <CalendarSheet value={value.date} min={start} max={max} onClose={() => setCalendar(false)} onPick={day => { pickDay(day); setCalendar(false); }}/>}
 
-    <div className="bk-field">
-      <span className="bk-label" id="vt-time-label">ช่วงเวลาที่สะดวก</span>
-      <div className="vt-windows" role="radiogroup" aria-labelledby="vt-time-label">
+    <div className="ui-field">
+      <span className="ui-label" id={id + 'time'}>ช่วงเวลาที่สะดวก</span>
+      <div className="tm-windows" role="radiogroup" aria-labelledby={id + 'time'}>
         {timeWindows.map(item => {
           const span = windowOn(value.date, item.key);
           return <button type="button" role="radio" key={item.key} aria-checked={value.window === item.key} disabled={!span}
-            className={'vt-window' + (value.window === item.key ? ' active' : '')} onClick={() => onChange({ ...value, window: item.key, time: span!.split('-')[0] })}>
-            <strong>{item.label}</strong><small>{span ? span.replace('-', '–') : 'เลยเวลาแล้ว'}</small>
+            className="ui-option tm-window" onClick={() => onChange({ ...value, window: item.key, time: span!.split('-')[0] })}>
+            <span className="ui-option-text"><strong>{item.label}</strong><small className="ui-num">{span ? span.replace('-', '–') : 'เลยเวลาแล้ว'}</small></span>
           </button>;
         })}
-        <button type="button" role="radio" aria-checked={!value.window} className={'vt-window' + (!value.window ? ' active' : '')}
+        <button type="button" role="radio" aria-checked={!value.window} className="ui-option tm-window"
           onClick={() => onChange({ ...value, window: null, time: exactOk(value.date, value.time) ? value.time : toTime(Math.max(earliest(value.date), 9 * 60)) })}>
-          <strong><Clock3 size={15}/> ระบุเวลาเอง</strong><small>เลือกเวลาที่แน่นอน</small>
+          <span className="ui-option-text"><strong><Clock3 size={15} aria-hidden="true"/> ระบุเวลาเอง</strong><small>เลือกเวลาที่แน่นอน</small></span>
         </button>
       </div>
-      {!value.window && <label className="vt-exact">
-        <span>ให้ช่างมาถึงเวลา</span>
-        <input type="time" min={toTime(earliest(value.date))} max={toTime(CLOSE)} step={900} value={value.time} onChange={event => onChange({ ...value, time: event.target.value })}/>
-      </label>}
-      {!value.window && !payload && <p className="vt-error" role="alert">เลือกเวลาระหว่าง {toTime(earliest(value.date))}–20:00 น.</p>}
-      <p className="bk-picked">
-        {new Date(value.date + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })}
-        {payload && <> · {timeLabel({ time: payload.time, timeWindow: payload.timeWindow })}</>}
-        {payload?.timeWindow && <><br/><span>ช่างจะโทรนัดเวลาที่แน่นอนในช่วงนี้ก่อนเข้า</span></>}
-      </p>
+      {!value.window && <div className="tm-exact">
+        <label htmlFor={id + 'exact'}>ให้ช่างมาถึงเวลา</label>
+        <input id={id + 'exact'} className="ui-input ui-num" type="time" min={toTime(earliest(value.date))} max={toTime(CLOSE)} step={900} value={value.time}
+          aria-invalid={!payload} onChange={event => onChange({ ...value, time: event.target.value })}/>
+      </div>}
+      {!value.window && !payload && <small className="is-error" role="alert">เลือกเวลาระหว่าง {toTime(earliest(value.date))}–20:00 น.</small>}
     </div>
-  </>;
+    <p className="tm-picked">
+      <CalendarCheck size={20} aria-hidden="true"/>
+      <span><strong>{longDay(value.date)}{payload && <> · {timeLabel({ time: payload.time, timeWindow: payload.timeWindow })}</>}</strong>
+        {payload?.timeWindow && <small>ช่างจะโทรนัดเวลาที่แน่นอนในช่วงนี้ก่อนเข้า</small>}</span>
+    </p>
+  </div>;
 }

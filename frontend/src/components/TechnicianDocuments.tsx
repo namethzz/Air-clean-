@@ -51,7 +51,7 @@ export default function TechnicianDocuments({ onChange }: { onChange?: (document
     </header>
     {missingId && <div className="pf-alert warn" role="status"><IdCard size={17}/><span>ส่งรูปบัตรประชาชนก่อน ผู้ดูแลจึงอนุมัติบัญชีได้</span></div>}
     {error && <div className="pf-alert bad" role="alert"><XCircle size={17}/><span>{error}</span></div>}
-    {!documents ? !error && <p className="td-loading"><Loader2 size={18} className="lp-spin"/> กำลังโหลด…</p> :
+    {!documents ? !error && <p className="td-loading"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p> :
     <ul className="td-slots">{slots.map(slot => {
       const have = documents.filter(item => item.kind === slot.kind);
       const Icon = slot.icon;
@@ -70,7 +70,7 @@ export default function TechnicianDocuments({ onChange }: { onChange?: (document
           </figure>)}
           {(!full || slot.max === 1) && <label className={'td-add' + (busy === slot.kind ? ' busy' : '') + (have.length ? '' : ' first')}>
             <input ref={node => { inputs.current[slot.kind] = node; }} type="file" accept="image/*" disabled={busy !== null} onChange={event => void add(slot.kind, event.target.files?.[0])}/>
-            {busy === slot.kind ? <Loader2 size={18} className="lp-spin"/> : <Camera size={18}/>}
+            {busy === slot.kind ? <Loader2 size={18} className="ui-spin"/> : <Camera size={18}/>}
             <span>{busy === slot.kind ? 'กำลังส่ง…' : have.length && slot.max === 1 ? 'ถ่ายใหม่' : have.length ? 'เพิ่มรูป' : 'ถ่าย / เลือกรูป'}</span>
           </label>}
         </div>
