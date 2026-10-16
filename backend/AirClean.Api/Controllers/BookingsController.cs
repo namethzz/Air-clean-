@@ -130,6 +130,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };
+        EnsureFuzz(booking);
         await store.Bookings.InsertOneAsync(booking);
         return Created($"/api/bookings/{booking.Id}", DtoMapper.ToDto(booking));
     }

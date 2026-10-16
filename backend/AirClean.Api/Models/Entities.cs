@@ -98,6 +98,8 @@ public class BookingApplicant {
 public class Booking {
  [BsonId] public int Id {get;set;} public string Code {get;set;}=""; public int CustomerId {get;set;} public string CustomerName {get;set;}=""; public int TechnicianId {get;set;} public string TechnicianName {get;set;}=""; public string TechnicianInitials {get;set;}=""; public string PropertyType {get;set;}="บ้านเดี่ยว"; public int UnitCount {get;set;}=1; public int? AirConditionerId {get;set;} public string Service {get;set;}=""; public string UnitLabel {get;set;}=""; public string Address {get;set;}=""; public DateTime ScheduledAt {get;set;} public decimal Price {get;set;}
  public double? Latitude {get;set;} public double? Longitude {get;set;}
+ /// <summary>A random point 300–700 m from the home, drawn once per job: open-job searches measure from here, never from the home.</summary>
+ public double? FuzzLatitude {get;set;} public double? FuzzLongitude {get;set;}
  public double? TechnicianLatitude {get;set;} public double? TechnicianLongitude {get;set;} public double? LocationAccuracy {get;set;}
  public DateTime? LocationUpdatedAt {get;set;} public string TravelStatus {get;set;}="NotStarted";
  public string? PaymentMethod {get;set;} public string PaymentStatus {get;set;}="Unpaid";
