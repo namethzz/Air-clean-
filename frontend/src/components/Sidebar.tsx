@@ -1,6 +1,7 @@
 import { AirVent, BadgeCheck, Wallet, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2 } from 'lucide-react';
 import BrandMark from './BrandMark';
 import type { PageKey, UserProfile, UserRole } from '../types';
+import Avatar from './Avatar';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
 const names:Record<UserRole,string>={customer:'ลูกค้า',technician:'ช่างแอร์',manager:'ผู้ดูแลอาคาร',admin:'ผู้ดูแลระบบ'};
@@ -35,7 +36,6 @@ const navItems:Item[]=[
   {key:'issues',label:'เรื่องที่ถูกแจ้ง',icon:MessageSquareWarning,roles:['admin']},
   {key:'membership',label:'ค่าสมาชิกช่าง',icon:Wallet,roles:['admin']},
 ];
-function initials(name:string):string{return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part.slice(0,1)).join('')||'AC';}
 export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking,actionCount=0}:Props){
   const customer=role==='customer'||role==='manager';
   const technician=role==='technician';
@@ -49,7 +49,7 @@ export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking
       :<div className="role-chip" aria-label={'บทบาทของคุณ: '+names[role]}><span className="role-chip-dot" aria-hidden="true"/>{names[role]}</div>}
     <nav className="side-nav" aria-label="เมนูหลัก">{main.map(renderItem)}</nav>
     <div className="sidebar-bottom">
-      <button type="button" className="sidebar-user sidebar-profile-link" onClick={() => onNavigate("profile")} aria-label="เปิดโปรไฟล์ของฉัน"><div className="avatar avatar-ink">{initials(user.fullName)}</div><div className="sidebar-user-copy"><strong>{user.fullName}</strong><span>{user.email}</span></div><Settings2 size={16}/></button>
+      <button type="button" className="sidebar-user sidebar-profile-link" onClick={() => onNavigate("profile")} aria-label="เปิดโปรไฟล์ของฉัน"><div className="avatar avatar-ink"><Avatar name={user.fullName} photoId={user.photoId}/></div><div className="sidebar-user-copy"><strong>{user.fullName}</strong><span>{user.email}</span></div><Settings2 size={16}/></button>
       <button type="button" className="nav-item sidebar-logout" onClick={onLogout}><LogOut size={18}/><span>ออกจากระบบ</span></button>
       {!customer&&<div className="sidebar-help-note"><CircleHelp size={15}/><span>หากต้องการความช่วยเหลือ โปรดติดต่อผู้ดูแลระบบ</span></div>}
     </div>

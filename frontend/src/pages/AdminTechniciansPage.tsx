@@ -4,6 +4,7 @@ import type { TechnicianApplication, TechnicianDetail, VerificationStatus } from
 import { fetchTechnicianApplications, fetchTechnicianDetail, setTechnicianVerification } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import { JobPhotoGallery } from '../components/JobPhotos';
+import Avatar from '../components/Avatar';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
 type Filter = 'all' | VerificationStatus;
@@ -16,7 +17,6 @@ function when(value?: string | null, withTime = false) {
   if (!value || value.startsWith('0001')) return '—';
   return new Date(value).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) });
 }
-const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('') || 'ช';
 const telLink = (phone: string) => 'tel:' + phone.replace(/[^\d+]/g, '');
 
 /** Every technician for admins: search and filter, then everything about one of them. */
@@ -59,7 +59,7 @@ export default function AdminTechniciansPage({ onNotice, onChanged }: Props) {
     {!loading && !error && shown.length === 0 && <section className="panel nearby-empty"><Users size={24}/><strong>{query ? 'ไม่พบช่างที่ค้นหา' : 'ยังไม่มีช่างในกลุ่มนี้'}</strong></section>}
     <ul className="at-list">{shown.map(row => <li key={row.id}>
       <button type="button" className="at-row" onClick={() => setSelected(row.id)}>
-        <span className="at-avatar">{initials(row.name)}</span>
+        <span className="at-avatar"><Avatar name={row.name} photoId={row.photoId}/></span>
         <span className="at-main">
           <strong>{row.name}</strong>
           <span>{row.area || 'ไม่ระบุพื้นที่'} · {row.phone || 'ไม่มีเบอร์'}</span>
@@ -101,7 +101,7 @@ function TechnicianProfileView({ id, onBack, onNotice, onSaved }: { id: number; 
   return <div className="page-stack at-detail">
     <button type="button" className="text-button at-back" onClick={onBack}><ArrowLeft size={16}/> ช่างทั้งหมด</button>
     <section className="panel at-head">
-      <span className="at-avatar large">{initials(profile.name)}</span>
+      <span className="at-avatar large"><Avatar name={profile.name} photoId={profile.photoId}/></span>
       <div className="at-head-main">
         <h1>{profile.name}</h1>
         <p>{profile.title} · ประสบการณ์ {profile.experienceYears} ปี</p>

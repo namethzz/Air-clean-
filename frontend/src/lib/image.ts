@@ -15,7 +15,7 @@ export async function resizeForUpload(file: File, maxSide = 1280, quality = 0.75
   return canvas.toDataURL('image/jpeg', quality);
 }
 
-async function loadImage(file: File): Promise<{ image: ImageBitmap | HTMLImageElement; width: number; height: number }> {
+export async function loadImage(file: File): Promise<{ image: ImageBitmap | HTMLImageElement; width: number; height: number }> {
   // createImageBitmap follows the photo's rotation (EXIF) where supported; fall back to an <img>.
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });

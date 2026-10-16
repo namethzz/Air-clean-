@@ -658,6 +658,30 @@ cert = next(d for d in call('/technicians/me/documents', token=tech) if d['kind'
 call(f"/technicians/me/documents/{cert['id']}", 'DELETE', None, other_tech, 404)
 call(f"/technicians/me/documents/{cert['id']}", 'DELETE', None, tech, 204)
 
+# ── Profile photos: any role can set one; it loads by its random id and is copied onto the technician's offers and jobs. ──
+def public_photo(photo_id, expected=200):
+    try:
+        with urlopen(Request(f"{BASE}/profile-photos/{photo_id}"), timeout=20) as response:
+            assert response.status == expected and 'immutable' in response.headers.get('Cache-Control', '')
+            return response.read()
+    except HTTPError as error:
+        assert error.code == expected, f'GET profile photo: expected {expected}, got {error.code}'
+call('/me/photo', 'PUT', {'data': TINY_JPEG}, None, 401)
+call('/me/photo', 'PUT', {'data': 'data:text/plain;base64,aGVsbG8='}, customer, 400)
+assert call('/me/photo', 'PUT', {'data': TINY_JPEG}, customer)['photoId']
+first = call('/me/photo', 'PUT', {'data': TINY_JPEG}, tech)['photoId']
+assert len(first) == 32 and call('/auth/me', token=tech)['photoId'] == first
+assert public_photo(first)[:3] == b'\xff\xd8\xff'
+assert call('/technicians/me', token=tech)['photoId'] == first
+job = call(f"/bookings/{dropped['id']}", token=customer)
+assert job['technicianPhotoId'] == first and [a['photoId'] for a in job['applicants'] if a['technicianId'] == profile['id']] == [first]
+second = call('/me/photo', 'PUT', {'data': TINY_JPEG}, tech)['photoId']
+assert second != first and call(f"/bookings/{dropped['id']}", token=customer)['technicianPhotoId'] == second
+public_photo(first, 404)
+assert call('/me/photo', 'DELETE', None, tech)['photoId'] is None
+public_photo(second, 404)
+assert call(f"/bookings/{dropped['id']}", token=customer)['technicianPhotoId'] is None
+
 # ── Membership: a free trial on approval, pay by PromptPay slip, the admin approves, and offers stop when it runs out. ──
 mine = call('/technicians/me/membership', token=tech)
 assert mine['state'] == 'Trial' and 25 <= mine['daysLeft'] <= 31 and mine['pending'] is None
@@ -848,4 +872,4 @@ if os.environ.get('MONGODB_URI'):
     db.bookings.update_one({'_id': timed['id']}, {'$set': {'ScheduledAt': datetime.now(timezone.utc) - timedelta(days=2)}})
     assert call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer, 409)['code'] == 'date_passed'
     call(f"/bookings/{timed['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, t_customer, 204)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, membership, automatic slip checks, reminders and the hour to pick a technician.')
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, profile photos, membership, automatic slip checks, reminders and the hour to pick a technician.')

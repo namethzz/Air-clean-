@@ -93,3 +93,35 @@ public class MembershipRulesTests
     [InlineData("08x-234-5678", false)]
     public void Phone_numbers_are_checked(string phone, bool valid) => Assert.Equal(valid, ApiHelpers.IsPhone(phone));
 }
+
+public class UploadedImageTests
+{
+    private static string Encoded(params byte[] bytes) => "data:image/jpeg;base64," + Convert.ToBase64String(bytes);
+
+    [Fact]
+    public void Jpeg_png_and_webp_are_recognised_by_their_first_bytes()
+    {
+        Assert.Null(ApiHelpers.ReadImage(Encoded(0xFF, 0xD8, 0xFF, 0xE0, 0, 0), 1000, out _, out var jpeg));
+        Assert.Equal("image/jpeg", jpeg);
+        Assert.Null(ApiHelpers.ReadImage(Encoded(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0), 1000, out _, out var png));
+        Assert.Equal("image/png", png);
+        Assert.Null(ApiHelpers.ReadImage(Encoded("RIFF\0\0\0\0WEBPVP8 "u8.ToArray()), 1000, out _, out var webp));
+        Assert.Equal("image/webp", webp);
+    }
+
+    [Fact]
+    public void Other_files_and_oversized_images_are_refused()
+    {
+        Assert.NotNull(ApiHelpers.ReadImage(Encoded("<svg onload=x>"u8.ToArray()), 1000, out _, out _));
+        Assert.NotNull(ApiHelpers.ReadImage("not base64!", 1000, out _, out _));
+        Assert.NotNull(ApiHelpers.ReadImage(Encoded([0xFF, 0xD8, 0xFF, .. new byte[2000]]), 1000, out _, out _));
+    }
+
+    [Fact]
+    public void Ids_are_random_and_32_hex_characters()
+    {
+        var a = ApiHelpers.NewId();
+        Assert.Matches("^[0-9a-f]{32}$", a);
+        Assert.NotEqual(a, ApiHelpers.NewId());
+    }
+}

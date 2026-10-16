@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { BadgeCheck, BellRing, CheckCircle2, ChevronRight, Eye, EyeOff, IdCard, KeyRound, Loader2, LogOut, ShieldCheck, XCircle } from 'lucide-react';
+import { BadgeCheck, BellRing, Camera, CheckCircle2, ChevronRight, Eye, EyeOff, IdCard, KeyRound, Loader2, LogOut, ShieldCheck, XCircle } from 'lucide-react';
 import type { Membership, TechnicianApplication, TechnicianDocument, UserProfile, UserRole } from '../types';
 import ServiceProfileForm from '../components/TechnicianProfileSettings';
 import TechnicianDocuments from '../components/TechnicianDocuments';
 import PushSettings, { type PushState } from '../components/PushSettings';
 import { changePassword, fetchMyMembership, fetchMyTechnicianProfile, updateMyProfile } from '../lib/api';
-import { initialsOf } from '../lib/initials';
+import Avatar from '../components/Avatar';
+import PhotoEditor from '../components/PhotoEditor';
 import './Profile.css';
 
 interface Props {
@@ -39,6 +40,7 @@ export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembershi
   const [membership, setMembership] = useState<Membership | null>(null);
   const [push, setPush] = useState<PushState | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const [editingPhoto, setEditingPhoto] = useState(false);
 
   useEffect(() => {
     if (!technician) return;
@@ -61,15 +63,19 @@ export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembershi
     window.requestAnimationFrame(() => (anchor ? document.getElementById(anchor) : tabsRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
-  const account = <AccountSettings user={user} onUpdated={onUpdated} onLogout={onLogout} onPush={setPush}/>;
+  const account = <AccountSettings user={user} onUpdated={onUpdated} onLogout={onLogout} onPush={setPush} onEditPhoto={() => setEditingPhoto(true)}/>;
   return <div className="pf">
     <header className="pf-hero">
-      <span className="pf-avatar" aria-hidden="true">{initialsOf(user.fullName)}</span>
+      <button type="button" className="pf-avatar" onClick={() => setEditingPhoto(true)} aria-label={user.photoId ? 'เปลี่ยนรูปโปรไฟล์' : 'เพิ่มรูปโปรไฟล์'}>
+        <Avatar name={user.fullName} photoId={user.photoId}/>
+        <span className="pf-avatar-badge" aria-hidden="true"><Camera size={15}/></span>
+      </button>
       <div className="pf-hero-text">
         <h1>{user.fullName}</h1>
         <p><span className="pf-role">{roleLabels[user.role]}</span><span className="pf-email">{user.email}</span></p>
       </div>
     </header>
+    {editingPhoto && <PhotoEditor user={user} onClose={() => setEditingPhoto(false)} onSaved={updated => { onUpdated(updated); setEditingPhoto(false); }}/>}
 
     {!technician ? account : <>
       <StatusList profile={profile} documents={documents} membership={membership} push={push}
@@ -135,16 +141,16 @@ function StatusList({ profile, documents, membership, push, onVerification, onDo
   </section>;
 }
 
-function AccountSettings({ user, onUpdated, onLogout, onPush }: { user: UserProfile; onUpdated: (user: UserProfile) => void; onLogout?: () => void; onPush: (state: PushState) => void }) {
+function AccountSettings({ user, onUpdated, onLogout, onPush, onEditPhoto }: { user: UserProfile; onUpdated: (user: UserProfile) => void; onLogout?: () => void; onPush: (state: PushState) => void; onEditPhoto: () => void }) {
   return <div className="pf-stack">
-    <PersonalInfo user={user} onUpdated={onUpdated}/>
+    <PersonalInfo user={user} onUpdated={onUpdated} onEditPhoto={onEditPhoto}/>
     <PushSettings onChange={onPush}/>
     <PasswordSettings user={user} onChanged={onUpdated}/>
     {onLogout && <button type="button" className="pf-logout" onClick={onLogout}><LogOut size={17}/>ออกจากระบบ</button>}
   </div>;
 }
 
-function PersonalInfo({ user, onUpdated }: { user: UserProfile; onUpdated: (user: UserProfile) => void }) {
+function PersonalInfo({ user, onUpdated, onEditPhoto }: { user: UserProfile; onUpdated: (user: UserProfile) => void; onEditPhoto: () => void }) {
   const [fullName, setFullName] = useState(user.fullName);
   const [email, setEmail] = useState(user.email);
   const [saving, setSaving] = useState(false);
@@ -163,6 +169,11 @@ function PersonalInfo({ user, onUpdated }: { user: UserProfile; onUpdated: (user
   const providers = (user.providers ?? []).map(item => item === 'apple' ? 'Apple' : 'Google');
   return <form className="pf-card" onSubmit={submit} aria-labelledby="pf-me-title">
     <header className="pf-card-head"><h2 id="pf-me-title">ข้อมูลส่วนตัว</h2><p>{user.role === 'technician' ? 'ลูกค้าเห็นชื่อนี้ในข้อเสนอและงานของคุณ' : user.role === 'admin' ? 'ชื่อและอีเมลของบัญชีผู้ดูแลระบบ' : 'ช่างเห็นชื่อนี้ในงานที่คุณขอ'}</p></header>
+    <div className="pf-photo-row">
+      <span className="pf-photo-thumb" aria-hidden="true"><Avatar name={user.fullName} photoId={user.photoId}/></span>
+      <div className="pf-row-text"><strong>รูปโปรไฟล์</strong><span>{user.photoId ? 'แตะ “เปลี่ยน” เพื่อเลือกรูปใหม่หรือลบรูป' : 'ยังไม่มีรูป ตอนนี้แสดงเป็นตัวอักษรย่อของชื่อ'}</span></div>
+      <button type="button" className="pf-button ghost" onClick={onEditPhoto}>{user.photoId ? 'เปลี่ยน' : 'เพิ่มรูป'}</button>
+    </div>
     <div className="pf-field"><label htmlFor="pf-name">ชื่อที่ใช้ติดต่อ</label>
       <input id="pf-name" autoComplete="name" value={fullName} onChange={event => { setFullName(event.target.value); setSaved(false); }} minLength={2} maxLength={120} required/></div>
     <div className="pf-field"><label htmlFor="pf-email">อีเมล</label>

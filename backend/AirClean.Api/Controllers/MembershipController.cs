@@ -227,18 +227,7 @@ public class MembershipController(MongoStore store, Notifier notify, ReminderSer
     private int CurrentUserId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private bool IsAdmin => User.IsInRole(AppRoles.Admin);
     private Task<TechnicianProfile?> CurrentTechnicianAsync() => store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync()!;
-    private static string NewId() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+    private static string NewId() => ApiHelpers.NewId();
 
-    /// <summary>A base64 (or data URL) JPEG, PNG or WebP under 2 MB; returns an error message otherwise.</summary>
-    private static string? ReadImage(string encoded, out byte[] data, out string contentType)
-    {
-        data = []; contentType = "";
-        try { data = Convert.FromBase64String(encoded.Contains(',') ? encoded[(encoded.IndexOf(',') + 1)..] : encoded); }
-        catch (FormatException) { return "ไฟล์รูปไม่ถูกต้อง"; }
-        if (data.Length == 0 || data.Length > MaxImageBytes) return "รูปใหญ่เกินไป (สูงสุด 2 MB)";
-        contentType = data.Length > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF ? "image/jpeg"
-            : data.Length > 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 ? "image/png"
-            : data.Length > 12 && Encoding.ASCII.GetString(data, 0, 4) == "RIFF" && Encoding.ASCII.GetString(data, 8, 4) == "WEBP" ? "image/webp" : "";
-        return contentType == "" ? "รองรับเฉพาะรูป JPEG, PNG หรือ WebP" : null;
-    }
+    private static string? ReadImage(string encoded, out byte[] data, out string contentType) => ApiHelpers.ReadImage(encoded, MaxImageBytes, out data, out contentType);
 }
