@@ -12,6 +12,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 
+# A 1x1 PNG, served as the account's Google profile picture.
+PICTURE = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+
+
 def b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
 
@@ -26,6 +30,7 @@ class FakeIdentityProvider:
         self.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         numbers = self.key.public_key().public_numbers()
+        self.picture_requests = 0
         self.jwks = {'keys': [{'kty': 'RSA', 'use': 'sig', 'alg': 'RS256', 'kid': 'test-key',
                                'n': b64url(int_bytes(numbers.n)), 'e': b64url(int_bytes(numbers.e))}]}
         provider = self
@@ -40,6 +45,28 @@ class FakeIdentityProvider:
                             'response_types_supported': ['id_token'], 'subject_types_supported': ['public']}
                 elif self.path.endswith('/jwks'):
                     body = provider.jwks
+                elif self.path.endswith('/picture.png'):
+                    provider.picture_requests += 1
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'image/png')
+                    self.send_header('Content-Length', str(len(PICTURE)))
+                    self.end_headers()
+                    self.wfile.write(PICTURE)
+                    return
+                elif self.path.endswith('/moved'):
+                    # The API must not follow this to the real picture.
+                    self.send_response(302)
+                    self.send_header('Location', provider.issuer(name) + '/picture.png')
+                    self.end_headers()
+                    return
+                elif self.path.endswith('/page.html'):
+                    data = b'<html>not a picture</html>'
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'image/png')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
                 else:
                     self.send_response(404); self.end_headers(); return
                 data = json.dumps(body).encode()
@@ -59,7 +86,7 @@ class FakeIdentityProvider:
         return f'http://localhost:{self.port}/{name}'
 
     def token(self, provider: str, audience: str, subject: str, email=None, email_verified=True, name=None,
-              issuer=None, expires_in=600, wrong_key=False) -> str:
+              issuer=None, expires_in=600, wrong_key=False, picture=None) -> str:
         now = int(time.time())
         claims = {'iss': issuer or self.issuer(provider), 'aud': audience, 'sub': subject, 'iat': now, 'exp': now + expires_in}
         if email is not None:
@@ -68,6 +95,8 @@ class FakeIdentityProvider:
             claims['email_verified'] = ('true' if email_verified else 'false') if provider == 'apple' else email_verified
         if name:
             claims['name'] = name
+        if picture:
+            claims['picture'] = picture
         header = {'alg': 'RS256', 'typ': 'JWT', 'kid': 'test-key'}
         signing_input = b64url(json.dumps(header).encode()) + '.' + b64url(json.dumps(claims).encode())
         key = self.other_key if wrong_key else self.key

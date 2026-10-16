@@ -63,7 +63,7 @@ public abstract class AirCleanControllerBase : ControllerBase
                 .SortByDescending(x => x.Id).FirstOrDefaultAsync();
             var profile = new TechnicianProfile
             {
-                Id = (last?.Id ?? 0) + 1, UserId = user.Id, Name = user.FullName, Title = "ช่างแอร์", BasePrice = 550m,
+                Id = (last?.Id ?? 0) + 1, UserId = user.Id, Name = user.FullName, PhotoId = user.PhotoId, Title = "ช่างแอร์", BasePrice = 550m,
                 Area = area, Phone = phone, ExperienceYears = experienceYears, IsVerified = false,
                 VerificationStatus = VerificationStates.Pending, AppliedAt = DateTime.UtcNow,
                 AvailableText = "รับคำขอผ่าน AirClean", SkillsCsv = "ล้างแอร์มาตรฐาน,ล้างแอร์ผนัง", Accent = "sage"

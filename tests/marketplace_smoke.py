@@ -246,7 +246,8 @@ if idp_port:
     idp = FakeIdentityProvider(int(idp_port))
     google_aud, apple_aud = os.environ['GOOGLE_CLIENT_ID'], os.environ['APPLE_CLIENT_ID']
     social_email = 'social' + suffix + '@example.test'
-    google = lambda **kw: idp.token('google', google_aud, 'g-' + suffix, email=social_email, name='โซเชียล ทดสอบ', **kw)
+    picture = idp.issuer('google') + '/picture.png'
+    google = lambda **kw: idp.token('google', google_aud, 'g-' + suffix, email=social_email, name='โซเชียล ทดสอบ', picture=picture, **kw)
     # Invalid tokens are refused: wrong signature, audience, issuer, expired, or an unknown provider.
     for bad in [google(wrong_key=True), idp.token('google', 'someone-else', 'g-' + suffix, email=social_email),
                 google(issuer='http://evil.example'), google(expires_in=-600)]:
@@ -260,6 +261,15 @@ if idp_port:
     assert created['user']['role'] == 'Customer' and not created['user']['hasPassword'] and created['user']['providers'] == ['google']
     again = call('/auth/external', 'POST', {'provider': 'google', 'idToken': google()})
     assert again['user']['id'] == created['user']['id']
+    # The Google picture became the profile photo, served from our own copy; it is fetched once, not at every sign-in.
+    google_photo = created['user']['photoId']
+    assert google_photo and again['user']['photoId'] == google_photo and idp.picture_requests == 1
+    with urlopen(Request(f"{BASE}/profile-photos/{google_photo}"), timeout=20) as response:
+        assert response.headers['Content-Type'] == 'image/png' and response.read()[:4] == b'\x89PNG'
+    # A photo the person removed does not come back at the next Google sign-in.
+    assert call('/me/photo', 'DELETE', None, again['token'])['photoId'] is None
+    assert call('/auth/external', 'POST', {'provider': 'google', 'idToken': google()})['user']['photoId'] is None
+    assert idp.picture_requests == 1
     # No password yet, so password sign-in fails; the user may set a first password without a current one.
     call('/auth/login', 'POST', {'email': social_email, 'password': 'anything-at-all'}, expected=401)
     with_password = call('/auth/change-password', 'POST', {'currentPassword': '', 'newPassword': 'SocialPass123!'}, again['token'])
@@ -275,7 +285,8 @@ if idp_port:
     # Someone registered an address that is not theirs: when its owner signs in with Google, the account becomes the
     # owner's alone. The squatter's password stops working and their session ends.
     squatter, squatted_email = register('Customer')
-    owner = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-owner-' + suffix, email=squatted_email)})
+    owner = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-owner-' + suffix, email=squatted_email, picture=picture)})
+    assert owner['user']['photoId'] and idp.picture_requests == 2
     assert not owner['user']['hasPassword'] and owner['user']['providers'] == ['google']
     call('/auth/login', 'POST', {'email': squatted_email, 'password': 'CiTestPass123!'}, expected=401)
     call('/auth/me', token=squatter, expected=401)
@@ -285,6 +296,12 @@ if idp_port:
     sneaky = idp.token('apple', apple_aud, 'a-sneaky-' + suffix, email=victim_email, email_verified=False)
     assert call('/auth/external', 'POST', {'provider': 'apple', 'idToken': sneaky}, expected=404)['code'] == 'signup_required'
     call('/auth/external', 'POST', {'provider': 'apple', 'idToken': sneaky, 'createAccount': True}, expected=400)
+    # Redirects are not followed, a page that is not an image is not kept, and other hosts are never fetched; the
+    # sign-in itself still works. A redirect or bad file is tried again at the next sign-in.
+    for n, bad_picture in enumerate([idp.issuer('google') + '/moved', idp.issuer('google') + '/page.html', 'http://127.0.0.1:' + os.environ.get('PORT', '5080') + '/api/health']):
+        signed = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, f'g-pic{n}-' + suffix, email=f'pic{n}{suffix}@example.test', picture=bad_picture), 'createAccount': True}, expected=201)
+        assert signed['user']['photoId'] is None
+    assert idp.picture_requests == 2
     # Admin accounts stay password-only.
     admin_token = idp.token('google', google_aud, 'g-admin-' + suffix, email=admin_email)
     call('/auth/external', 'POST', {'provider': 'google', 'idToken': admin_token}, expected=409)

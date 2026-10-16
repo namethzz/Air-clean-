@@ -19,7 +19,7 @@ namespace AirClean.Api.Controllers;
 /// <summary>Sign-in, sign-up (password, Google and Apple), profile, password reset, and the admin helpers for test e-mail and reset links.</summary>
 [ApiController]
 [Route("api")]
-public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<AuthController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity) : AirCleanControllerBase(db, notifier)
+public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<AuthController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity, ProfilePhotoService photos) : AirCleanControllerBase(db, notifier)
 {
     [AllowAnonymous, HttpPost("auth/login"), EnableRateLimiting("sign-in")]
     public async Task<IActionResult> Login(LoginRequest request)
@@ -62,7 +62,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
 
         // 1. This Google/Apple account is already linked.
         var user = await store.Users.Find(x => x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
-        if (user is not null) return Ok(CreateLoginResponse(user));
+        if (user is not null) return Ok(CreateLoginResponse(await photos.ImportFromProviderAsync(user, identity)));
 
         // 2. Same verified email as an existing account: link it. Admin accounts keep password-only sign-in.
         if (identity.Email is not null && identity.EmailVerified) {
@@ -83,7 +83,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
                     notify.ToUser(existing.Id, "บัญชีของคุณเชื่อมกับ " + label + " แล้ว",
                         $"ตั้งแต่นี้เข้าสู่ระบบด้วย {label} ได้เลย เพื่อความปลอดภัย รหัสผ่านเดิมของบัญชีนี้ถูกยกเลิกและทุกเครื่องถูกออกจากระบบ\nถ้าต้องการใช้รหัสผ่าน ตั้งใหม่ได้จาก “ลืมรหัสผ่าน” ที่หน้าเข้าสู่ระบบ", NotificationLink.Profile);
                 }
-                return Ok(CreateLoginResponse(existing));
+                return Ok(CreateLoginResponse(await photos.ImportFromProviderAsync(existing, identity)));
             }
         }
 
@@ -107,7 +107,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         try { await store.Users.InsertOneAsync(user); }
         catch (MongoWriteException) { return Conflict(new { message = "บัญชีนี้ถูกสร้างไปแล้ว กรุณาเข้าสู่ระบบอีกครั้ง" }); }
         if (role == AppRoles.Technician) await CreateTechnicianProfileAsync(user, phone, serviceArea, request.ExperienceYears ?? 0);
-        return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(user));
+        return StatusCode(StatusCodes.Status201Created, CreateLoginResponse(await photos.ImportFromProviderAsync(user, identity)));
     }
 
     [Authorize, HttpGet("auth/me")]
