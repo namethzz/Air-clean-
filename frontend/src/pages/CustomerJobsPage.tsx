@@ -5,7 +5,6 @@ import {
   MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wind, Wrench,
 } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
-import { initialsOf } from '../lib/initials';
 import ReceiptSheet from '../components/ReceiptSheet';
 import { RoomBoard } from '../components/Rooms';
 import { JobPhotoGallery } from '../components/JobPhotos';
@@ -14,6 +13,7 @@ import LocationMap from '../components/LocationMap';
 import { currentStep, guideFor, isClosedForCustomer, journeySteps, minutesToPick, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
 import Stepper, { useIsWide } from '../components/JobStepper';
+import Avatar from '../components/Avatar';
 import './CustomerJobs.css';
 
 export interface JobFocus { id: number; token: number; }
@@ -187,7 +187,7 @@ function TechnicianCard({ booking }: { booking: Booking }) {
   return <section className="cj-block cj-tech">
     <h3>ช่างของคุณ</h3>
     <div className="cj-person">
-      <span className="cj-avatar" aria-hidden="true">{initialsOf(booking.technician)}</span>
+      <span className="cj-avatar" aria-hidden="true"><Avatar name={booking.technician} photoId={booking.technicianPhotoId}/></span>
       <div>
         <strong>{booking.technician}{chosen?.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong>
         {chosen && <small>{chosen.title}{chosen.rating ? <> · <Star size={13} fill="currentColor" aria-hidden="true"/> {chosen.rating.toFixed(1)}</> : null}</small>}
@@ -272,7 +272,7 @@ function Offers({ booking, onSelect, onRefresh }: { booking: Booking; onSelect: 
     </div>}
     <ul>{offers.map(offer => <li key={offer.technicianId} className="cj-offer">
       <div className="cj-offer-top">
-        <span className="cj-avatar">{initialsOf(offer.name)}</span>
+        <span className="cj-avatar"><Avatar name={offer.name} photoId={offer.photoId}/></span>
         <div className="cj-offer-who"><strong>{offer.name}{offer.verified && <ShieldCheck size={15} aria-label="ผ่านการยืนยันตัวตน"/>}</strong><small>{offer.title}</small></div>
         <div className="cj-offer-price"><strong>฿{offer.quote.toLocaleString()}</strong>{cheapest === offer.quote && <span>ต่ำสุด</span>}</div>
       </div>

@@ -17,6 +17,7 @@ public class MongoStore {
  public IMongoCollection<VapidKeyRecord> VapidKeys {get;}
  public IMongoCollection<JobPhoto> JobPhotos {get;}
  public IMongoCollection<TechnicianDocument> TechnicianDocuments {get;}
+ public IMongoCollection<ProfilePhoto> ProfilePhotos {get;}
  public IMongoCollection<MembershipPayment> MembershipPayments {get;}
  public IMongoCollection<MembershipSettings> MembershipSettings {get;}
  private readonly IMongoCollection<SequenceCounter> _counters;
@@ -38,6 +39,7 @@ public class MongoStore {
   VapidKeys=_database.GetCollection<VapidKeyRecord>("vapidKeys");
   JobPhotos=_database.GetCollection<JobPhoto>("jobPhotos");
   TechnicianDocuments=_database.GetCollection<TechnicianDocument>("technicianDocuments");
+  ProfilePhotos=_database.GetCollection<ProfilePhoto>("profilePhotos");
   MembershipPayments=_database.GetCollection<MembershipPayment>("membershipPayments");
   MembershipSettings=_database.GetCollection<MembershipSettings>("settings");
   _counters=_database.GetCollection<SequenceCounter>("counters");
@@ -57,6 +59,7 @@ public class MongoStore {
   try { await SavedAddresses.Indexes.CreateOneAsync(new CreateIndexModel<SavedAddressRecord>(Builders<SavedAddressRecord>.IndexKeys.Ascending(x=>x.UserId).Ascending(x=>x.Label),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }
   await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(Builders<AppUser>.IndexKeys.Ascending(x=>x.PasswordResetTokenHash),new CreateIndexOptions{Sparse=true}));
+  await ProfilePhotos.Indexes.CreateOneAsync(new CreateIndexModel<ProfilePhoto>(Builders<ProfilePhoto>.IndexKeys.Ascending(x=>x.UserId)));
   await JobPhotos.Indexes.CreateOneAsync(new CreateIndexModel<JobPhoto>(Builders<JobPhoto>.IndexKeys.Ascending(x=>x.BookingId).Ascending(x=>x.CreatedAt)));
   await TechnicianDocuments.Indexes.CreateOneAsync(new CreateIndexModel<TechnicianDocument>(Builders<TechnicianDocument>.IndexKeys.Ascending(x=>x.TechnicianId)));
   await MembershipPayments.Indexes.CreateOneAsync(new CreateIndexModel<MembershipPayment>(Builders<MembershipPayment>.IndexKeys.Ascending(x=>x.Status).Descending(x=>x.CreatedAt)));

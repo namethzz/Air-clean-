@@ -30,6 +30,8 @@ public class AppUser {
  public string? Phone {get;set;}
  /// <summary>Completed bookings this customer was already reminded about ("6 months since the last cleaning").</summary>
  public List<int> DueRemindedFor {get;set;}=[];
+ /// <summary>The current profile photo (a <see cref="ProfilePhoto"/> id), or null for initials.</summary>
+ public string? PhotoId {get;set;}
 }
 public class BillingInfo { public string Name {get;set;}=""; public string? TaxId {get;set;} public string? Branch {get;set;} public string? Address {get;set;} }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }
@@ -37,6 +39,8 @@ public class ExternalLogin { public string Provider {get;set;}=""; public string
 public class TechnicianProfile {
  [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Name {get;set;}=""; public string Title {get;set;}="ช่างแอร์"; public decimal Rating {get;set;} public int ReviewCount {get;set;} public int JobsCompleted {get;set;} public decimal BasePrice {get;set;} public string Area {get;set;}=""; public bool IsVerified {get;set;} public string AvailableText {get;set;}=""; public string SkillsCsv {get;set;}=""; public string Accent {get;set;}="sage";
  public string Phone {get;set;}=""; public int ExperienceYears {get;set;}
+ /// <summary>Copy of the account's photo id, so offers and jobs can show it without looking up the user.</summary>
+ public string? PhotoId {get;set;}
  /// <summary>Admin review of the technician application. Older records without it fall back to <see cref="IsVerified"/>.</summary>
  public string? VerificationStatus {get;set;} public string? VerificationNote {get;set;} public DateTime? AppliedAt {get;set;} public DateTime? ReviewedAt {get;set;}
  public string Status => VerificationStatus ?? (IsVerified ? VerificationStates.Approved : VerificationStates.Pending);
@@ -88,6 +92,7 @@ public class BookingApplicant {
  public int JobsCompleted {get;set;} public decimal Quote {get;set;} public string Area {get;set;}="";
  public bool Verified {get;set;} public bool Selected {get;set;} public DateTime AppliedAt {get;set;}=DateTime.UtcNow;
  public string? Note {get;set;}
+ public string? PhotoId {get;set;}
 }
 [BsonIgnoreExtraElements]
 public class Booking {
@@ -111,7 +116,7 @@ public class Booking {
  public List<BookingRoom> Rooms {get;set;}=[];
  /// <summary>Set once, the first time the customer issues the receipt for this paid job.</summary>
  /// <summary>Phones the two sides use to call each other once a technician is chosen.</summary>
- public string? CustomerPhone {get;set;} public string? TechnicianPhone {get;set;}
+ public string? CustomerPhone {get;set;} public string? TechnicianPhone {get;set;} public string? TechnicianPhotoId {get;set;}
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
  /// <summary>Set once the "your visit is tomorrow / today" reminder went out.</summary>
  public bool VisitReminded {get;set;}
@@ -133,6 +138,10 @@ public class BookingIssue {
 }
 [BsonIgnoreExtraElements]
 /// <summary>A photo the technician took on the job, stored in the database (resized on the phone first).</summary>
+/// <summary>A profile photo, cropped square and shrunk by the browser. Served publicly under its random id.</summary>
+public class ProfilePhoto {
+ [BsonId] public string Id {get;set;}=""; public int UserId {get;set;} public string ContentType {get;set;}="image/jpeg"; public byte[] Data {get;set;}=[]; public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
+}
 public class JobPhoto {
  [BsonId] public string Id {get;set;}="" ; public int BookingId {get;set;} public int TechnicianId {get;set;} public int UploadedByUserId {get;set;}
  /// <summary>before or after.</summary>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownUp, CalendarDays, CheckCircle2, ChevronRight, Clock3, MapPin, Navigation, Plus, ShieldCheck, SlidersHorizontal, Star, Wallet, Wrench } from 'lucide-react';
 import type { Booking, BookingStatus, PageKey, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
+import Avatar from '../components/Avatar';
 interface Props { bookings: Booking[]; role: UserRole; searchQuery: string; onNewBooking: () => void; onNavigate: (page: PageKey) => void; onStatusChange: (id: number, status: BookingStatus) => void; onSelectTechnician:(bookingId:number,technicianId:number)=>Promise<boolean>; onRefresh:()=>void; }
 const tabs = ['ทั้งหมด', 'เปิดรับช่าง', 'รอเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน', 'มีปัญหาการชำระเงิน', 'เสร็จสิ้น', 'ยกเลิก'] as const;
 function thaiDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }); }
@@ -48,7 +49,7 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
           <div className="candidate-request-heading"><div><span className="booking-code">{booking.code}</span><h3>{booking.service}</h3><p>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง · {thaiDate(booking.date)} เวลา {timeLabel(booking)}</p><p className="candidate-request-address"><MapPin size={13}/>{booking.address}</p></div><StatusBadge status={booking.status}/></div>
           {(!booking.applicants || booking.applicants.length===0) ? <div className="candidate-waiting"><Clock3 size={17}/><div><strong>เปิดรับช่างใกล้เคียงแล้ว</strong><span>ระบบจะตรวจสอบรายชื่อช่างที่สนใจเป็นระยะ คุณไม่จำเป็นต้องเลือกช่างตอนสร้างคำขอ</span></div></div> :
           <div className="candidate-technician-grid">{booking.applicants.map(applicant => <div className="candidate-technician-card" key={applicant.technicianId}>
-            <div className="candidate-tech-head"><span className="avatar avatar-small">{applicant.initials}</span><div><strong>{applicant.name}</strong><small>{applicant.title}</small></div>{applicant.verified && <ShieldCheck size={16} className="candidate-verified"/>}</div>
+            <div className="candidate-tech-head"><span className="avatar avatar-small"><Avatar name={applicant.name} photoId={applicant.photoId}/></span><div><strong>{applicant.name}</strong><small>{applicant.title}</small></div>{applicant.verified && <ShieldCheck size={16} className="candidate-verified"/>}</div>
             <div className="candidate-tech-stats"><span><Star size={14} fill="currentColor"/>{applicant.rating.toFixed(1)} ({applicant.reviewCount})</span><span><Wrench size={14}/>{applicant.jobsCompleted} งาน</span></div>
             <div className="candidate-tech-area"><MapPin size={13}/>{applicant.area}</div>
             {applicant.note && <p className="candidate-tech-note">“{applicant.note}”</p>}

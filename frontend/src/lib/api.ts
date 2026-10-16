@@ -7,7 +7,7 @@ export interface CreateServiceReportPayload {
   bookingId: number; summary: string; cleanedFilter: boolean; cleanedCoil: boolean;
   checkedDrain: boolean; checkedCooling: boolean; beforePhotoUrl?: string; afterPhotoUrl?: string;
 }
-interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean; phone?: string | null }
+interface ApiUser { id: number; fullName: string; email: string; role: string; hasPassword?: boolean; providers?: string[] | null; emailNotifications?: boolean; phone?: string | null; photoId?: string | null }
 interface AuthResponse { token: string; expiresAt: string; user: ApiUser }
 export class ApiError extends Error {
   constructor(message: string, public status?: number, public data?: Record<string, unknown>) { super(message); this.name = 'ApiError'; }
@@ -27,7 +27,7 @@ function roleFromApi(role: string): UserRole {
   }
 }
 function fromApiUser(user: ApiUser): UserProfile {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true, phone: user.phone ?? null };
+  return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true, phone: user.phone ?? null, photoId: user.photoId ?? null };
 }
 /**
  * "Keep me signed in": when it is off, the next sign-in token goes to sessionStorage, so it is gone once the
@@ -93,6 +93,15 @@ export async function updateMyProfile(payload: { fullName: string; email: string
     method:'PATCH', body:JSON.stringify({ fullName:payload.fullName.trim(), email:payload.email.trim(), emailNotifications:payload.emailNotifications })
   });
   return fromApiUser(result);
+}
+/** Where a profile photo loads from. The id changes with every upload, so the browser can keep the image cached. */
+export function profilePhotoUrl(photoId: string): string { return requireApiBase() + '/profile-photos/' + encodeURIComponent(photoId); }
+/** Sends a cropped photo (a JPEG data URL) and returns the account with its new photo id. */
+export async function uploadProfilePhoto(data: string): Promise<UserProfile> {
+  return fromApiUser(await request<ApiUser>('/me/photo', { method: 'PUT', body: JSON.stringify({ data }) }));
+}
+export async function deleteProfilePhoto(): Promise<UserProfile> {
+  return fromApiUser(await request<ApiUser>('/me/photo', { method: 'DELETE' }));
 }
 export async function forgotPassword(email: string): Promise<string> {
   const result = await request<{ message: string }>('/auth/forgot-password', { method:'POST', body:JSON.stringify({ email:email.trim() }) });

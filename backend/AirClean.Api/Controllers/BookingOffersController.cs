@@ -63,7 +63,7 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
             TechnicianId = technician.Id, Name = technician.Name, Initials = DtoMapper.Initials(technician.Name),
             Title = technician.Title, Rating = technician.Rating, ReviewCount = technician.ReviewCount,
             JobsCompleted = technician.JobsCompleted, Quote = CalculateQuote(technician, booking.Service, Math.Max(1, booking.UnitCount)),
-            Area = technician.Area, Verified = technician.IsVerified, AppliedAt = DateTime.UtcNow, Note = request.Note?.Trim()
+            Area = technician.Area, Verified = technician.IsVerified, AppliedAt = DateTime.UtcNow, Note = request.Note?.Trim(), PhotoId = technician.PhotoId
         };
         var previous = booking.Status;
         booking.Applicants.Add(applicant);
@@ -100,7 +100,9 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         booking.TechnicianId = chosen.TechnicianId;
         booking.TechnicianName = chosen.Name;
         booking.TechnicianInitials = chosen.Initials;
-        booking.TechnicianPhone = (await store.Technicians.Find(x => x.Id == chosen.TechnicianId).FirstOrDefaultAsync())?.Phone;
+        var chosenProfile = await store.Technicians.Find(x => x.Id == chosen.TechnicianId).FirstOrDefaultAsync();
+        booking.TechnicianPhone = chosenProfile?.Phone;
+        booking.TechnicianPhotoId = chosenProfile?.PhotoId;
         booking.Price = chosen.Quote;
         foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
         booking.Status = BookingStates.Confirmed;

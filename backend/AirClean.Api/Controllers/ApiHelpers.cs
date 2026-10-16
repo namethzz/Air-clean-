@@ -18,6 +18,22 @@ namespace AirClean.Api.Controllers;
 /// <summary>Rules and formulas shared by several controllers: visit windows, quotes, distance, issue lookup.</summary>
 internal static class ApiHelpers
 {
+    /// <summary>A random id that cannot be guessed (photos and documents are looked up by it).</summary>
+    internal static string NewId() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+
+    /// <summary>A base64 (or data URL) JPEG, PNG or WebP up to <paramref name="maxBytes"/>; returns an error message otherwise.</summary>
+    internal static string? ReadImage(string encoded, int maxBytes, out byte[] data, out string contentType)
+    {
+        data = []; contentType = "";
+        try { data = Convert.FromBase64String(encoded.Contains(',') ? encoded[(encoded.IndexOf(',') + 1)..] : encoded); }
+        catch (FormatException) { return "ไฟล์รูปไม่ถูกต้อง"; }
+        if (data.Length == 0 || data.Length > maxBytes) return $"รูปใหญ่เกินไป (สูงสุด {maxBytes / 1_000_000.0:0.#} MB)";
+        contentType = data.Length > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF ? "image/jpeg"
+            : data.Length > 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 ? "image/png"
+            : data.Length > 12 && Encoding.ASCII.GetString(data, 0, 4) == "RIFF" && Encoding.ASCII.GetString(data, 8, 4) == "WEBP" ? "image/webp" : "";
+        return contentType == "" ? "รองรับเฉพาะรูป JPEG, PNG หรือ WebP" : null;
+    }
+
     /// <summary>"HH:mm-HH:mm" starting at the scheduled time and ending later the same day; empty means one exact time.</summary>
     internal static bool ValidWindow(string? value, DateTime scheduledAt, out string? window)
     {

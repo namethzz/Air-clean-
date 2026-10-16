@@ -197,8 +197,8 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         return Ok(new { link, expiresAt = DateTime.UtcNow.Add(expires), fullName = user.FullName });
     }
 
-    private static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
-        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray(), user.EmailNotifications, user.Phone);
+    internal static AuthUserDto ToAuthUser(AppUser user) => new(user.Id, user.FullName, user.Email, user.Role,
+        !string.IsNullOrEmpty(user.PasswordHash), (user.ExternalLogins ?? []).Select(x => x.Provider).Distinct().ToArray(), user.EmailNotifications, user.Phone, user.PhotoId);
 
     /// <summary>Public sign-up can choose customer, technician or manager. It never grants Admin.</summary>
     private static string PublicRole(string? role) => (role ?? "").Trim().ToLowerInvariant() switch {
