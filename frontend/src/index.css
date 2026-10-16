@@ -1968,54 +1968,10 @@ button:disabled {
 }
 
 /* Profile and registration role selector */
-.profile-layout {
-  display: grid;
-  grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.3fr);
-  gap: 16px;
-  align-items: start;
-}
-.profile-summary-panel,
+
 .profile-form-panel {
   padding: 24px;
   min-width: 0;
-}
-.profile-summary-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.profile-avatar-large {
-  display: grid;
-  place-items: center;
-  width: 70px;
-  height: 70px;
-  border-radius: 22px;
-  background: #e1f1e8;
-  color: #236e5b;
-  margin-bottom: 14px;
-}
-.profile-summary-panel h2 {
-  margin: 0;
-  color: #183e38;
-  font-size: 21px;
-  overflow-wrap: anywhere;
-}
-.profile-summary-panel > p {
-  margin: 6px 0 14px;
-  color: #7e9287;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.profile-role-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #eaf5ed;
-  color: #32765c;
-  font-size: 11px;
-  font-weight: 700;
 }
 .profile-summary-note {
   margin-top: 20px;
@@ -2093,10 +2049,6 @@ button:disabled {
   flex-shrink: 0;
 }
 @media (max-width: 850px) {
-  .profile-layout {
-    grid-template-columns: 1fr;
-  }
-  .profile-summary-panel,
   .profile-form-panel {
     padding: 18px;
   }

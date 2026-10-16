@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, IdCard, Loader2, ScrollText, ShieldCheck, UserRoundCheck, X } from 'lucide-react';
+import { Camera, CheckCircle2, IdCard, Loader2, ScrollText, ShieldCheck, UserRoundCheck, X, XCircle } from 'lucide-react';
 import type { DocumentKind, TechnicianDocument } from '../types';
 import { deleteMyDocument, fetchMyDocuments, uploadMyDocument } from '../lib/api';
 import { resizeForUpload } from '../lib/image';
 import PrivateImage, { ImageViewer } from './PrivateImage';
 import '../pages/Membership.css';
+import '../pages/Profile.css';
 
 const slots: { kind: DocumentKind; title: string; hint: string; need: string; icon: typeof IdCard; max: number }[] = [
   { kind: 'idcard', title: 'บัตรประชาชน', hint: 'ถ่ายด้านหน้า ให้เห็นชื่อและรูปชัด', need: 'จำเป็น', icon: IdCard, max: 1 },
@@ -42,31 +43,35 @@ export default function TechnicianDocuments({ onChange }: { onChange?: (document
     catch (reason) { setError(reason instanceof Error ? reason.message : 'ลบรูปไม่สำเร็จ'); }
   }
 
-  return <section className="panel td-panel" aria-labelledby="td-title">
-    <div className="td-head">
+  const missingId = documents !== null && !documents.some(item => item.kind === 'idcard');
+  return <section className="pf-card td-panel" aria-labelledby="td-title">
+    <header className="pf-card-head">
       <h2 id="td-title">เอกสารยืนยันตัวตน</h2>
-      <p><ShieldCheck size={15}/> ผู้ดูแลระบบเท่านั้นที่เห็นรูปเหล่านี้ ลูกค้าไม่เห็น</p>
-    </div>
-    {error && <div className="auth-error" role="alert">{error}</div>}
+      <p className="td-private"><ShieldCheck size={15}/> ผู้ดูแลระบบเท่านั้นที่เห็นรูปเหล่านี้ ลูกค้าไม่เห็น</p>
+    </header>
+    {missingId && <div className="pf-alert warn" role="status"><IdCard size={17}/><span>ส่งรูปบัตรประชาชนก่อน ผู้ดูแลจึงอนุมัติบัญชีได้</span></div>}
+    {error && <div className="pf-alert bad" role="alert"><XCircle size={17}/><span>{error}</span></div>}
     {!documents ? !error && <p className="td-loading"><Loader2 size={18} className="lp-spin"/> กำลังโหลด…</p> :
     <ul className="td-slots">{slots.map(slot => {
       const have = documents.filter(item => item.kind === slot.kind);
       const Icon = slot.icon;
       const full = have.length >= slot.max;
-      return <li key={slot.kind} className={'td-slot' + (have.length ? ' done' : '') + (slot.kind === 'idcard' && !have.length ? ' needed' : '')}>
+      const needed = slot.kind === 'idcard' && !have.length;
+      return <li key={slot.kind} className={'td-slot' + (have.length ? ' done' : '') + (needed ? ' needed' : '')}>
+        <span className="td-icon" aria-hidden="true">{have.length ? <CheckCircle2 size={20}/> : <Icon size={20}/>}</span>
         <div className="td-slot-text">
-          <strong><Icon size={18}/> {slot.title} <em>{have.length ? <><CheckCircle2 size={13}/> ส่งแล้ว</> : slot.need}</em></strong>
-          <span>{slot.hint}</span>
+          <strong>{slot.title}</strong>
+          <span>{have.length ? (slot.max > 1 ? `ส่งแล้ว ${have.length} รูป` : 'ส่งแล้ว') : slot.need} · {slot.hint}</span>
         </div>
         <div className="td-slot-files">
           {have.map(item => <figure key={item.id} className="td-file">
             <PrivateImage path={'/technician-documents/' + item.id} alt={slot.title} onOpen={setViewing}/>
             {slot.kind === 'certificate' && <button type="button" className="td-remove" onClick={() => void remove(item.id)} aria-label={`ลบ${slot.title}`}><X size={13}/></button>}
           </figure>)}
-          {(!full || slot.max === 1) && <label className={'td-add' + (busy === slot.kind ? ' busy' : '')}>
+          {(!full || slot.max === 1) && <label className={'td-add' + (busy === slot.kind ? ' busy' : '') + (have.length ? '' : ' first')}>
             <input ref={node => { inputs.current[slot.kind] = node; }} type="file" accept="image/*" disabled={busy !== null} onChange={event => void add(slot.kind, event.target.files?.[0])}/>
             {busy === slot.kind ? <Loader2 size={18} className="lp-spin"/> : <Camera size={18}/>}
-            <span>{busy === slot.kind ? 'กำลังส่ง…' : have.length && slot.max === 1 ? 'ถ่ายใหม่' : 'ถ่าย / เลือกรูป'}</span>
+            <span>{busy === slot.kind ? 'กำลังส่ง…' : have.length && slot.max === 1 ? 'ถ่ายใหม่' : have.length ? 'เพิ่มรูป' : 'ถ่าย / เลือกรูป'}</span>
           </label>}
         </div>
       </li>;

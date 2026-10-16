@@ -37,6 +37,8 @@ Technicians see **งานใกล้ฉัน**, **งานของฉั�
 - GPS sharing while a job is "กำลังเดินทาง" moved here unchanged from the old tracking page. The service-report form appears while the job is being cleaned or waiting for payment.
 - `lib/jobFlow.ts` has the technician stage mapping and wording (`techStep`, `techGuide`, `techNeedsAction`).
 - The old overview, booking table, tracking and report pages are no longer reachable for technicians. Manager and admin keep them.
+- `pages/ProfilePage.tsx` (+ `Profile.css`) is "โปรไฟล์และราคา". At the top is a status list: verification, documents, membership and notifications on this device. Each row opens the place to fix it. Below it are three tabs. "บริการและราคา" has service chips, price and experience boxes, and a save bar that appears once something changes. "เอกสาร" has the identity documents. "บัญชี" has the name and email, the notification switch, the password and sign-out. Other roles see only the account part.
+- Number boxes keep what is typed as text (`lib/numberText.ts`), so a box can be emptied and retyped without a 0 left in front.
 
 ## Behaviour
 

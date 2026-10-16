@@ -1193,18 +1193,6 @@
 }
 
 /* Profile, passport, reports and batch pages inherit the same tone */
-.ac-shell .profile-avatar-large {
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-}
-.ac-shell .profile-summary-panel h2 {
-  color: var(--ac-ink);
-}
-.ac-shell .profile-role-pill {
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-  font-size: 13px;
-}
 .ac-shell .profile-input-wrap {
   border-color: #cfd9e5;
   border-radius: 10px;
@@ -1554,9 +1542,6 @@
   line-height: 1.65;
   color: var(--ac-ink-2);
 }
-.ac-shell .profile-logout-mobile {
-  display: none;
-}
 
 .bottom-nav {
   display: none;
@@ -1595,11 +1580,6 @@
   }
   .ac-shell:is([data-role="customer"], [data-role="technician"], [data-role="manager"]) .toast-notice {
     bottom: calc(92px + env(safe-area-inset-bottom));
-  }
-  .ac-shell .profile-logout-mobile {
-    display: inline-flex;
-    width: 100%;
-    margin-top: 4px;
   }
   .ac-shell .bottom-nav {
     position: fixed;

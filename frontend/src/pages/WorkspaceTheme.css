@@ -131,9 +131,6 @@
 .ac-shell .report-form-note {
   color: #798696;
 }
-.ac-shell .profile-summary-panel > p {
-  color: #7a8696;
-}
 .ac-shell .profile-summary-note {
   border-top: 1px solid #e7eaee;
 }
@@ -457,12 +454,6 @@
   border-color: #2468d8;
   box-shadow: 0 0 0 3px #2468d826;
 }
-.profile-linked {
-  margin: 10px 0 0;
-  font-size: 13.5px;
-  color: #445870;
-  text-align: center;
-}
 
 /* Notification bell */
 .nb {
@@ -686,41 +677,6 @@
     left: 16px;
     width: auto;
   }
-}
-.push-note,
-.push-state {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.65;
-}
-.push-note {
-  border: 1px solid #f0d9a4;
-  background: #fff9ed;
-  color: #7a5410;
-}
-.push-state {
-  border: 1px solid #dce4ed;
-  background: #f3f6f9;
-  color: #445870;
-}
-.push-state.on {
-  border-color: #b9ded9;
-  background: #effaf8;
-  color: #0f6f69;
-}
-.push-note svg,
-.push-state svg {
-  flex: none;
-  margin-top: 2px;
-}
-.push-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 /* Reported issues (admin) */
 .issue-card .approval-state {
