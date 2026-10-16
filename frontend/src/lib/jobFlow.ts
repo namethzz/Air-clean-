@@ -141,6 +141,8 @@ function when(booking: Booking): string {
 }
 
 export function techGuide(booking: Booking): JobGuide {
+  if (awaitingPriceAnswer(booking))
+    return { short: 'รอลูกค้าตอบคำขอปรับราคา', title: 'รอลูกค้าตอบคำขอปรับราคา', hint: 'ลูกค้าได้รับแจ้งแล้ว ให้ลูกค้ากดอนุมัติในแอป ระหว่างนี้ทำงานตามรายการเดิมได้ แต่ยังปิดงานไม่ได้' };
   switch (booking.status) {
     case 'เปิดรับช่าง':
     case 'รอเลือกช่าง':
@@ -171,6 +173,23 @@ export function techNeedsAction(booking: Booking): boolean {
   // Once the technician has closed the job, it waits on the customer.
   if (techClosed(booking)) return false;
   return ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'].includes(booking.status);
+}
+
+/**
+ * What the technician has to do now, said on the orange strip, or null when nothing is theirs right now: a visit
+ * days away, travelling (GPS marks the arrival), or a price change the customer has not answered.
+ */
+export function techTurn(booking: Booking, today = new Date()): string | null {
+  if (awaitingPriceAnswer(booking) || techClosed(booking)) return null;
+  const local = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  switch (booking.status) {
+    case 'รอยืนยัน': return 'ลูกค้าเลือกคุณแล้ว กดรับงานด้านล่าง';
+    case 'ยืนยันแล้ว': return booking.date <= local ? 'ถึงวันนัดแล้ว กดออกเดินทางเมื่อพร้อม' : null;
+    case 'ถึงหน้างาน':
+    case 'กำลังดำเนินการ':
+    case 'รอชำระเงิน': return 'ล้างเสร็จและรับเงินแล้ว กดปิดงานด้านล่าง';
+    default: return null;
+  }
 }
 
 /** The technician pressed "done and paid"; the job waits for the customer to confirm (or closes by itself after 3 days). */

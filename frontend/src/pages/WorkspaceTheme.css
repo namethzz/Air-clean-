@@ -124,68 +124,8 @@
 .ac-shell .profile-saved {
   color: #264a7a;
 }
-.ac-shell .nearby-job-toolbar {
-  border: 1px solid var(--line, #e6e7e9);
-}
-.ac-shell .nearby-location-status {
-  color: #254d81;
-}
-.ac-shell .nearby-location-status strong {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .nearby-results-line strong {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .nearby-job-card {
-  border: 1px solid var(--line, #e6e7e9);
-}
-.ac-shell .nearby-job-card h2 {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .nearby-job-distance {
-  color: #274c7d;
-}
-.ac-shell .nearby-job-facts div {
-  background: #f7f8f9;
-}
-.ac-shell .nearby-job-facts strong {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .nearby-job-description {
-  color: #535b65;
-}
-.ac-shell .nearby-job-description svg {
-  color: #274c7d;
-}
-.ac-shell .nearby-job-privacy {
-  background: #f0f3f7;
-  color: #274c7d;
-}
-.ac-shell .nearby-job-price {
-  border-top: 1px solid var(--line, #e6e7e9);
-}
-.ac-shell .nearby-job-price strong {
-  color: #274c7d;
-}
-.ac-shell .nearby-applied-state {
-  background: #eef2f7;
-  color: #274c7d;
-}
-.ac-shell .nearby-applied-state span {
-  color: #505e70;
-}
 .ac-shell .nearby-empty strong {
   color: var(--ink, #1e242b);
-}
-.ac-shell .nearby-market-note {
-  background: #f2f4f7;
-  color: #274c7d;
-}
-.ac-shell .nearby-market-note strong {
-  color: #27384e;
-}
-.ac-shell .nearby-market-note span {
-  color: #5d6978;
 }
 .ac-shell .candidate-request-heading h3 {
   color: var(--ink, #1e242b);
@@ -1264,21 +1204,4 @@
   font-size: 14px;
   font-weight: 600;
   color: #9a5b00;
-}
-.nearby-day-count {
-  margin: 0;
-  font-size: 13px;
-  color: #5d7089;
-}
-.nearby-confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.nearby-confirm span {
-  flex: 1 1 100%;
-  font-size: 14px;
-  font-weight: 600;
-  color: #b3392f;
 }

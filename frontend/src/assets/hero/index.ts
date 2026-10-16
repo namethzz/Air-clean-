@@ -23,6 +23,6 @@ export const heroShots = {
   landing: { photo: photos.filter, phoneSide: 'right', phone: { src: landingPhone, alt: 'ข้อเสนอจากช่างบนมือถือ พร้อมเวลาที่เหลือให้เลือก' } },
   customer: { photo: photos.inspect, phoneSide: 'left', phone: { src: custPhone, alt: 'ฟอร์มขอช่างล้างแอร์บนมือถือ' } },
   manager: { photo: photos.hands, phoneSide: 'right', phone: { src: mgrPhone, alt: 'เลือกห้องที่จะล้างในอาคาร' } },
-  technician: { photo: photos.mask, phoneSide: 'right', phone: { src: techPhone, alt: 'ตารางงานของช่างบนมือถือ' } },
+  technician: { photo: photos.mask, phoneSide: 'right', phone: { src: techPhone, alt: 'งานใกล้ฉันบนมือถือ: ราคาของคุณและระยะทางของแต่ละงาน' } },
   admin: { photo: photos.inspect, phoneSide: 'left', phone: { src: adminPhone, alt: 'หน้าตรวจสอบช่างบนมือถือ' } },
 } as const;

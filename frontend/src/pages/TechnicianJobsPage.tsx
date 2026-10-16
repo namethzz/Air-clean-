@@ -1,27 +1,29 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarX2, ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone } from 'lucide-react';
+import {
+  ArrowRight, Banknote, BellRing, CalendarClock, CalendarX2, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, FilePen, FileText,
+  MapPin, Minus, Navigation, Phone, Plus, Send, ShieldCheck, Smartphone, UserCog, XCircle,
+} from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
-import Stepper, { useIsWide } from '../components/JobStepper';
+import { Journey, useIsWide } from '../components/JobStepper';
 import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
 import { RoomBoard } from '../components/Rooms';
-import { isClosed, isOffer, techClosed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
+import { isClosed, isOffer, techClosed, techGuide, techStep, techSteps, techTurn } from '../lib/jobFlow';
 import { clashesWith } from '../lib/clash';
-import './Membership.css';
 import type { CompleteJobPayload, ProposeChangePayload } from '../lib/api';
 import PriceChangeSheet from '../components/PriceChangeSheet';
 import { PriceBreakdown } from '../components/Pricing';
-import { cleanName, conditionText } from '../lib/pricing';
+import { bahtRange, cleanName, conditionText } from '../lib/pricing';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
+import { Plate, PhotoCard, Steps } from '../components/kit';
+import maskPhoto from '../assets/hero/photo-mask.webp';
 import './CustomerJobs.css';
 import './Jobs.css';
-import { PhotoCard, Steps } from '../components/kit';
-import maskPhoto from '../assets/hero/photo-mask.webp';
-import { BellRing, UserCog } from 'lucide-react';
+import './TechnicianJobs.css';
 
 interface Props {
   bookings: Booking[];
@@ -240,7 +242,8 @@ export default function TechnicianJobsPage(props: Props) {
   const selected = bookings.find(item => item.id === selectedId) ?? (wide ? shown[0] : undefined);
   const toGo = open.filter(item => active.includes(item.status)).length;
   const finished = finishedId != null ? bookings.find(item => item.id === finishedId && (item.status === 'เสร็จสิ้น' || techClosed(item))) : undefined;
-  const nextJob = open.find(item => active.includes(item.status) || item.status === 'รอยืนยัน');
+  // The next visit still to do: not the job just closed, nor any other the technician has closed and been paid for.
+  const nextJob = open.find(item => item.id !== finishedId && !techClosed(item) && (active.includes(item.status) || item.status === 'รอยืนยัน'));
   async function complete(id: number, payload: CompleteJobPayload) {
     const ok = await props.onComplete(id, payload);
     if (ok) { setFinishedId(id); setSelectedId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -258,8 +261,8 @@ export default function TechnicianJobsPage(props: Props) {
       <section className="ui-card" aria-labelledby="tj-first-how">
         <div className="ui-card-head"><div><h2 id="tj-first-how">งานจะมาที่นี่อย่างไร</h2><p>ทุกงานที่คุณเสนอราคาจะอยู่ในหน้านี้ทันที</p></div></div>
         <Steps items={[
-          { title: 'ดูงานใกล้ตัว', text: 'เห็นประเภทที่พัก จำนวนเครื่อง ระยะทาง และราคาประเมิน' },
-          { title: 'กดสนใจรับงาน', text: 'ลูกค้าเห็นโปรไฟล์ ราคา และคะแนนของคุณ' },
+          { title: 'ดูงานใกล้ตัว', text: 'เห็นราคาของคุณ ระยะทาง จำนวนเครื่อง และสภาพแอร์ ก่อนตัดสินใจ' },
+          { title: 'ส่งข้อเสนอ', text: 'ลูกค้าเห็นโปรไฟล์ ราคา และคะแนนของคุณ' },
           { title: 'ลูกค้าเลือกคุณ', text: 'งานขึ้นตารางของวันนั้น พร้อมที่อยู่ เบอร์โทร และปุ่มนำทาง' },
         ]}/>
       </section>
@@ -268,7 +271,7 @@ export default function TechnicianJobsPage(props: Props) {
         <ul className="ui-list">
           <li><button type="button" className="ui-row" onClick={onOpenProfile}>
             <span className="ui-row-lead"><UserCog size={22}/></span>
-            <span className="ui-row-text"><strong>รูปโปรไฟล์และราคาครบ</strong><span>ลูกค้าเลือกช่างที่เห็นหน้าและราคาชัดเจนได้ง่ายกว่า</span></span>
+            <span className="ui-row-text"><strong>รูปโปรไฟล์และใบราคาครบ</strong><span>ลูกค้าเลือกช่างที่เห็นหน้าและราคาชัดเจนได้ง่ายกว่า</span></span>
             <span className="ui-row-trail"><ChevronRight size={18}/></span>
           </button></li>
           <li><button type="button" className="ui-row" onClick={onOpenProfile}>
@@ -282,45 +285,52 @@ export default function TechnicianJobsPage(props: Props) {
   }
 
   if (finished) {
-    return <div className="cj-page tj-done-page">
+    return <div className="ui-page is-narrow">
       <JobFinished booking={finished} bookings={bookings} next={nextJob} onOpen={openJob} onFindJobs={onFindJobs}/>
     </div>;
   }
 
-  return <div className={'cj-page' + (selected && !wide ? ' cj-show-detail' : '')}>
-    <section className="cj-list" aria-label="รายการงาน">
-      <div className="cj-list-head">
-        <div><h1>งานของฉัน</h1>{toGo > 0 && <p className="tj-summary">{summary(open)}</p>}</div>
+  return <div className={'jb tj' + (selected && !wide ? ' is-detail' : '')}>
+    <section className="jb-list" aria-label="รายการงาน">
+      <div className="tj-head">
+        <h1>งานของฉัน</h1>
+        {toGo > 0 && <p className="tj-summary">{summary(open)}</p>}
       </div>
-      <div className="cj-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>กำลังดำเนินการ <span>{open.length}</span></button>
-        <button type="button" role="tab" aria-selected={tab === 'closed'} className={tab === 'closed' ? 'active' : ''} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span>{closed.length}</span></button>
+      <div className="ui-tabs" role="tablist" aria-label="กลุ่มงาน">
+        <button type="button" role="tab" aria-selected={tab === 'open'} onClick={() => setTab('open')}>กำลังดำเนินการ <span className="ui-num">{open.length}</span></button>
+        <button type="button" role="tab" aria-selected={tab === 'closed'} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span className="ui-num">{closed.length}</span></button>
       </div>
       {tab === 'open'
-        ? (open.length === 0 ? <p className="cj-list-empty">ไม่มีงานที่กำลังดำเนินการ</p> : <Schedule jobs={open} selectedId={selected?.id} onSelect={setSelectedId}/>)
-        : closed.length === 0 ? <p className="cj-list-empty">ยังไม่มีงานที่ปิดแล้ว</p>
-        : <ul>{closed.map(item => <li key={item.id}>
-            <button type="button" className={'cj-row' + (selected?.id === item.id ? ' active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
-              <span className="cj-row-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><span>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</span></span>
-              <span className="cj-row-main">
+        ? (open.length === 0 ? <p className="jb-none">ไม่มีงานที่กำลังดำเนินการ</p> : <Schedule jobs={open} selectedId={selected?.id} onSelect={setSelectedId}/>)
+        : closed.length === 0 ? <p className="jb-none">ยังไม่มีงานที่ปิดแล้ว</p>
+        : <ul className="jb-rows">{closed.map(item => <li key={item.id}>
+            <button type="button" className={'jb-row' + (selected?.id === item.id ? ' is-active' : '')} aria-current={selected?.id === item.id ? 'true' : undefined} onClick={() => setSelectedId(item.id)}>
+              <span className="jb-date"><strong>{new Date(item.date + 'T00:00:00').getDate()}</strong><small>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { month: 'short' })}</small></span>
+              <span className="jb-row-text">
                 <strong>{item.service} · {item.unitCount || 1} เครื่อง</strong>
-                <span>{techGuide(item).short}</span>
+                <span>{item.status === 'เสร็จสิ้น' ? `ได้รับ ฿${item.price.toLocaleString()}` : techGuide(item).short}</span>
                 <small>{shortDate(item.date)} · {timeLabel(item)}</small>
+                <StatusBadge status={item.status}/>
               </span>
-              <ChevronRight size={18} aria-hidden="true"/>
+              <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
             </button>
           </li>)}</ul>}
-      <button type="button" className="cj-add" onClick={onFindJobs}><MapPin size={17}/> ดูงานใกล้ฉัน</button>
+      <button type="button" className="ui-btn jb-add" onClick={onFindJobs}><MapPin size={18}/> ดูงานใกล้ฉัน</button>
     </section>
 
-    <section className="cj-detail" aria-label="รายละเอียดงาน">
-      {selected ? <JobDetail key={selected.id} {...props} onComplete={complete} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="cj-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
+    <section className="jb-detail" aria-label="รายละเอียดงาน">
+      {selected ? <JobDetail key={selected.id} {...props} onComplete={complete} booking={selected} onBack={() => setSelectedId(null)}/> : <p className="jb-pick">เลือกงานจากรายการเพื่อดูรายละเอียด</p>}
     </section>
   </div>;
 }
 
+/**
+ * One job, for a technician on site with a phone in one hand: the band says where the job is and whose turn it
+ * is, then one card per thing to do, each with one large main button.
+ */
 function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocationUpdate, onComplete, onProgress, onReschedule, onProposeChange, onWithdrawChange }: Props & { booking: Booking; onBack: () => void }) {
   const guide = techGuide(booking);
+  const turn = techTurn(booking);
   const [moving, setMoving] = useState(false);
   const report = reports.find(item => item.bookingId === booking.id);
   const gps = useShareLocation(booking, onLocationUpdate, () => onStatusChange(booking.id, 'ถึงหน้างาน'));
@@ -329,86 +339,107 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
   const going = active.includes(booking.status);
   const hasDestination = booking.latitude != null && booking.longitude != null;
   const hasOwn = booking.technicianLatitude != null && booking.technicianLongitude != null;
-  const myQuote = booking.applicants?.[0]?.quote;
+  const myQuote = booking.applicants?.[0]?.quote ?? booking.price;
   const [receipt, setReceipt] = useState(false);
+  const clashes = booking.status === 'รอยืนยัน' || booking.status === 'ยืนยันแล้ว' ? clashesWith(booking, bookings) : [];
+  const hardClash = clashes.some(item => !item.soft);
+  const cancellable = booking.status === 'รอยืนยัน' || booking.status === 'ยืนยันแล้ว';
+  const traveling = booking.status === 'กำลังเดินทาง';
 
-  return <article className="cj-article">
-    <button type="button" className="cj-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
-    <header className="cj-head">
-      <div><span className="cj-code">{booking.code}</span><h2>{booking.service} · {booking.unitCount || 1} เครื่อง</h2><p>{shortDate(booking.date)} · {timeLabel(booking)}</p></div>
-      <StatusBadge status={booking.status}/>
+  return <article className="jb-job tj-job">
+    <button type="button" className="ui-btn is-ghost is-sm jb-back" onClick={onBack}><ChevronLeft size={18}/> งานทั้งหมด</button>
+    <header className={'jb-hero' + (cancelled ? ' is-off' : '')}>
+      <div className="jb-hero-top">
+        <span className="jb-code ui-num">{booking.code}</span>
+        <span className="jb-hero-status">{booking.status}</span>
+      </div>
+      <h2>{booking.service} · {booking.unitCount || 1} เครื่อง</h2>
+      <p className="jb-when"><CalendarClock size={16} aria-hidden="true"/> {shortDate(booking.date)} · {timeLabel(booking)}</p>
+      {!cancelled && <Journey labels={techSteps} step={techStep(booking.status)}/>}
+      <div className="jb-guide">
+        <strong>{guide.title}</strong>
+        <p>{guide.hint}</p>
+      </div>
+      {turn && <div className="ui-strip jb-turn" role="status"><ChevronRight size={18} aria-hidden="true"/><span>{turn}</span></div>}
     </header>
 
-    {!cancelled && <Stepper labels={techSteps} step={techStep(booking.status)}/>}
+    {clashes.length > 0 && <p className={'ui-alert ' + (hardClash ? 'is-problem' : 'is-wait')}><CalendarX2 size={18}/><span>
+      <strong>{hardClash ? 'เวลาชนกับงานอื่นของคุณ' : 'อาจชนกับงานอื่นของคุณ'}</strong> {clashes.map(item => `${item.job.code} ${timeLabel(item.job)}`).join(', ')}
+      {booking.status === 'รอยืนยัน' ? ' · โทรคุยกับลูกค้าเพื่อเลื่อนเวลา หรือยกเลิกถ้าไปไม่ได้' : ''}
+    </span></p>}
 
-    <section className={'cj-now' + (techNeedsAction(booking) ? ' urgent' : '')}>
-      <h3>{guide.title}</h3>
-      <p>{guide.hint}</p>
-      {(booking.status === 'รอยืนยัน' || booking.status === 'ยืนยันแล้ว') && (() => {
-        const clashes = clashesWith(booking, bookings);
-        if (!clashes.length) return null;
-        const hard = clashes.some(item => !item.soft);
-        return <p className={'clash-note' + (hard ? ' hard' : '')}><CalendarX2 size={16}/><span><strong>{hard ? 'เวลาชนกับงานอื่นของคุณ' : 'อาจชนกับงานอื่นของคุณ'}</strong> {clashes.map(item => `${item.job.code} ${timeLabel(item.job)}`).join(', ')}{booking.status === 'รอยืนยัน' ? ' · โทรคุยกับลูกค้าเพื่อเลื่อนเวลา หรือยกเลิกถ้าไปไม่ได้' : ''}</span></p>;
-      })()}
-      {offer && <div className="tj-offer">
-        <div><span>ราคาที่คุณเสนอ</span><strong>฿{(myQuote ?? booking.price).toLocaleString()}</strong></div>
-        {booking.applicants?.[0]?.lines?.length ? <details className="pr-details"><summary>คิดจากใบราคาของคุณ</summary><PriceBreakdown lines={booking.applicants[0].lines}/></details> : null}
-        {booking.offerDeadline && <p className="cj-note"><Clock3 size={15}/> ลูกค้าจะเลือกช่างภายใน {new Date(booking.offerDeadline).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. ถ้าไม่เลือก ข้อเสนอจะหมดอายุและคุณได้รับแจ้ง</p>}
-        <p className="cj-note"><Clock3 size={15}/> ที่อยู่เต็มของลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
-      </div>}
-      {canReschedule(booking, 'technician') && <button type="button" className="cj-ghost cj-reschedule" onClick={() => setMoving(true)}><CalendarClock size={16}/> เปลี่ยนวันนัด</button>}
-      {['รอยืนยัน', 'ยืนยันแล้ว'].includes(booking.status) && <TechCancel onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
-      {moving && <RescheduleSheet booking={booking} side="technician" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
-      {booking.status === 'รอยืนยัน' && <button type="button" className="cj-primary full" onClick={() => onStatusChange(booking.id, 'ยืนยันแล้ว')}>รับงาน <Check size={17}/></button>}
-      {booking.status === 'เสร็จสิ้น' && <p className="cj-done"><CheckCircle2 size={18}/> ได้รับเงิน ฿{booking.price.toLocaleString()} {booking.paymentMethod === 'PromptPay' ? '(โอน)' : '(เงินสด)'}</p>}
-    </section>
-
-    {going && <section className="cj-block tj-destination">
-      <h3><MapPin size={18}/> ที่ต้องไป</h3>
-      <p className="tj-address">{booking.address}</p>
-      {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {formatPhone(booking.customerPhone)}</a></div>}
-      <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
-      <p className="cj-note">{jobCondition(booking)}</p>
-      {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
-        destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
-        technician={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
-        accuracy={booking.status === 'กำลังเดินทาง' ? booking.locationAccuracy ?? undefined : undefined} height={220} zoom={15}/>}
-      <a className="cj-primary full" href={mapsLink(booking)} target="_blank" rel="noreferrer"><Navigation size={17}/> นำทางด้วย Google Maps</a>
-      {booking.status === 'ยืนยันแล้ว' && <button type="button" className="cj-ghost" onClick={() => onStatusChange(booking.id, 'กำลังเดินทาง')}><Send size={16}/> ออกเดินทาง · ให้ลูกค้าเห็นตำแหน่งของฉัน</button>}
-      {booking.status === 'กำลังเดินทาง' && <p className="cj-note"><MapPin size={15}/> {gps.message || 'กำลังรับพิกัดจากอุปกรณ์'} <button type="button" className="cj-link" onClick={gps.retry}>ลองใหม่</button></p>}
+    {offer && <section className="ui-card tj-offer" aria-label="ข้อเสนอของคุณ">
+      <Plate quiet num={'฿' + myQuote.toLocaleString()} unit="ราคาที่คุณเสนอ"
+        meta={booking.market ? <span>ราคากลางงานนี้ {bahtRange(booking.market)}</span> : undefined}/>
+      {booking.applicants?.[0]?.lines?.length ? <details className="pr-details"><summary>คิดจากใบราคาของคุณ</summary><PriceBreakdown lines={booking.applicants[0].lines}/></details> : null}
+      {booking.offerDeadline && <p className="jb-note"><Clock3 size={16}/> ลูกค้าจะเลือกช่างภายใน {new Date(booking.offerDeadline).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. ถ้าไม่เลือก ข้อเสนอจะหมดอายุและคุณได้รับแจ้ง</p>}
+      <p className="jb-note"><ShieldCheck size={16}/> ที่อยู่เต็มและเบอร์ลูกค้าจะแสดงเมื่อลูกค้าเลือกคุณ</p>
     </section>}
 
-    {going && booking.notes && <section className="cj-block tj-notes"><h3>ข้อมูลจากลูกค้า</h3><p>{booking.notes}</p></section>}
-    {going && booking.rooms?.length ? <RoomChecklist booking={booking} onProgress={onProgress}/> : going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
+    {booking.status === 'รอยืนยัน' && <section className="ui-card">
+      <button type="button" className="ui-btn is-primary is-lg is-block" onClick={() => onStatusChange(booking.id, 'ยืนยันแล้ว')}><Check size={20}/> รับงาน</button>
+      <p className="jb-note">กดรับแล้ว งานจะขึ้นตารางของวันนัด ลูกค้าได้รับแจ้งทันที</p>
+    </section>}
 
+    {going && <section className="ui-card tj-go" aria-labelledby={`tj-go-${booking.id}`}>
+      <div className="ui-card-head"><div><h2 id={`tj-go-${booking.id}`}>ที่ต้องไป</h2><p>{booking.customer} · {booking.propertyType || 'ที่พัก'}</p></div></div>
+      <p className="tj-address">{booking.address}</p>
+      {booking.customerPhone && <a className="ui-btn is-lg is-block tj-call" href={telLink(booking.customerPhone)} aria-label={`โทรหาลูกค้า ${formatPhone(booking.customerPhone)}`}>
+        <Phone size={20}/><span>โทรหาลูกค้า</span><span className="ui-num">{formatPhone(booking.customerPhone)}</span>
+      </a>}
+      {hasDestination && <div className="jb-map"><LocationMap key={booking.id + booking.status} center={hasOwn && traveling ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
+        destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
+        technician={hasOwn && traveling ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
+        accuracy={traveling ? booking.locationAccuracy ?? undefined : undefined} height={220} zoom={15}/></div>}
+      {booking.status === 'ยืนยันแล้ว' && <button type="button" className="ui-btn is-primary is-lg is-block" onClick={() => onStatusChange(booking.id, 'กำลังเดินทาง')}><Send size={20}/> ออกเดินทาง</button>}
+      <a className={'ui-btn is-lg is-block' + (traveling ? ' is-primary' : '')} href={mapsLink(booking)} target="_blank" rel="noreferrer"><Navigation size={20}/> นำทางด้วย Google Maps</a>
+      {booking.status === 'ยืนยันแล้ว' && <p className="jb-note"><MapPin size={16}/> กดออกเดินทางแล้ว ลูกค้าเห็นตำแหน่งของคุณ เมื่อถึงหน้างานระบบรู้เองจาก GPS</p>}
+      {traveling && <p className="ui-alert is-info tj-gps" role="status"><MapPin size={18}/><span>{gps.message || 'กำลังรับพิกัดจากอุปกรณ์'}</span><button type="button" className="ui-btn is-ghost is-sm" onClick={gps.retry}>ลองใหม่</button></p>}
+    </section>}
+
+    {(going || offer) && <section className="ui-card" aria-labelledby={`tj-work-${booking.id}`}>
+      <h2 id={`tj-work-${booking.id}`}>งานที่ต้องทำ</h2>
+      <dl className="jb-facts">
+        {offer && <div><dt>พื้นที่</dt><dd>{booking.address}</dd></div>}
+        <div><dt>แอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+        <div><dt>งานและสภาพแอร์</dt><dd>{jobCondition(booking)}</dd></div>
+        {going && booking.notes && <div><dt>ข้อมูลจากลูกค้า</dt><dd className="jb-pre">{booking.notes}</dd></div>}
+      </dl>
+    </section>}
+
+    {going && booking.rooms?.length ? <RoomChecklist booking={booking} onProgress={onProgress}/> : going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
     {going && booking.status !== 'รอชำระเงิน' && <PriceOnSite booking={booking} onPropose={payload => onProposeChange(booking.id, payload)} onWithdraw={changeId => onWithdrawChange(booking.id, changeId)}/>}
     {going && !techClosed(booking) && <FinishJob booking={booking} onComplete={onComplete}/>}
 
-    {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id}/></section>}
-    {booking.status === 'เสร็จสิ้น' && booking.paymentStatus === 'Paid' && <button type="button" className="cj-ghost tj-receipt" onClick={() => setReceipt(true)}><FileText size={16}/> ใบเสร็จของงานนี้</button>}
-    {receipt && <ReceiptSheet bookingId={booking.id} canIssue={false} onClose={() => setReceipt(false)}/>}
-    {report && booking.status === 'เสร็จสิ้น' && <section className="cj-block">
-      <h3>สรุปงานที่บันทึกไว้</h3>
-      <p className="cj-report-summary">{report.summary}</p>
-      <ul className="cj-checklist">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'ok' : ''}><Check size={15} strokeWidth={3}/> {item.label}</li>)}</ul>
+    {booking.status === 'เสร็จสิ้น' && <section className="ui-card">
+      <Plate quiet num={'฿' + booking.price.toLocaleString()} unit={booking.paymentMethod === 'PromptPay' ? 'ได้รับเงินโอน' : 'ได้รับเงินสด'}
+        meta={<span><CheckCircle2 size={15} aria-hidden="true"/> ปิดงานแล้ว{booking.customerRating ? ` · ลูกค้าให้ ${booking.customerRating} ดาว` : ''}</span>}/>
+      {booking.paymentStatus === 'Paid' && <button type="button" className="ui-btn" onClick={() => setReceipt(true)}><FileText size={18}/> ใบเสร็จของงานนี้</button>}
+      {receipt && <ReceiptSheet bookingId={booking.id} canIssue={false} onClose={() => setReceipt(false)}/>}
+    </section>}
+    {booking.status === 'เสร็จสิ้น' && <JobPhotoGallery bookingId={booking.id} className="ui-card"/>}
+    {report && booking.status === 'เสร็จสิ้น' && <section className="ui-card">
+      <h2>สรุปงานที่บันทึกไว้</h2>
+      <p className="jb-report">{report.summary}</p>
+      <ul className="jb-checks is-grid">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'is-ok' : ''}>{report[item.key] ? <Check size={17} strokeWidth={3} aria-hidden="true"/> : <XCircle size={17} aria-hidden="true"/>} {item.label}<span className="sr-only">{report[item.key] ? ' (ทำแล้ว)' : ' (ไม่ได้ทำ)'}</span></li>)}</ul>
     </section>}
 
-    {!going && !offer && <section className="cj-block">
-      <h3>รายละเอียดงาน</h3>
-      <dl className="cj-facts">
+    {!going && !offer && <section className="ui-card jb-facts-card">
+      <h2>รายละเอียดงาน</h2>
+      <dl className="jb-facts">
         <div><dt>ลูกค้า</dt><dd>{booking.customer || '-'}</dd></div>
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
-        <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>ค่าบริการ</dt><dd>฿{booking.price.toLocaleString()} · เก็บเงินปลายทาง</dd></div>
+        <div><dt>แอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
+        <div><dt>ค่าบริการ</dt><dd><span className="ui-num">฿{booking.price.toLocaleString()}</span> · เก็บเงินปลายทาง</dd></div>
       </dl>
     </section>}
-    {offer && <section className="cj-block">
-      <h3>รายละเอียดงาน</h3>
-      <dl className="cj-facts">
-        <div><dt>พื้นที่</dt><dd>{booking.address}</dd></div>
-        <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>งานและสภาพแอร์</dt><dd>{jobCondition(booking)}</dd></div>
-      </dl>
+
+    {(canReschedule(booking, 'technician') || cancellable) && <section className="ui-card jb-facts-card" aria-label="เปลี่ยนนัดหรือยกเลิก">
+      <div className="jb-facts-actions">
+        {canReschedule(booking, 'technician') && <button type="button" className="ui-btn" onClick={() => setMoving(true)}><CalendarClock size={18}/> เปลี่ยนวันนัด</button>}
+        {cancellable && <TechCancel onConfirm={() => onStatusChange(booking.id, 'ยกเลิก')}/>}
+      </div>
+      {moving && <RescheduleSheet booking={booking} side="technician" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
     </section>}
   </article>;
 }
@@ -427,19 +458,19 @@ function PriceOnSite({ booking, onPropose, onWithdraw }: { booking: Booking; onP
   const [busy, setBusy] = useState(false);
   const pending = booking.pendingChange?.status === 'Pending' ? booking.pendingChange : null;
   const last = [...(booking.changes ?? [])].reverse().find(item => item.status === 'Approved' || item.status === 'Declined');
-  return <section className="cj-block tj-price">
-    <h3>ราคาที่ตกลงกับลูกค้า</h3>
-    {booking.priceLines?.length ? <PriceBreakdown lines={booking.priceLines} totalLabel="ยอดที่เก็บจากลูกค้า"/> : <p className="cj-amount">฿{booking.price.toLocaleString()}</p>}
-    {last && !pending && <p className="cj-note">คำขอล่าสุด: ลูกค้า{last.status === 'Approved' ? 'อนุมัติ' : 'ไม่อนุมัติ'} ({last.kind === 'correction' ? 'ปรับรายการแอร์' : 'งานเพิ่ม'} ฿{last.newPrice.toLocaleString()})</p>}
+  return <section className="ui-card tj-price" aria-labelledby={`tj-price-${booking.id}`}>
+    <h2 id={`tj-price-${booking.id}`}>ราคาที่ตกลงกับลูกค้า</h2>
+    {booking.priceLines?.length ? <PriceBreakdown lines={booking.priceLines} totalLabel="ยอดที่เก็บจากลูกค้า"/> : <p className="tj-amount ui-num">฿{booking.price.toLocaleString()}</p>}
+    {last && !pending && <p className="jb-note">คำขอล่าสุด: ลูกค้า{last.status === 'Approved' ? 'อนุมัติ' : 'ไม่อนุมัติ'} ({last.kind === 'correction' ? 'ปรับรายการแอร์' : 'งานเพิ่ม'} ฿{last.newPrice.toLocaleString()})</p>}
     {pending
       ? <div className="tj-pending" role="status">
         <strong>รอลูกค้าตอบ: ราคาใหม่ ฿{pending.newPrice.toLocaleString()} (เดิม ฿{pending.oldPrice.toLocaleString()})</strong>
         <span>“{pending.reason}” · ลูกค้าได้รับแจ้งแล้ว ให้ลูกค้ากดอนุมัติในแอป ระหว่างนี้ยังปิดงานไม่ได้</span>
-        <button type="button" className="cj-ghost" disabled={busy} onClick={async () => { setBusy(true); await onWithdraw(pending.id); setBusy(false); }}>{busy ? 'กำลังยกเลิก…' : 'ยกเลิกคำขอ'}</button>
+        <button type="button" className="ui-btn" disabled={busy} onClick={async () => { setBusy(true); await onWithdraw(pending.id); setBusy(false); }}>{busy ? 'กำลังยกเลิก…' : 'ยกเลิกคำขอ'}</button>
       </div>
       : <>
-        <p className="cj-note">แอร์ไม่ตรงกับที่ลูกค้าแจ้ง หรือต้องทำงานเพิ่ม? ขอในแอปให้ลูกค้ากดอนุมัติก่อน ห้ามเก็บเงินเกินยอดในแอป</p>
-        <button type="button" className="cj-ghost" onClick={() => setAsking(true)}>ขอปรับราคา / งานเพิ่ม</button>
+        <p className="jb-note">แอร์ไม่ตรงกับที่ลูกค้าแจ้ง หรือต้องทำงานเพิ่ม? ขอในแอปให้ลูกค้ากดอนุมัติก่อน ห้ามเก็บเงินเกินยอดในแอป</p>
+        <button type="button" className="ui-btn" onClick={() => setAsking(true)}><FilePen size={18}/> ขอปรับราคา / งานเพิ่ม</button>
       </>}
     {asking && <PriceChangeSheet booking={booking} onSend={onPropose} onClose={() => setAsking(false)}/>}
   </section>;
@@ -450,57 +481,58 @@ function localDate(offsetDays = 0) {
   return new Date(day.getTime() - day.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-/** Right after closing a job: what was recorded, today's totals, and the next place to go (or finding new work). */
+/** Right after closing: the money on a plate, what was saved, today's and this month's takings, and where to go next. */
 function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking: Booking; bookings: Booking[]; next?: Booking; onOpen: (id: number | null) => void; onFindJobs: () => void }) {
   const today = localDate();
-  const doneToday = bookings.filter(item => item.status === 'เสร็จสิ้น' && item.date === today);
+  // Paid jobs: closed, or closed by the technician and waiting for the customer to confirm (the money is in hand).
+  const paid = bookings.filter(item => item.status === 'เสร็จสิ้น' || techClosed(item));
+  const doneToday = paid.filter(item => item.date === today);
   const month = today.slice(0, 7);
-  const doneMonth = bookings.filter(item => item.status === 'เสร็จสิ้น' && item.date.startsWith(month));
+  const doneMonth = paid.filter(item => item.date.startsWith(month));
   const sum = (rows: Booking[]) => rows.reduce((total, item) => total + item.price, 0);
   const nextWhen = next ? (next.date === today ? 'วันนี้' : next.date === localDate(1) ? 'พรุ่งนี้' : shortDate(next.date)) : '';
   return <article className="tj-done" aria-live="polite">
-    <div className="tj-done-hero">
-      <span className="tj-done-icon"><CheckCircle2 size={34} strokeWidth={2.2}/></span>
+    <header className="jb-hero tj-done-hero">
+      <span className="tj-done-icon"><CheckCircle2 size={30} strokeWidth={2.2}/></span>
       <h1>ปิดงานเรียบร้อย</h1>
-      <p className="tj-done-amount">+฿{booking.price.toLocaleString()}</p>
+      <p className="tj-done-amount ui-num">+฿{booking.price.toLocaleString()}</p>
       <p className="tj-done-sub">{booking.paymentMethod === 'PromptPay' ? 'รับเงินโอน' : 'รับเงินสด'} · {booking.code} · {booking.customer}</p>
-    </div>
-    <ul className="tj-done-saved">
-      <li><Check size={16} strokeWidth={3}/> บันทึกการรับเงินแล้ว</li>
-      {booking.status === 'เสร็จสิ้น'
-        ? <><li><Check size={16} strokeWidth={3}/> บันทึกประวัติการล้างแอร์ให้ลูกค้าแล้ว</li><li><Check size={16} strokeWidth={3}/> แจ้งลูกค้าให้ให้คะแนนคุณแล้ว</li></>
-        : <li><Clock3 size={16} strokeWidth={2.6}/> แจ้งลูกค้าให้ยืนยันการจ่ายเงินแล้ว ถ้าไม่มีการแจ้งปัญหา ระบบปิดงานให้เองใน 3 วัน</li>}
-    </ul>
-    <dl className="tj-done-stats">
-      <div><dt>วันนี้</dt><dd>{doneToday.length} งาน · ฿{sum(doneToday).toLocaleString()}</dd></div>
-      <div><dt>เดือนนี้</dt><dd>{doneMonth.length} งาน · ฿{sum(doneMonth).toLocaleString()}</dd></div>
-    </dl>
+    </header>
+    <section className="ui-card">
+      <ul className="jb-checks">
+        <li className="is-ok"><Check size={17} strokeWidth={3}/> บันทึกการรับเงินแล้ว</li>
+        {booking.status === 'เสร็จสิ้น'
+          ? <><li className="is-ok"><Check size={17} strokeWidth={3}/> บันทึกประวัติการล้างแอร์ให้ลูกค้าแล้ว</li><li className="is-ok"><Check size={17} strokeWidth={3}/> แจ้งลูกค้าให้ให้คะแนนคุณแล้ว</li></>
+          : <li><Clock3 size={17} strokeWidth={2.6}/> แจ้งลูกค้าให้ยืนยันการจ่ายเงินแล้ว ถ้าไม่มีการแจ้งปัญหา ระบบปิดงานให้เองใน 3 วัน</li>}
+      </ul>
+      <dl className="tj-done-stats">
+        <div><dt>วันนี้</dt><dd><span className="ui-num">฿{sum(doneToday).toLocaleString()}</span><small>{doneToday.length} งาน</small></dd></div>
+        <div><dt>เดือนนี้</dt><dd><span className="ui-num">฿{sum(doneMonth).toLocaleString()}</span><small>{doneMonth.length} งาน</small></dd></div>
+      </dl>
+    </section>
     {next
-      ? <section className="tj-done-next">
-        <h2>งานถัดไป · {nextWhen} {timeLabel(next)}</h2>
+      ? <section className="ui-card" aria-labelledby="tj-next">
+        <div className="ui-card-head"><div><h2 id="tj-next">งานถัดไป · {nextWhen} {timeLabel(next)}</h2><p>{next.customer} · {next.unitCount || 1} เครื่อง · ฿{next.price.toLocaleString()}</p></div></div>
         <p className="tj-address">{next.address}</p>
-        <p className="cj-note">{next.customer} · {next.unitCount || 1} เครื่อง · ฿{next.price.toLocaleString()}</p>
-        <button type="button" className="cj-primary full" onClick={() => onOpen(next.id)}>ไปงานถัดไป <ArrowRight size={18}/></button>
-        <button type="button" className="cj-ghost" onClick={onFindJobs}><MapPin size={17}/> หางานเพิ่มใกล้ฉัน</button>
+        <button type="button" className="ui-btn is-primary is-lg is-block" onClick={() => onOpen(next.id)}>ไปงานถัดไป <ArrowRight size={20}/></button>
+        <button type="button" className="ui-btn is-block" onClick={onFindJobs}><MapPin size={18}/> หางานเพิ่มใกล้ฉัน</button>
       </section>
-      : <section className="tj-done-next">
-        <h2>ไม่มีงานที่ต้องไปต่อ</h2>
-        <p className="cj-note">ดูงานใหม่ใกล้ตัวแล้วส่งข้อเสนอได้เลย</p>
-        <button type="button" className="cj-primary full" onClick={onFindJobs}><MapPin size={18}/> หางานใหม่ใกล้ฉัน</button>
+      : <section className="ui-card" aria-labelledby="tj-next">
+        <div className="ui-card-head"><div><h2 id="tj-next">ไม่มีงานที่ต้องไปต่อ</h2><p>ดูงานใหม่ใกล้ตัวแล้วส่งข้อเสนอได้เลย</p></div></div>
+        <button type="button" className="ui-btn is-primary is-lg is-block" onClick={onFindJobs}><MapPin size={20}/> หางานใหม่ใกล้ฉัน</button>
       </section>}
-    <button type="button" className="cj-link tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={16}/> ดูงานทั้งหมด</button>
+    <button type="button" className="ui-btn is-ghost tj-done-all" onClick={() => onOpen(null)}><ClipboardList size={18}/> ดูงานทั้งหมด</button>
   </article>;
 }
 
 /** Cancelling a job the technician cannot do; asks once, after suggesting a call to the customer. */
 function TechCancel({ onConfirm }: { onConfirm: () => void }) {
   const [asking, setAsking] = useState(false);
-  return asking
-    ? <div className="cj-confirm" role="alertdialog" aria-label="ยืนยันยกเลิกงาน">
-      <p>ยกเลิกงานนี้? ลูกค้าจะได้รับแจ้งและต้องหาช่างใหม่ ถ้าแค่ไม่สะดวกวันนี้ ลองโทรตกลงวันใหม่กับลูกค้า แล้วกด “เปลี่ยนวันนัด” แทน</p>
-      <div><button type="button" className="cj-danger" onClick={onConfirm}><XCircle size={16}/> ยกเลิกงาน</button><button type="button" className="cj-ghost" onClick={() => setAsking(false)}>ไม่ยกเลิก</button></div>
-    </div>
-    : <button type="button" className="cj-link lp-danger tj-cancel" onClick={() => setAsking(true)}><XCircle size={15}/> ยกเลิกงานนี้</button>;
+  if (!asking) return <button type="button" className="ui-btn is-danger" onClick={() => setAsking(true)}><XCircle size={18}/> ยกเลิกงานนี้</button>;
+  return <div className="jb-confirm is-danger" role="alertdialog" aria-label="ยืนยันยกเลิกงาน">
+    <p>ยกเลิกงานนี้? ลูกค้าจะได้รับแจ้งและต้องหาช่างใหม่ ถ้าแค่ไม่สะดวกวันนี้ ลองโทรตกลงวันใหม่กับลูกค้า แล้วกด “เปลี่ยนวันนัด” แทน</p>
+    <div className="jb-confirm-actions"><button type="button" className="ui-btn is-danger" onClick={onConfirm}>ยกเลิกงาน</button><button type="button" className="ui-btn" onClick={() => setAsking(false)}>ไม่ยกเลิก</button></div>
+  </div>;
 }
 
 /** Building jobs with rooms: tap each room when it is done; saved shortly after the last tap. */
@@ -522,10 +554,10 @@ function RoomChecklist({ booking, onProgress }: { booking: Booking; onProgress: 
     }, 800);
     return () => window.clearTimeout(timer);
   }, [rooms, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <section className="cj-block tj-progress">
-    <h3>ห้องที่ล้างแล้ว</h3>
+  return <section className="ui-card" aria-labelledby={`tj-rooms-${booking.id}`}>
+    <h2 id={`tj-rooms-${booking.id}`}>ห้องที่ล้างแล้ว</h2>
     <RoomBoard rooms={rooms} onToggle={name => { taps.current++; setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
-    <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'แตะห้องเมื่อล้างเสร็จ ลูกค้าเห็นทันทีว่าห้องไหนเสร็จแล้ว'}</p>
+    <p className="jb-note" aria-live="polite">{saving ? 'กำลังบันทึก…' : 'แตะห้องเมื่อล้างเสร็จ ลูกค้าเห็นทันทีว่าห้องไหนเสร็จแล้ว'}</p>
   </section>;
 }
 
@@ -541,15 +573,15 @@ function UnitProgress({ booking, onProgress }: { booking: Booking; onProgress: P
     const timer = window.setTimeout(async () => { setSaving(true); await onProgress(booking.id, done); setSaving(false); }, 700);
     return () => window.clearTimeout(timer);
   }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <section className="cj-block tj-progress">
-    <h3>ล้างไปแล้ว</h3>
+  return <section className="ui-card" aria-labelledby={`tj-units-${booking.id}`}>
+    <h2 id={`tj-units-${booking.id}`}>ล้างไปแล้ว</h2>
     <div className="tj-progress-row">
-      <button type="button" aria-label="ลดหนึ่งเครื่อง" disabled={done <= 0} onClick={() => setDone(value => Math.max(0, value - 1))}><Minus size={20}/></button>
-      <strong aria-live="polite">{done}<small> / {total} เครื่อง</small></strong>
-      <button type="button" aria-label="เพิ่มหนึ่งเครื่อง" disabled={done >= total} onClick={() => setDone(value => Math.min(total, value + 1))}><Plus size={20}/></button>
+      <button type="button" className="ui-btn is-lg" aria-label="ลดหนึ่งเครื่อง" disabled={done <= 0} onClick={() => setDone(value => Math.max(0, value - 1))}><Minus size={24}/></button>
+      <strong aria-live="polite"><span className="ui-num">{done}</span><small> / {total} เครื่อง</small></strong>
+      <button type="button" className="ui-btn is-primary is-lg" aria-label="เพิ่มหนึ่งเครื่อง" disabled={done >= total} onClick={() => setDone(value => Math.min(total, value + 1))}><Plus size={24}/></button>
     </div>
-    <div className="cj-progress" aria-hidden="true"><span style={{ width: `${(done / total) * 100}%` }}/></div>
-    <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'กด + ทุกครั้งที่ล้างเสร็จหนึ่งเครื่อง ลูกค้าเห็นความคืบหน้าทันที'}</p>
+    <div className="jb-bar" aria-hidden="true"><span style={{ width: `${(done / total) * 100}%` }}/></div>
+    <p className="jb-note">{saving ? 'กำลังบันทึก…' : 'กด + ทุกครั้งที่ล้างเสร็จหนึ่งเครื่อง ลูกค้าเห็นความคืบหน้าทันที'}</p>
   </section>;
 }
 
@@ -571,34 +603,36 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
     setBusy(false);
     if (!ok) setAsking(false);
   }
-  return <section className="cj-block tj-finish">
-    <h3>ล้างเสร็จแล้ว? ปิดงานที่นี่</h3>
-    <p className="cj-note">กดครั้งเดียวหลังล้างเสร็จและได้รับเงินจากลูกค้าแล้ว ลูกค้าจะได้รับแจ้งให้ยืนยันการจ่ายเงิน แล้วระบบบันทึกประวัติการล้างแอร์ให้อัตโนมัติ</p>
+  return <section className="ui-card tj-finish" aria-labelledby={`tj-finish-${booking.id}`}>
+    <div className="ui-card-head"><div><h2 id={`tj-finish-${booking.id}`}>ล้างเสร็จแล้ว? ปิดงานที่นี่</h2><p>กดครั้งเดียวหลังล้างเสร็จและได้รับเงินแล้ว ลูกค้าได้รับแจ้งให้ยืนยันการจ่ายเงิน และระบบบันทึกประวัติการล้างแอร์ให้เอง</p></div></div>
     <div className="tj-photos">
-      <h4>รูปงาน</h4>
-      <p className="cj-note">ถ่ายรูปแอร์หลังล้างอย่างน้อย 1 รูป ลูกค้าจะเห็นรูปในงานของเขา</p>
+      <h3>1. ถ่ายรูปหลังล้าง</h3>
+      <p className="jb-note">อย่างน้อย 1 รูป ลูกค้าจะเห็นรูปในงานของเขา</p>
       <JobPhotoPicker bookingId={booking.id} onChange={setPhotos}/>
     </div>
-    <p className="cj-amount">฿{booking.price.toLocaleString()}</p>
-    <div className="cj-methods" role="group" aria-label="ลูกค้าจ่ายด้วย">
-      <button type="button" className={method === 'Cash' ? 'active' : ''} aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={17}/> เงินสด</button>
-      <button type="button" className={method === 'PromptPay' ? 'active' : ''} aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={17}/> โอน</button>
+    <div className="tj-collect">
+      <h3>2. เก็บเงินจากลูกค้า</h3>
+      <Plate quiet num={'฿' + booking.price.toLocaleString()} unit="ตามยอดในแอป"/>
+      <div className="ui-tabs" role="group" aria-label="ลูกค้าจ่ายด้วย">
+        <button type="button" aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={19}/> เงินสด</button>
+        <button type="button" aria-pressed={method === 'PromptPay'} onClick={() => setMethod('PromptPay')}><Smartphone size={19}/> โอน</button>
+      </div>
     </div>
     <details className="tj-more">
       <summary>รายการที่ทำ (ติ๊กไว้ให้แล้ว) และหมายเหตุ</summary>
-      <div className="cj-checkgrid">{checklist.map(item => <label key={item.key}><input type="checkbox" checked={checks[item.key]} onChange={event => setChecks(prev => ({ ...prev, [item.key]: event.target.checked }))}/> {item.label}</label>)}</div>
-      <label className="cj-field"><span>หมายเหตุถึงลูกค้า (ไม่บังคับ)</span><textarea rows={3} maxLength={2000} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น แนะนำล้างทุก 6 เดือน ท่อน้ำทิ้งปกติ"/></label>
+      <div className="tj-checkgrid">{checklist.map(item => <label key={item.key} className="ui-check"><input type="checkbox" checked={checks[item.key]} onChange={event => setChecks(prev => ({ ...prev, [item.key]: event.target.checked }))}/> {item.label}</label>)}</div>
+      <div className="ui-field"><label htmlFor={`tj-note-${booking.id}`}>หมายเหตุถึงลูกค้า (ไม่บังคับ)</label><textarea id={`tj-note-${booking.id}`} className="ui-textarea" rows={3} maxLength={2000} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น แนะนำล้างทุก 6 เดือน ท่อน้ำทิ้งปกติ"/></div>
     </details>
     {asking
-      ? <div className="cj-confirm" role="alertdialog" aria-label="ยืนยันปิดงาน">
-        <p>ยืนยันว่าล้างเสร็จและได้รับเงิน ฿{booking.price.toLocaleString()} ({method === 'Cash' ? 'เงินสด' : 'โอน'}) แล้ว</p>
-        <div><button type="button" className="cj-primary" disabled={busy} onClick={() => void finish()}>{busy ? 'กำลังบันทึก...' : 'ยืนยันปิดงาน'}</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setAsking(false)}>ยกเลิก</button></div>
+      ? <div className="jb-confirm" role="alertdialog" aria-label="ยืนยันปิดงาน">
+        <p>ยืนยันว่าล้างเสร็จและได้รับเงิน <strong className="ui-num">฿{booking.price.toLocaleString()}</strong> ({method === 'Cash' ? 'เงินสด' : 'โอน'}) แล้ว</p>
+        <div className="jb-confirm-actions"><button type="button" className="ui-btn is-primary is-lg" disabled={busy} aria-busy={busy} onClick={() => void finish()}>{busy ? 'กำลังบันทึก…' : 'ยืนยันปิดงาน'}</button><button type="button" className="ui-btn is-lg" disabled={busy} onClick={() => setAsking(false)}>ยังไม่ปิด</button></div>
       </div>
       : <>
-        <button type="button" className="cj-primary full" disabled={!photosReady || waiting} onClick={() => setAsking(true)}><CheckCircle2 size={18}/> งานเสร็จและได้รับเงินแล้ว</button>
-        {waiting && <p className="cj-note tj-photo-needed">รอลูกค้าตอบคำขอปรับราคาก่อน หรือยกเลิกคำขอ</p>}
-        {!photosReady && <p className="cj-note tj-photo-needed">เพิ่มรูปหลังล้างก่อนปิดงาน</p>}
-        {photos.failed && photos.after === 0 && <p className="cj-note tj-photo-needed">อัปโหลดรูปไม่ได้ ปิดงานต่อได้ แล้วเพิ่มรูปภายหลังภายใน 1 วัน</p>}
+        <button type="button" className="ui-btn is-primary is-lg is-block" disabled={!photosReady || waiting} onClick={() => setAsking(true)}><CheckCircle2 size={20}/> งานเสร็จและได้รับเงินแล้ว</button>
+        {waiting && <p className="jb-note tj-needed">รอลูกค้าตอบคำขอปรับราคาก่อน หรือยกเลิกคำขอ</p>}
+        {!waiting && !photosReady && <p className="jb-note tj-needed">เพิ่มรูปหลังล้างก่อนปิดงาน</p>}
+        {photos.failed && photos.after === 0 && <p className="jb-note tj-needed">อัปโหลดรูปไม่ได้ ปิดงานต่อได้ แล้วเพิ่มรูปภายหลังภายใน 1 วัน</p>}
       </>}
   </section>;
 }
