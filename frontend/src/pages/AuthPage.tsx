@@ -5,6 +5,7 @@ import type { UserProfile } from '../types';
 import { ApiError, externalLogin, forgotPassword, isApiConfigured, login, register, resetPassword, setKeepSignedIn } from '../lib/api';
 import { appleEnabled, googleEnabled, renderGoogleButton, signInWithApple, type SocialProvider } from '../lib/socialAuth';
 import { cn } from '../lib/utils';
+import { numberText } from '../lib/numberText';
 import { GlassInputWrapper, PasswordInput, SignInPage, type Testimonial } from '../components/ui/sign-in';
 import { AirCleaningPhoto } from '../components/ui/hero-financial-utils/assets-index';
 
@@ -46,7 +47,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
   const [info,setInfo] = useState(initialInfo);
   const [phone,setPhone] = useState('');
   const [serviceArea,setServiceArea] = useState('');
-  const [experienceYears,setExperienceYears] = useState(0);
+  const [experienceYears,setExperienceYears] = useState('');
   const [fullName,setFullName] = useState('');
   const [role,setRole] = useState<SignupRole>(initialRole);
   const [email,setEmail] = useState('');
@@ -74,6 +75,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError('');
     if (!configured) { setError('ระบบยังไม่ได้ตั้งค่าการเชื่อมต่อ API จึงไม่สามารถเข้าสู่ระบบหรือบันทึกข้อมูลได้'); return; }
+    if (mode === 'register' && role === 'technician' && Number(experienceYears || 0) > 60) { setError('ประสบการณ์ไม่เกิน 60 ปี'); return; }
     if ((mode === 'reset' || (mode === 'register' && !social)) && password !== confirmPassword) { setError('รหัสผ่านทั้งสองช่องไม่ตรงกัน'); return; }
     setLoading(true); setInfo('');
     setKeepSignedIn(mode==='login' ? remember : true);
@@ -84,7 +86,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
         setPassword(''); setConfirmPassword(''); onResetFinished?.(message); return;
       }
       if (mode === 'register' && social) {
-        try { onAuthenticated(await externalLogin(social.provider, social.idToken, { role, fullName, phone, serviceArea, experienceYears })); }
+        try { onAuthenticated(await externalLogin(social.provider, social.idToken, { role, fullName, phone, serviceArea, experienceYears: Number(experienceYears || 0) })); }
         catch (reason) {
           // The provider's token is short-lived; an expired one means signing in with the provider again.
           if (reason instanceof ApiError && reason.status === 401) { setSocial(null); setInfo(''); }
@@ -92,7 +94,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
         }
         return;
       }
-      const user = mode === 'login' ? await login(email,password) : await register(fullName,email,password,role,{ phone, serviceArea, experienceYears });
+      const user = mode === 'login' ? await login(email,password) : await register(fullName,email,password,role,{ phone, serviceArea, experienceYears: Number(experienceYears || 0) });
       onAuthenticated(user);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'ทำรายการไม่สำเร็จ กรุณาลองใหม่'); }
     finally { setLoading(false); }
@@ -148,7 +150,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
         {role==='technician' && <div className={cn(appear,'flex flex-col gap-4')}>
           <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
             <Field label="เบอร์โทรศัพท์"><input className={inputClass} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="เช่น 081-234-5678" maxLength={30} required/></Field>
-            <Field label="ประสบการณ์ (ปี)"><input className={inputClass} type="number" inputMode="numeric" min={0} max={60} value={experienceYears} onChange={e=>setExperienceYears(Math.max(0,Math.min(60,Number(e.target.value)||0)))} required/></Field>
+            <Field label="ประสบการณ์ (ปี)"><input className={inputClass} inputMode="numeric" autoComplete="off" value={experienceYears} placeholder="0" onChange={e=>setExperienceYears(numberText(e.target.value,{ maxLength: 2 }))}/></Field>
           </div>
           <Field label="พื้นที่ให้บริการ"><input className={inputClass} value={serviceArea} onChange={e=>setServiceArea(e.target.value)} placeholder="เช่น ลาดพร้าว · จตุจักร" minLength={2} maxLength={200} required/></Field>
           <p className="text-sm leading-relaxed text-pretty text-muted-foreground">ผู้ดูแลระบบจะตรวจสอบข้อมูลและอาจโทรยืนยันก่อน เมื่ออนุมัติแล้วคุณจึงเห็นงานใกล้ตัวและส่งข้อเสนอได้</p>

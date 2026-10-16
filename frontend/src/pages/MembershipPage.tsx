@@ -7,6 +7,7 @@ import { promptPayPayload } from '../lib/promptpay';
 import { resizeForUpload } from '../lib/image';
 import { formatPhone } from '../components/Reschedule';
 import PrivateImage, { ImageViewer } from '../components/PrivateImage';
+import { numberText } from '../lib/numberText';
 import './CustomerJobs.css';
 import './Membership.css';
 
@@ -261,18 +262,21 @@ function MembersTable({ members, onGranted, onNotice }: { members: MemberRow[]; 
 
 function SettingsForm({ settings, onSaved }: { settings: MembershipSettings; onSaved: (settings: MembershipSettings) => void }) {
   const [form, setForm] = useState(settings);
+  // The two numbers stay text while typing, so a box can be emptied without a 0 popping back in.
+  const [fee, setFee] = useState(String(settings.monthlyFee));
+  const [trial, setTrial] = useState(String(settings.trialDays));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
-    try { onSaved(await saveMembershipSettings(form)); }
+    try { onSaved(await saveMembershipSettings({ ...form, monthlyFee: Number(fee || 0), trialDays: Number(trial || 0) })); }
     catch (reason) { setError(errorText(reason, 'บันทึกไม่สำเร็จ')); }
     finally { setBusy(false); }
   }
   return <form className="ms-card ms-settings" onSubmit={submit}>
     <h2><Wallet size={18}/> ราคาและบัญชีรับเงิน</h2>
-    <label className="form-field"><span>ค่าสมาชิกต่อเดือน (บาท)</span><input inputMode="decimal" value={form.monthlyFee} onChange={event => setForm({ ...form, monthlyFee: Number(event.target.value.replace(/[^\d.]/g, '')) || 0 })}/></label>
-    <label className="form-field"><span>ทดลองใช้ฟรีหลังอนุมัติ (วัน)</span><input inputMode="numeric" value={form.trialDays} onChange={event => setForm({ ...form, trialDays: Number(event.target.value.replace(/\D/g, '')) || 0 })}/></label>
+    <label className="form-field"><span>ค่าสมาชิกต่อเดือน (บาท)</span><input inputMode="decimal" value={fee} placeholder="0" onChange={event => setFee(numberText(event.target.value, { decimals: 2, maxLength: 8 }))}/></label>
+    <label className="form-field"><span>ทดลองใช้ฟรีหลังอนุมัติ (วัน)</span><input inputMode="numeric" value={trial} placeholder="0" onChange={event => setTrial(numberText(event.target.value, { maxLength: 3 }))}/></label>
     <label className="form-field"><span>พร้อมเพย์ (เบอร์มือถือหรือเลขประจำตัว 13 หลัก)</span><input inputMode="numeric" value={form.promptPayId} maxLength={20} onChange={event => setForm({ ...form, promptPayId: event.target.value })} placeholder="08x-xxx-xxxx"/></label>
     <label className="form-field"><span>ชื่อบัญชีที่ช่างจะเห็น</span><input value={form.payeeName} maxLength={120} onChange={event => setForm({ ...form, payeeName: event.target.value })} placeholder="เช่น บจก. แอร์คลีน"/></label>
     {error && <div className="auth-error" role="alert">{error}</div>}

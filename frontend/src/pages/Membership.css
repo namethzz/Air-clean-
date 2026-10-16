@@ -53,28 +53,14 @@
   font-weight: 600;
 }
 
-/* ── Technician documents ── */
-.td-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  font-family: var(--ac-text);
-  color: var(--ac-ink);
-}
-.td-head h2 {
-  margin: 0;
-  font: 700 18px/1.4 var(--ac-display);
-}
-.td-head p {
+/* ── Technician documents: one card, one row per document (layout and fields come from Profile.css) ── */
+.td-private {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 4px 0 0;
-  font-size: 13.5px;
-  color: var(--ac-ink-3);
 }
-.td-head svg {
+.td-private svg {
+  flex: none;
   color: var(--ac-coolant);
 }
 .td-loading {
@@ -84,115 +70,117 @@
   color: var(--ac-ink-3);
 }
 .td-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .td-slot {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px 14px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--ac-frame);
-  border-radius: 14px;
-  background: var(--ac-white);
+  padding: 16px 0;
+  border-top: 1px solid var(--ac-frame);
 }
-.td-slot.needed {
-  border-color: #e9c98a;
-  background: #fffaf0;
+.td-slot:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.td-slot:last-child {
+  padding-bottom: 0;
+}
+.td-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--ac-mist);
+  color: var(--ac-ink-3);
+}
+.td-slot.done .td-icon {
+  background: #e3f4f1;
+  color: var(--ac-coolant);
+}
+.td-slot.needed .td-icon {
+  background: #fdf1dc;
+  color: var(--ac-amber);
 }
 .td-slot-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
-  flex: 1 1 220px;
 }
 .td-slot-text strong {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
   font-size: 15.5px;
-}
-.td-slot-text strong > svg {
-  color: var(--ac-blue);
-}
-.td-slot-text em {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ac-mist);
-  font-style: normal;
-  font-size: 12px;
   font-weight: 600;
-  color: var(--ac-ink-3);
-}
-.td-slot.done .td-slot-text em {
-  background: #e3f4f1;
-  color: var(--ac-coolant);
-}
-.td-slot.needed .td-slot-text em {
-  background: #fbe9c6;
-  color: var(--ac-amber);
 }
 .td-slot-text span {
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--ac-ink-3);
+  text-wrap: pretty;
+}
+.td-slot.needed .td-slot-text span {
+  color: var(--ac-amber);
 }
 .td-slot-files {
+  grid-column: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .td-file {
   position: relative;
   margin: 0;
 }
 .td-file .pi-thumb {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
 }
 .td-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -7px;
+  right: -7px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--ac-ink);
   color: #fff;
+  cursor: pointer;
 }
 .td-add {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px dashed #a9bdd6;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid #cdd8e4;
   border-radius: 12px;
   background: var(--ac-white);
   color: var(--ac-blue-deep);
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
 }
 .td-add:hover {
   background: var(--ac-blue-tint);
+}
+.td-add.first {
+  border-color: var(--ac-blue);
+  background: var(--ac-blue);
+  color: #fff;
+}
+.td-add.first:hover {
+  background: var(--ac-blue-deep);
 }
 .td-add input {
   position: absolute;
@@ -207,6 +195,15 @@
 .td-add:focus-within {
   outline: 3px solid var(--ac-focus);
   outline-offset: 2px;
+}
+@media (min-width: 640px) {
+  .td-slot {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+  .td-slot-files {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
 }
 
 /* ── Membership ── */

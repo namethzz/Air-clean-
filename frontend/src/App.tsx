@@ -147,7 +147,8 @@ export default function App() {
     if(item.bookingId){openJob(item.bookingId);void refreshBookings();}
     else if(item.target in pageTitles)navigate(item.target as PageKey);
   }
-  function setupPush(){navigate('profile');window.setTimeout(()=>document.getElementById('push-settings')?.scrollIntoView({behavior:'smooth',block:'start'}),150);}
+  /** The profile page listens for this, opens its account tab and scrolls to the notification switch. */
+  function setupPush(){navigate('profile');window.setTimeout(()=>window.dispatchEvent(new Event('airclean:show-push')),150);}
 
   function navigate(next:PageKey){
     // Customers and technicians track, pay and report inside "my jobs", so those pages open there.
