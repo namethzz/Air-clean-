@@ -1,6 +1,7 @@
-import { ArrowRight, CalendarClock, CheckCircle2, ChevronRight, Clock3, MapPin, Wallet, Wind, Wrench } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarClock, ClipboardList, CheckCircle2, ChevronRight, Clock3, MapPin, Wallet, Wind, Wrench } from 'lucide-react';
 import { timeLabel } from '../lib/time';
-import HeroFinancial from '../components/ui/hero-financial';
+import HeroSection6 from '../components/ui/hero-section-6';
+import { heroShots } from '../assets/hero';
 import MetricCard from '../components/MetricCard';
 import StatusBadge from '../components/StatusBadge';
 import CustomerHome from './CustomerHome';
@@ -34,10 +35,16 @@ export default function DashboardPage({ state, role, userName, onNavigate, onOpe
   const awaitingPayment = state.bookings.filter(b => b.status === 'รอชำระเงิน');
   const upcoming = [...active].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 4);
   const latest = [...state.bookings].sort((a, b) => b.id - a.id).slice(0, 4);
+  const flagged = state.bookings.filter(b => b.issue?.open || b.status === 'มีปัญหาการชำระเงิน').length;
 
   return <div className="page-stack ac-dashboard">
-    <HeroFinancial compact userName={userName} heading="ภาพรวมแพลตฟอร์ม" description="ติดตามรายการจอง ช่าง และรายงานบริการในระบบ"
-      primaryLabel="ดูรายการจอง" secondaryLabel="ช่างทั้งหมด" onStart={() => onNavigate('bookings')} onBookings={() => onNavigate('technicians')}/>
+    <HeroSection6 variant="app" {...heroShots.admin}
+      turn={flagged > 0}
+      badge={flagged > 0 ? `มี ${flagged} เรื่องรอผู้ดูแลตรวจสอบ` : `สวัสดี ${userName}`}
+      title="ภาพรวมแพลตฟอร์ม"
+      text={`งานที่กำลังดำเนินการ ${active.length} รายการ · รอเลือกช่าง ${waiting.length} รายการ · รอชำระเงิน ${awaitingPayment.length} รายการ`}
+      primary={flagged > 0 ? { label: 'ดูเรื่องที่ถูกแจ้ง', onClick: () => onNavigate('issues'), icon: ArrowRight, trailing: true } : { label: 'ดูรายการจอง', onClick: () => onNavigate('bookings'), icon: ClipboardList }}
+      secondary={{ label: 'อนุมัติช่าง', onClick: () => onNavigate('approvals'), icon: BadgeCheck }}/>
 
     <section className="metric-grid">
       <MetricCard label="งานที่กำลังดำเนินการ" value={`${active.length} รายการ`} hint="รวมคำขอและนัดหมายที่ยังไม่ปิด" icon={CalendarClock} tone="sand"/>

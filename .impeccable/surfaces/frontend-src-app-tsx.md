@@ -21,12 +21,12 @@ THESIS: AirClean is the soi's registered win stand. Every job and every technici
 OWN-WORLD:
 - Vest-blue fields (deep #1756c8 rising to #1f86ea) cover the shell bands and the plates.
 - Plain white working cards sit on a cool ground (#eef3f9), with navy ink (#0f1e33).
-- One hi-vis reflective lime (#d9f84a) appears only for "your turn now". State colours carry meaning only: teal is done, amber is waiting, red is a problem.
+- One vest orange (#ff7a1a, dark ink on it) appears only for "your turn now" (the owner swapped the earlier lime for it on 2026-10-16). State colours carry meaning only: teal is done, amber is waiting, red is a problem.
 - Type: Kanit 600/700 for numerals and headings, read like a vest's printed number. IBM Plex Sans Thai Looped for text.
 - Shape: 14px corners, controls 52px tall on phones.
 STORY: The customer sees offers as plates, compares price, area and rating, and chooses in one tap. The technician sees earnings and distance before anything else. Everyone always sees what happens next and who does it.
 FIRST VIEWPORT: The customer's job page on a phone.
-- Top: a blue band with the job code, the stage name and a lime countdown strip ("เลือกช่างภายใน 42 นาที").
+- Top: a blue band with the job code, the stage name and an orange countdown strip ("เลือกช่างภายใน 42 นาที").
 - Below: offer plates stacked lowest price first. Each plate shows a huge Kanit price, then name · area, then rating · distance, and a "ตรวจแล้ว" mark.
 - The primary "เลือก … ฿…" button is pinned above the bottom tab bar.
 - On desktop the blue band becomes a left rail.
@@ -38,3 +38,6 @@ Signature interaction: when something becomes your turn, its reflective strip ma
 ## Unresolved
 - Admin density: plates only on queue counts and the rail; tables stay plain.
 - Whether the dashboard of each role leads with a plate (to decide in steps 3–6).
+
+## Openings (2026-10-16)
+The owner asked for hero-section-6 (21st.dev) as a full-screen opening on the public page and on each role's first page: the customer and building manager home, the technician's "งานใกล้ฉัน", the admin overview. It lives in `frontend/src/components/ui/hero-section-6.tsx`: a white-to-vest-blue glow, the Kanit headline, the one next action, and real AirClean screens in a browser and an iPhone frame (`frontend/src/assets/hero/`). In the app the headline is the next step and the badge turns orange when it is the person's turn.

@@ -109,12 +109,12 @@
   background: var(--v-blue-800);
 }
 .ui-btn.is-turn {
-  border-color: var(--v-lime-deep);
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
+  border-color: var(--v-turn-deep);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
 }
 .ui-btn.is-turn:hover:not(:disabled) {
-  background: #cdef33;
+  background: #ff8f3d;
 }
 .ui-btn.is-ghost {
   border-color: transparent;
@@ -449,8 +449,8 @@ a.ui-row:hover {
   gap: 8px;
   padding: 9px 14px;
   border-radius: var(--v-radius);
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
   font-weight: 600;
   overflow: hidden;
 }
@@ -512,8 +512,8 @@ a.ui-row:hover {
   color: var(--v-problem);
 }
 .ui-badge.is-turn {
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
 }
 .ui-chip {
   display: inline-flex;

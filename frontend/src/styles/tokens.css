@@ -1,6 +1,6 @@
 /*
  * AirClean design tokens: the motorcycle-taxi vest in AirClean blue.
- * Vest-blue fields carry the shell and the plates, plain white cards sit on a cool ground, and the hi-vis lime
+ * Vest-blue fields carry the shell and the plates, plain white cards sit on a cool ground, and the vest orange
  * appears only for "your turn now". Kanit sets numerals and headings; IBM Plex Sans Thai Looped sets text.
  * See .impeccable/surfaces/frontend-src-app-tsx.md and docs/redesign/PLAN.md.
  */
@@ -29,9 +29,9 @@
   --v-line-strong: #b9c7d8;
 
   /* Reflective strip: only for "your turn now" */
-  --v-lime: #d9f84a;
-  --v-lime-deep: #b9dc1f;
-  --v-lime-ink: #0f1e33;
+  --v-turn: #ff7a1a;
+  --v-turn-deep: #e8650a;
+  --v-turn-ink: #0f1e33;
 
   /* States: colour only where it means something */
   --v-done: #0e7a5f;

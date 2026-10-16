@@ -55,7 +55,7 @@
   color: var(--v-on-blue-2);
 }
 .hs-next.is-due :focus-visible {
-  outline-color: var(--v-lime);
+  outline-color: var(--v-on-blue);
 }
 @media (max-width: 559px) {
   .hs-next {

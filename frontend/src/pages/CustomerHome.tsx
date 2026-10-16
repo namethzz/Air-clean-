@@ -1,10 +1,11 @@
 import { timeLabel } from '../lib/time';
-import { ArrowRight, Building2, ChevronRight, History, Plus } from 'lucide-react';
+import { ArrowRight, Building2, ChevronRight, ClipboardList, History, Plus } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { openBookings, pickNextStep } from '../lib/nextStep';
 import { guideFor, needsAction } from '../lib/jobFlow';
 import type { Booking, PageKey, ServiceReportRecord, UserRole } from '../types';
-import { AirCleaningPhoto } from '../components/ui/hero-financial-utils/assets-index';
+import HeroSection6 from '../components/ui/hero-section-6';
+import { heroShots } from '../assets/hero';
 import './Jobs.css';
 import './Home.css';
 
@@ -46,19 +47,18 @@ export default function CustomerHome({ role, bookings, reports, userName, onNavi
   const go = () => (step.to === 'newBooking' ? onNewBooking() : onOpenJob(step.bookingId));
   const start = step.tone === 'start';
 
-  return <div className="ui-page hm">
-    <p className="hm-hello">สวัสดี คุณ{firstName(userName)}</p>
+  const turn = step.tone === 'action';
+  const shots = manager ? heroShots.manager : heroShots.customer;
+  return <>
+    <HeroSection6 variant="app" {...shots}
+      turn={turn}
+      badge={turn ? `ถึงตาคุณ${step.eyebrow && step.eyebrow !== 'ต้องทำตอนนี้' ? ` · ${step.eyebrow}` : ''}` : `สวัสดี คุณ${firstName(userName)}`}
+      title={step.title}
+      text={step.text}
+      primary={{ label: step.cta, onClick: go, icon: start ? Plus : ArrowRight, trailing: !start }}
+      secondary={manager ? { label: 'อาคารของฉัน', onClick: () => onNavigate('buildings'), icon: Building2 } : bookings.length ? { label: 'งานของฉัน', onClick: () => onOpenJob(), icon: ClipboardList } : undefined}/>
 
-    <section className={'hm-next' + (start ? ' is-start' : '')} aria-labelledby="hm-next-title">
-      <div className="hm-next-body">
-        <h2 id="hm-next-title">{step.title}</h2>
-        <p>{step.text}</p>
-        <button type="button" className="hm-next-cta" onClick={go}>{start && <Plus size={20} strokeWidth={2.4}/>}{step.cta}{!start && <ArrowRight size={19}/>}</button>
-      </div>
-      {start && <img className="hm-next-photo" src={AirCleaningPhoto.src} alt="" aria-hidden="true"/>}
-      {step.tone === 'action' && <div className="ui-strip hm-next-strip" role="status"><ChevronRight size={18} aria-hidden="true"/><span>ถึงตาคุณ{step.eyebrow && step.eyebrow !== 'ต้องทำตอนนี้' ? ` · ${step.eyebrow}` : ''}</span></div>}
-    </section>
-
+    <div className="ui-page hm">
     {bookings.length === 0 && <section className="ui-section" aria-labelledby="hm-how">
       <div className="ui-section-head"><h2 id="hm-how">ใช้งานอย่างไร</h2></div>
       <ol className="hm-steps">{(manager ? managerSteps : firstSteps).map((item, index) => <li key={item.title}>
@@ -103,5 +103,6 @@ export default function CustomerHome({ role, bookings, reports, userName, onNavi
         <span className="ui-row-trail"><ChevronRight size={18}/></span>
       </button></li>
     </ul>
-  </div>;
+    </div>
+  </>;
 }

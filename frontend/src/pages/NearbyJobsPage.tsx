@@ -11,8 +11,11 @@ import { clashesWith, sameDay } from '../lib/clash';
 import type { Membership } from '../types';
 import { CalendarX2 } from 'lucide-react';
 import './Membership.css';
+import HeroSection6 from '../components/ui/hero-section-6';
+import { heroShots } from '../assets/hero';
+import { ClipboardList, Search } from 'lucide-react';
 
-interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; onOpenMembership:()=>void; myJobs:Booking[]; }
+interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; onOpenMembership:()=>void; onOpenMyJobs:()=>void; myJobs:Booking[]; }
 function prettyDate(date:string) {
   return new Date(date+'T00:00:00').toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short'});
 }
@@ -20,7 +23,7 @@ function messageOf(error:unknown) {
   return error instanceof Error?error.message:'โหลดงานใกล้เคียงไม่สำเร็จ';
 }
 /** Technicians reach the job feed only after an admin approves their application. */
-export default function NearbyJobsPage({onApply,onOpenProfile,onOpenMembership,myJobs}:Props) {
+export default function NearbyJobsPage({onApply,onOpenProfile,onOpenMembership,onOpenMyJobs,myJobs}:Props) {
   const [profile,setProfile]=useState<TechnicianApplication|null>(null);
   const [profileError,setProfileError]=useState('');
   const [attempt,setAttempt]=useState(0);
@@ -37,10 +40,10 @@ export default function NearbyJobsPage({onApply,onOpenProfile,onOpenMembership,m
     <TechnicianDocuments/>
     <button type="button" className="primary-button" onClick={onOpenProfile}><UserCog size={16}/> {profile.verificationStatus==='Rejected'?'แก้ไขข้อมูลและส่งตรวจอีกครั้ง':'ตรวจข้อมูลโปรไฟล์ของฉัน'}</button>
   </div>;
-  return <NearbyJobs onApply={onApply} onOpenMembership={onOpenMembership} myJobs={myJobs}/>;
+  return <NearbyJobs onApply={onApply} onOpenMembership={onOpenMembership} onOpenMyJobs={onOpenMyJobs} myJobs={myJobs}/>;
 }
 
-function NearbyJobs({onApply,onOpenMembership,myJobs}:{onApply:Props['onApply'];onOpenMembership:()=>void;myJobs:Booking[]}) {
+function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Props['onApply'];onOpenMembership:()=>void;onOpenMyJobs:()=>void;myJobs:Booking[]}) {
   const [membership,setMembership]=useState<Membership|null>(null);
   useEffect(()=>{fetchMyMembership().then(setMembership).catch(()=>setMembership(null));},[]);
   const lapsed=membership?.state==='Expired';
@@ -78,9 +81,17 @@ function NearbyJobs({onApply,onOpenMembership,myJobs}:{onApply:Props['onApply'];
     if(success) void loadNearby();
   }
 
+  const open=jobs.filter(job=>!job.currentTechnicianApplied).length;
   return <div className="page-stack">
-    <div className="page-heading-row">
-      <div><div className="eyebrow">LOCAL JOB MARKETPLACE</div><h1>งานใกล้ฉัน</h1><p className="page-subtitle">ดูประเภทที่พัก จำนวนเครื่อง ระยะทาง และราคาประเมินก่อนส่งความสนใจรับงาน ลูกค้าจะเป็นผู้เลือกช่างขั้นสุดท้าย</p></div>
+    <HeroSection6 variant="app" {...heroShots.technician}
+      turn={open>0}
+      badge={loading&&!jobs.length?'กำลังค้นหางานใกล้คุณ…':error?'ยังหาตำแหน่งของคุณไม่ได้':open>0?`มี ${open} งานใหม่ในระยะ ${radiusKm} กม.`:`ยังไม่มีงานใหม่ในระยะ ${radiusKm} กม.`}
+      title="งานล้างแอร์ใกล้คุณ"
+      text="ดูประเภทที่พัก จำนวนเครื่อง ระยะทาง และราคาประเมินก่อนตัดสินใจ ลูกค้าเป็นคนเลือกช่าง ที่อยู่เต็มจะแสดงเมื่อลูกค้ายืนยันคุณ"
+      primary={{label:'ดูงานใกล้ฉัน',icon:Search,onClick:()=>document.getElementById('nearby-list')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'})}}
+      secondary={{label:'งานของฉัน',icon:ClipboardList,onClick:onOpenMyJobs}}/>
+    <div className="page-heading-row" id="nearby-list" style={{scrollMarginTop:96}}>
+      <div><h1>งานใกล้ฉัน</h1><p className="page-subtitle">ดูประเภทที่พัก จำนวนเครื่อง ระยะทาง และราคาประเมินก่อนส่งความสนใจรับงาน ลูกค้าจะเป็นผู้เลือกช่างขั้นสุดท้าย</p></div>
       <button className="outline-button" onClick={()=>void loadNearby()} disabled={loading}><RefreshCw size={15}/> {loading?'กำลังค้นหา...':'ค้นหาใหม่'}</button>
     </div>
     <div className="nearby-job-toolbar">
