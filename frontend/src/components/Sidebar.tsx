@@ -1,4 +1,5 @@
-import { AirVent, BadgeCheck, Wallet, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2, Wind } from 'lucide-react';
+import { AirVent, BadgeCheck, Wallet, Building2, History, MessageSquareWarning, CalendarDays, ShieldCheck, UserCog, CircleHelp, ClipboardCheck, ClipboardList, Home, LayoutDashboard, LogOut, MapPinned, MapPin, Plus, Search, Settings2 } from 'lucide-react';
+import BrandMark from './BrandMark';
 import type { PageKey, UserProfile, UserRole } from '../types';
 interface Props { page:PageKey; onNavigate:(page:PageKey)=>void; role:UserRole; user:UserProfile; onLogout:()=>void; onNewBooking?:()=>void; actionCount?:number; }
 type Item = {key:PageKey;label:string;icon:typeof LayoutDashboard;roles?:UserRole[];moreFor?:UserRole[]};
@@ -41,7 +42,7 @@ export default function Sidebar({page,onNavigate,role,user,onLogout,onNewBooking
   const main=role==='manager'?managerItems:customer?customerItems:technician?technicianItems:navItems.filter(item=>!item.roles||item.roles.includes(role));
   const renderItem=(item:Item)=>{const Icon=item.icon;const label=role==='admin'&&item.key==='technicians'?'ช่างทั้งหมด':item.label;const badge=((customer||technician)&&item.key==='bookings')||(role==='admin'&&item.key==='issues')?actionCount:0;return <button type="button" className={'nav-item '+(page===item.key?'active':'')} key={item.key} aria-current={page===item.key?'page':undefined} onClick={()=>onNavigate(item.key)}><Icon size={18} strokeWidth={1.9}/><span>{label}</span>{badge>0&&<b className="nav-badge" aria-label={badge+(role==='admin'?' เรื่องรอดำเนินการ':' งานรอคุณ')}>{badge}</b>}</button>;};
   return <aside className="sidebar">
-    <div className="brand-lockup"><div className="brand-symbol"><Wind size={22} strokeWidth={2.1}/></div><div><div className="brand-name">AirClean<span>.</span></div><div className="brand-caption">COMFORT, IN CONTROL</div></div></div>
+    <div className="brand-lockup"><div className="brand-symbol"><BrandMark className="w-[82%] h-auto"/></div><div><div className="brand-name">AirClean<span>.</span></div><div className="brand-caption">COMFORT, IN CONTROL</div></div></div>
     <div className="workspace-switcher"><div className="workspace-icon"><AirVent size={18}/></div><div className="workspace-copy"><span>พื้นที่ทำงาน</span><strong>{names[role]}</strong></div></div>
     {customer
       ?onNewBooking&&<button type="button" className="sidebar-cta" onClick={onNewBooking}><Plus size={19} strokeWidth={2.3}/> ขอช่างล้างแอร์</button>

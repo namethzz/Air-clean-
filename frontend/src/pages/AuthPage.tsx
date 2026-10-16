@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AlertCircle, ArrowLeft, ArrowRight, Building2, CheckCircle2, Home, Loader2, LockKeyhole, ReceiptText, ShieldCheck, Timer, Wind, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Building2, CheckCircle2, Home, Loader2, LockKeyhole, ReceiptText, ShieldCheck, Timer, Wrench } from 'lucide-react';
+import BrandMark from '../components/BrandMark';
 import type { UserProfile } from '../types';
 import { ApiError, externalLogin, forgotPassword, isApiConfigured, login, register, resetPassword, setKeepSignedIn } from '../lib/api';
 import { appleEnabled, googleEnabled, renderGoogleButton, signInWithApple, type SocialProvider } from '../lib/socialAuth';
@@ -105,7 +106,7 @@ export default function AuthPage({onAuthenticated,initialError='',initialMode='l
 
   const header = <div className="flex items-center justify-between gap-3">
     <span className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-[-0.01em]">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Wind size={20}/></span>AirClean
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><BrandMark className="w-[82%] h-auto"/></span>AirClean
     </span>
     {onBack && <button type="button" onClick={onBack} className="ac-signin-link inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"><ArrowLeft size={16}/>กลับหน้าหลัก</button>}
   </div>;
