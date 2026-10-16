@@ -37,15 +37,17 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
             await store.Bookings.UpdateOneAsync(x => x.Id == job.Id && x.FuzzLatitude == null, Builders<Booking>.Update
                 .Set(x => x.FuzzLatitude, job.FuzzLatitude).Set(x => x.FuzzLongitude, job.FuzzLongitude));
         var sheet = Pricing.SheetOf(technician);
-        List<PriceLineDto> yourLines(Booking job) => Pricing.Lines(sheet, Pricing.JobOf(job)).Select(DtoMapper.ToDto).ToList();
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
             .Select(x => new { Booking = x, DistanceKm = BlurredDistanceKm(latitude, longitude, x) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, x.DistanceKm), technician.Id) with {
+            .Select(x => {
                 // What this technician would quote, so they see it before they offer.
-                YourLines = yourLines(x.Booking), YourQuote = Pricing.Total(Pricing.Lines(sheet, Pricing.JobOf(x.Booking))) })
+                var lines = Pricing.Lines(sheet, Pricing.JobOf(x.Booking));
+                return OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, x.DistanceKm), technician.Id) with {
+                    YourLines = lines.Select(DtoMapper.ToDto).ToList(), YourQuote = Pricing.Total(lines) };
+            })
             .ToList();
         return Ok(nearby);
     }

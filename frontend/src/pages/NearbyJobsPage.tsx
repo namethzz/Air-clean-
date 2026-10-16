@@ -15,7 +15,7 @@ import HeroSection6 from '../components/ui/hero-section-6';
 import { heroShots } from '../assets/hero';
 import { ClipboardList, Search } from 'lucide-react';
 import { PriceBreakdown } from '../components/Pricing';
-import { bahtRange, cleanName, lastCleanedName, positionNames, positionOf, symptomName } from '../lib/pricing';
+import { bahtRange, cleanName, conditionText, positionNames, positionOf } from '../lib/pricing';
 
 interface Props { onApply:(bookingId:number)=>Promise<boolean>; onOpenProfile:()=>void; onOpenMembership:()=>void; onOpenMyJobs:()=>void; myJobs:Booking[]; }
 function prettyDate(date:string) {
@@ -125,7 +125,7 @@ function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Prop
             <div><span>วันและเวลา</span><strong>{prettyDate(job.date)} · {timeLabel(job)}</strong></div>
           </div>
           <div className="nearby-job-description"><Wrench size={15}/><span>{[cleanName(Boolean(job.deep)),job.unitLabel,job.hardAccessUnits?`คอยล์ร้อนเข้าถึงยาก ${job.hardAccessUnits} เครื่อง`:''].filter(Boolean).join(' · ')}</span></div>
-          {(job.lastCleaned||job.symptoms?.length)?<div className="nearby-job-description"><Wind size={15}/><span>{[job.lastCleaned?'ล้างล่าสุด '+lastCleanedName(job.lastCleaned):'',...(job.symptoms??[]).map(symptomName)].filter(Boolean).join(' · ')}</span></div>:null}
+          {conditionText(job)?<div className="nearby-job-description"><Wind size={15}/><span>{conditionText(job)}</span></div>:null}
           <div className="nearby-job-privacy"><ShieldCheck size={14}/><span>แสดงเฉพาะพื้นที่โดยประมาณ ที่อยู่เต็มจะแสดงหลังลูกค้ายืนยันช่าง</span></div>
           {(()=>{
             // What this technician would quote, from their own price list, against the going rate for the job.

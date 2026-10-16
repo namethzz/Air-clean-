@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Minus, Plus, Send, Trash2 } from 'lucide-react';
+import { Plus, Send, Trash2 } from 'lucide-react';
 import type { Booking } from '../types';
 import type { ProposeChangePayload } from '../lib/api';
 import { baht, priceLines, total, unitsOf } from '../lib/pricing';
-import { PriceBreakdown, UnitRows, itemsToRows, newRow, rowsToItems, type UnitRow } from './Pricing';
+import { PriceBreakdown, Stepper, UnitRows, itemsToRows, newRow, rowsToItems, type UnitRow } from './Pricing';
 import { Problem, Sheet } from './kit';
 
 /** Extra work technicians most often find on site; any other can be typed. */
@@ -27,7 +27,14 @@ export default function PriceChangeSheet({ booking, onSend, onClose }: { booking
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const items = useMemo(() => rowsToItems(rows), [rows]);
+  // A building job is cleaned by room: the kinds can change, the number of units cannot.
+  const roomUnits = (booking.rooms ?? []).reduce((sum, room) => sum + room.units, 0);
+  const items = useMemo(() => {
+    const list = rowsToItems(rows);
+    if (!roomUnits) return list;
+    const first = Math.max(1, roomUnits - unitsOf(list.slice(1)));
+    return [{ ...list[0], count: first, large: list[0].large ? first : 0 }, ...list.slice(1)];
+  }, [rows, roomUnits]);
   const units = unitsOf(items);
   const hardUnits = Math.min(hard, units);
   // Work already approved stays on top of whatever the cleaning comes to.
@@ -44,6 +51,7 @@ export default function PriceChangeSheet({ booking, onSend, onClose }: { booking
     else {
       const filled = extras.filter(row => row.label.trim() || row.amount);
       if (!filled.length || filled.some(row => row.label.trim().length < 2 || !(Number(row.amount) >= 1))) { setProblem('ใส่ชื่องานและราคาให้ครบทุกรายการ'); return; }
+      if (filled.some(row => Number(row.amount) > 50000)) { setProblem('ราคาต่อรายการไม่เกิน 50,000 บาท ถ้าเป็นงานใหญ่ คุยกับลูกค้าแล้วเปิดงานใหม่'); return; }
       payload = { kind, reason: reason.trim(), extras: filled.map(row => ({ label: row.label.trim(), amount: Math.round(Number(row.amount)) })) };
     }
     setBusy(true);
@@ -72,7 +80,7 @@ export default function PriceChangeSheet({ booking, onSend, onClose }: { booking
         {kind === 'correction'
           ? <>
             <p className="pc-hint">แก้ให้ตรงกับที่เห็นจริง ราคาคิดจากใบราคาที่คุณเสนอไว้ตอนแรก</p>
-            <UnitRows rows={rows} onChange={setRows} maxUnits={300} sheet={booking.agreedSheet ?? undefined} idPrefix="pc"/>
+            <UnitRows rows={rows} onChange={setRows} maxUnits={300} fixedTotal={roomUnits || undefined} sheet={booking.agreedSheet ?? undefined} idPrefix="pc"/>
             <div className="ui-field">
               <span className="ui-label" id="pc-clean">แบบการล้าง</span>
               <div className="rq-chips" role="radiogroup" aria-labelledby="pc-clean">
@@ -81,12 +89,7 @@ export default function PriceChangeSheet({ booking, onSend, onClose }: { booking
             </div>
             <div className="ui-field">
               <span className="ui-label" id="pc-hard">คอยล์ร้อนที่เข้าถึงยาก</span>
-              <div className="rq-stepper is-sm" role="group" aria-labelledby="pc-hard">
-                <button type="button" aria-label="ลดจำนวน" disabled={hardUnits <= 0} onClick={() => setHard(hardUnits - 1)}><Minus size={20}/></button>
-                <input className="ui-num" readOnly value={hardUnits} aria-label="จำนวนคอยล์ร้อนที่เข้าถึงยาก"/>
-                <button type="button" aria-label="เพิ่มจำนวน" disabled={hardUnits >= units} onClick={() => setHard(hardUnits + 1)}><Plus size={20}/></button>
-                <span className="rq-stepper-unit">จาก {units}</span>
-              </div>
+              <Stepper value={hardUnits} min={0} max={units} label="จำนวนคอยล์ร้อนที่เข้าถึงยาก" unit={`จาก ${units}`} onChange={setHard}/>
             </div>
             {correction && <PriceBreakdown lines={correction} totalLabel="ค่าล้างตามรายการใหม่"/>}
           </>

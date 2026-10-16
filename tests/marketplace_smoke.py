@@ -210,6 +210,8 @@ assert offered['applicants'][0]['quote'] == mine and len(offered['applicants'][0
 picked = call(f'/bookings/{job_id}/confirm-technician', 'POST', {'technicianId': profile['id']}, customer)
 assert picked['price'] == mine and picked['applicants'][0]['position'] in ('low', 'typical', 'high')
 assert [x['kind'] for x in picked['priceLines']] == ['clean', 'clean', 'large', 'access']
+for status in ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ']:
+    call(f'/bookings/{job_id}/status', 'PATCH', {'status': status}, tech, 204)
 # On site the units are not as described: the new price comes from the same list, and nothing changes until the customer says yes.
 corrected = {'kind': 'correction', 'reason': 'เครื่องที่สามเป็นแบบแขวน ไม่ใช่ฝังฝ้า', 'items': [{'kind': 'wall', 'count': 2, 'large': 1}, {'kind': 'hanging', 'count': 1}], 'deep': False, 'hardAccessUnits': 1}
 call(f'/bookings/{job_id}/changes', 'POST', corrected, other_tech, 403)
@@ -219,7 +221,10 @@ change = asked['pendingChange']
 assert change['oldPrice'] == mine and change['newPrice'] == 650 * 2 + 1000 + 250 + 300 and asked['price'] == mine
 call(f'/bookings/{job_id}/changes', 'POST', corrected, tech, 409)
 call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': True}, other_customer, 403)
+# While the customer has not answered, no way into "awaiting payment" is open: closing, the report, or the status step.
 assert call(f'/bookings/{job_id}/complete', 'POST', {'method': 'Cash'}, tech, 409)['code'] == 'change_pending'
+assert call('/service-reports', 'POST', {'bookingId': job_id, 'summary': 'ล้างครบ', 'cleanedFilter': True, 'cleanedCoil': True, 'checkedDrain': True, 'checkedCooling': True}, tech, 409)['code'] == 'change_pending'
+assert call(f'/bookings/{job_id}/status', 'PATCH', {'status': 'รอชำระเงิน'}, tech, 409)['code'] == 'change_pending'
 approved = call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': True}, customer)
 assert approved['price'] == change['newPrice'] and approved['pendingChange'] is None and approved['service'] == 'ล้างธรรมดา แอร์ติดผนัง + แขวน/ตั้งพื้น'
 call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': False}, customer, 409)
@@ -678,6 +683,11 @@ assert by_room['unitCount'] == 5 and [r['name'] for r in by_room['rooms']] == ['
 call(f"/bookings/{by_room['id']}/applications", 'POST', {}, tech)
 assert next(row for row in call('/bookings', token=tech) if row['id'] == by_room['id'])['rooms'] is None
 call(f"/bookings/{by_room['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, manager)
+# A job cleaned by room keeps its number of units: a correction may change their kinds only.
+room_fix = {'kind': 'correction', 'reason': 'ล็อบบี้เป็นแอร์ฝังฝ้า', 'deep': False, 'hardAccessUnits': 0}
+call(f"/bookings/{by_room['id']}/changes", 'POST', {**room_fix, 'items': [{'kind': 'wall', 'count': 2}, {'kind': 'cassette', 'count': 1}]}, tech, 400)
+room_change = call(f"/bookings/{by_room['id']}/changes", 'POST', {**room_fix, 'items': [{'kind': 'wall', 'count': 3}, {'kind': 'cassette', 'count': 2}]}, tech)['pendingChange']
+call(f"/bookings/{by_room['id']}/changes/{room_change['id']}", 'DELETE', None, tech)
 ticked = call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': ['ล็อบบี้', 'unknown']}, tech)
 assert ticked['unitsDone'] == 3 and [r['done'] for r in ticked['rooms']] == [False, True]
 assert call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': []}, tech)['unitsDone'] == 0

@@ -44,6 +44,7 @@ public class ServiceReportsController(MongoStore db, Notifier notifier) : AirCle
         }
         if (booking.Status is not (BookingStates.InProgress or BookingStates.AwaitingPayment)) return Conflict(new { message = "ต้องเริ่มงานก่อนส่งรายงาน" });
         if (await store.ServiceReports.Find(x => x.BookingId == booking.Id).AnyAsync()) return Conflict(new { message = "ส่งรายงานบริการของงานนี้แล้ว" });
+        if (WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
         if (!ApiHelpers.IsWebLink(request.BeforePhotoUrl) || !ApiHelpers.IsWebLink(request.AfterPhotoUrl)) return BadRequest(new { message = "ลิงก์ภาพต้องขึ้นต้นด้วย https://" });
         var reportId = await store.NextIdAsync("serviceReports");
         var report = new ServiceReport { Id = reportId, BookingId = booking.Id, BookingCode = booking.Code, CustomerId = booking.CustomerId, TechnicianId = booking.TechnicianId, Summary = request.Summary.Trim(), CleanedFilter = request.CleanedFilter, CleanedCoil = request.CleanedCoil, CheckedDrain = request.CheckedDrain, CheckedCooling = request.CheckedCooling, BeforePhotoUrl = request.BeforePhotoUrl, AfterPhotoUrl = request.AfterPhotoUrl, CreatedAt = DateTime.UtcNow };
@@ -54,7 +55,7 @@ public class ServiceReportsController(MongoStore db, Notifier notifier) : AirCle
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = BookingStates.AwaitingPayment, Notes = "ช่างส่งรายงานบริการ รอลูกค้าชำระเงินหน้างาน", CreatedAt = DateTime.UtcNow });
         booking.UpdatedAt = DateTime.UtcNow;
-        var moved = await store.Bookings.UpdateOneAsync(x => x.Id == booking.Id && x.Status == oldStatus, Builders<Booking>.Update
+        var moved = await store.Bookings.UpdateOneAsync(x => x.Id == booking.Id && x.Status == oldStatus && !x.Changes.Any(c => c.Status == ChangeStates.Pending), Builders<Booking>.Update
             .Set(x => x.Status, BookingStates.AwaitingPayment).Set(x => x.PaymentStatus, "Unpaid").Set(x => x.UpdatedAt, booking.UpdatedAt).Push(x => x.Events, booking.Events[^1]));
         if (moved.MatchedCount == 0) {
             // The job changed meanwhile (closed or cancelled): take the report back rather than tell the customer to pay.

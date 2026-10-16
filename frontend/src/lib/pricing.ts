@@ -20,6 +20,11 @@ export const symptomOptions: { key: Symptom; label: string }[] = [
 export const lastCleanedName = (key?: string | null) => lastCleanedOptions.find(item => item.key === key)?.label;
 export const symptomName = (key: string) => symptomOptions.find(item => item.key === key)?.label ?? key;
 
+/** "ล้างล่าสุด เกิน 1 ปี · มีกลิ่นอับ": what the customer said about the units' state, or "" when they said nothing. */
+export function conditionText(job: { lastCleaned?: string | null; symptoms?: string[] | null }): string {
+  return [job.lastCleaned ? 'ล้างล่าสุด ' + lastCleanedName(job.lastCleaned) : '', ...(job.symptoms ?? []).map(symptomName)].filter(Boolean).join(' · ');
+}
+
 /** What every quote includes, so offers compare like for like; work outside it must be asked for in the app. */
 export const included: Record<'standard' | 'deep', string[]> = {
   standard: ['ล้างแผ่นกรองฝุ่น', 'ฉีดน้ำแรงดันล้างแผงคอยล์เย็น', 'ล้างถาดและไล่ท่อน้ำทิ้ง', 'ฉีดล้างคอยล์ร้อน (ตัวนอกบ้าน)', 'วัดแรงดันน้ำยาและทดสอบความเย็น'],

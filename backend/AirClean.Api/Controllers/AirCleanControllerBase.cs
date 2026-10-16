@@ -44,9 +44,20 @@ public abstract class AirCleanControllerBase : ControllerBase
     }
 
     /// <summary>The price lists of every approved technician: what the going rate for a job is worked out from.</summary>
-    protected async Task<List<PriceSheet>> MarketSheetsAsync() =>
-        (await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync())
-            .Where(x => x.Status == VerificationStates.Approved).Select(Pricing.SheetOf).ToList();
+    protected async Task<List<PriceSheet>> MarketSheetsAsync()
+    {
+        // Approved, or older records approved before VerificationStatus existed (see TechnicianProfile.Status).
+        var approved = Builders<TechnicianProfile>.Filter.Eq(x => x.VerificationStatus, VerificationStates.Approved)
+            | (Builders<TechnicianProfile>.Filter.Eq(x => x.VerificationStatus, null) & Builders<TechnicianProfile>.Filter.Eq(x => x.IsVerified, true));
+        return (await store.Technicians.Find(approved).ToListAsync()).Select(Pricing.SheetOf).ToList();
+    }
+
+    /// <summary>
+    /// The amount to collect is not settled while the customer has not answered a price change, so no way into
+    /// "awaiting payment" (closing, the service report, the status step) is open until they answer or it is withdrawn.
+    /// </summary>
+    protected static bool WaitsOnPriceChange(Booking booking) => (booking.Changes ?? []).Any(x => x.Status == ChangeStates.Pending);
+    protected static readonly object PriceChangePending = new { message = "ยังมีคำขอปรับราคาที่รอลูกค้าตอบ รอคำตอบหรือยกเลิกคำขอก่อนปิดงาน", code = "change_pending" };
 
     protected async Task<TechnicianProfile?> EnsureCurrentTechnicianProfileAsync()
     {

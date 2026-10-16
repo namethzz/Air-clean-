@@ -217,6 +217,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             if (target == BookingStates.Confirmed && CurrentRole != AppRoles.Technician)
                 return Forbid();
         }
+        if (target == BookingStates.AwaitingPayment && WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
 
         var oldStatus = booking.Status;
         booking.Status = target;

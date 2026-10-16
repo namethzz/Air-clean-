@@ -37,14 +37,15 @@ export function itemsToRows(items: JobItem[]): UnitRow[] {
   });
 }
 
-function Stepper({ value, min, max, label, onChange, readOnly }: { value: number; min: number; max: number; label: string; onChange: (value: number) => void; readOnly?: boolean }) {
+/** A count with − and + either side; typing works too. `unit` follows the number ("เครื่อง", "จาก 3"). */
+export function Stepper({ value, min, max, label, onChange, readOnly, unit = 'เครื่อง' }: { value: number; min: number; max: number; label: string; onChange: (value: number) => void; readOnly?: boolean; unit?: string }) {
   return <div className="rq-stepper is-sm" role="group" aria-label={label}>
     <button type="button" aria-label="ลดจำนวน" disabled={readOnly || value <= min} onClick={() => onChange(value - 1)}><Minus size={20}/></button>
     <input className="ui-num" inputMode="numeric" pattern="[0-9]*" aria-label={label} value={value} readOnly={readOnly}
       onChange={event => { const typed = Number.parseInt(event.target.value.replace(/[^0-9]/g, ''), 10); if (Number.isFinite(typed)) onChange(Math.max(min, Math.min(max, typed))); }}
       onFocus={event => event.currentTarget.select()}/>
     <button type="button" aria-label="เพิ่มจำนวน" disabled={readOnly || value >= max} onClick={() => onChange(value + 1)}><Plus size={20}/></button>
-    <span className="rq-stepper-unit">เครื่อง</span>
+    <span className="rq-stepper-unit">{unit}</span>
   </div>;
 }
 
