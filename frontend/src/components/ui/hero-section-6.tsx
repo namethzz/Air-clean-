@@ -52,9 +52,11 @@ export interface HeroSection6Props {
   turn?: boolean;
   primary: HeroAction;
   secondary?: HeroAction;
-  /** The two screenshots: a wide one in the browser frame and a phone one in the iPhone frame. */
-  desktop: { src: string; alt: string };
+  /** A photo of the work for the wide frame (`position` is its CSS object-position), and an app screen for the iPhone. */
+  photo: { src: string; alt: string; position?: string };
   phone: { src: string; alt: string };
+  /** Which side of the photo the phone stands on: the side away from the person in the photo. */
+  phoneSide?: 'left' | 'right';
   /** The public page's own bar (logo, links, sign in). Signed-in pages already have the app's bar. */
   nav?: ReactNode;
   /** "page" fills the window; "app" fills what is left under the app's bars and bleeds to its edges. */
@@ -68,10 +70,10 @@ const textVariants: Variants = {
 };
 
 /**
- * hero-section-6 for AirClean: a full-screen opening with the headline, the one action that matters, and the
- * product itself (a desktop screenshot with a phone in front) rising out of a white-to-vest-blue glow.
+ * hero-section-6 for AirClean: a full-screen opening with the headline and the one action that matters, then a
+ * photo of a technician at work with the app on a phone in front of it, rising out of a white-to-vest-blue glow.
  */
-export default function HeroSection6({ title, text, badge, turn, primary, secondary, desktop, phone, nav, variant = 'page', className }: HeroSection6Props) {
+export default function HeroSection6({ title, text, badge, turn, primary, secondary, photo, phone, phoneSide = 'right', nav, variant = 'page', className }: HeroSection6Props) {
   const Primary = primary.icon, Secondary = secondary?.icon;
   // Inside the app the bar above already holds the page's h1.
   const Title = variant === 'app' ? 'h2' : 'h1';
@@ -91,11 +93,11 @@ export default function HeroSection6({ title, text, badge, turn, primary, second
           </div>
         </AnimatedGroup>
 
-        {/* The product: a desktop screenshot, a phone in front of it, fading into the page */}
-        <div className="hx-shots relative z-20 mx-auto">
+        {/* The work and the app: a photo, a phone in front of it, fading into the page */}
+        <div className={'hx-shots relative z-20 mx-auto is-phone-' + phoneSide}>
           <motion.div initial={{ opacity: 0, y: 30, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
-            className="hx-desktop relative w-full overflow-hidden">
-            <img src={desktop.src} alt={desktop.alt} className="block h-auto w-full" decoding="async"/>
+            className="hx-photo relative w-full overflow-hidden">
+            <img src={photo.src} alt={photo.alt} style={{ objectPosition: photo.position ?? 'center' }} decoding="async"/>
           </motion.div>
           <div className="hx-phone absolute">
             <motion.div initial={{ opacity: 0, scale: 0.8, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.7, ease: 'easeOut' }}>
