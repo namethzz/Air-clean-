@@ -1,0 +1,240 @@
+/*
+ * The admin's desk screens (ad-): queue counts on the blue band, plain tables and lists below. Plates stay on the
+ * counts only; tables stay plain (see the surface brief's note on admin density).
+ */
+.ad {
+  max-width: 1240px;
+}
+.ad-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 559px) {
+  .ad-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ad-summary div:nth-child(3) {
+    border-left: 0;
+  }
+  .ad-summary div:nth-child(n + 3) {
+    border-top: 1px solid rgb(255 255 255 / 0.16);
+  }
+}
+button.ad-summary-link,
+.ad-summary a {
+  color: inherit;
+}
+.ad-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A plain table; each row becomes a stacked card on a phone */
+.ad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--v-text-sm);
+}
+.ad-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--v-line-strong);
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-ink-3);
+  text-align: left;
+  white-space: nowrap;
+}
+.ad-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--v-line);
+  vertical-align: top;
+  color: var(--v-ink-2);
+}
+.ad-table td > strong,
+.ad-table td > small,
+.ad-table td > span {
+  display: block;
+}
+.ad-table td > strong {
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.ad-table td > small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--v-ink-3);
+}
+.ad-table .is-num {
+  text-align: right;
+  white-space: nowrap;
+}
+.ad-table td.is-num {
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.ad-table tbody tr:hover {
+  background: var(--v-blue-050);
+}
+.ad-act {
+  text-align: right;
+  white-space: nowrap;
+}
+.ad-code {
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-blue-700);
+}
+@media (max-width: 759px) {
+  .ad-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .ad-table,
+  .ad-table tbody,
+  .ad-table tr,
+  .ad-table td {
+    display: block;
+  }
+  .ad-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--v-line);
+  }
+  .ad-table td {
+    padding: 0;
+    border: 0;
+  }
+  .ad-table td[data-label="งาน"],
+  .ad-table td[data-label="วันนัด"],
+  .ad-table td[data-label="ลูกค้า / ช่าง"] {
+    grid-column: 1 / -1;
+  }
+  .ad-table .is-num {
+    text-align: left;
+  }
+}
+
+/* Offers waiting on customers, kept folded */
+.ad-waiting > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.ad-waiting > summary strong {
+  font: 600 var(--v-text-lg) / 1.3 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ad-waiting > summary small {
+  color: var(--v-ink-3);
+}
+.ad-waiting-list,
+.ad-offers {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ad-waiting-list > li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--v-line);
+}
+.ad-waiting-list p {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.ad-waiting-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ad-waiting-head strong {
+  color: var(--v-ink);
+}
+.ad-offers {
+  gap: 8px;
+}
+.ad-offers li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--v-radius-md);
+  background: var(--v-sunken);
+}
+.ad-offer-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+  font-weight: 600;
+}
+.ad-offer-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ad-offer-text strong {
+  color: var(--v-ink);
+}
+.ad-offer-text small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--v-ink-3);
+}
+
+/* Overview: the queues on the band are links to their pages */
+.ad-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-6);
+}
+.ad-queue {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ad-queue:hover {
+  text-decoration: underline;
+}
+.ad-summary .ad-queue:focus-visible {
+  outline: 2px solid var(--v-on-blue);
+  outline-offset: 2px;
+}
+.ad-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+  gap: var(--v-gap-4);
+}
+.tracking-detail-panel > .ad-chips {
+  margin-bottom: 12px;
+}

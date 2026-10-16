@@ -1,66 +1,108 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownUp, CalendarDays, CheckCircle2, ChevronRight, Clock3, MapPin, Navigation, Plus, ShieldCheck, SlidersHorizontal, Star, Wallet, Wrench } from 'lucide-react';
+import { ArrowDownUp, CheckCircle2, ChevronRight, Clock3, MapPin, Navigation, Plus, RefreshCw, SlidersHorizontal, Star, Wallet, Wrench } from 'lucide-react';
 import type { Booking, BookingStatus, PageKey, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
+import { EmptyState, PageHead } from '../components/kit';
+import './Jobs.css';
+import './Admin.css';
+
 interface Props { bookings: Booking[]; role: UserRole; searchQuery: string; onNewBooking: () => void; onNavigate: (page: PageKey) => void; onStatusChange: (id: number, status: BookingStatus) => void; onSelectTechnician:(bookingId:number,technicianId:number)=>Promise<boolean>; onRefresh:()=>void; }
 const tabs = ['ทั้งหมด', 'เปิดรับช่าง', 'รอเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน', 'มีปัญหาการชำระเงิน', 'เสร็จสิ้น', 'ยกเลิก'] as const;
-function thaiDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }); }
+const PAGE = 20;
+const running: BookingStatus[] = ['ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'];
+function thaiDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); }
+
+/**
+ * Every booking, for the admin at a desk: the band counts what is waiting, chips filter by status, and a plain
+ * table lists the jobs (rows stack on a phone). The admin can move a job on when supporting a technician, and
+ * pick a technician for a customer who asks for help; both are kept out of the way.
+ */
 export default function BookingsPage({ bookings, role, searchQuery, onNewBooking, onNavigate, onStatusChange, onSelectTechnician, onRefresh }: Props) {
-  const [activeTab, setActiveTab] = useState<string>('ทั้งหมด'); const [sortNewest, setSortNewest] = useState(true);
-  const filtered = useMemo(() => bookings.filter((booking) => (activeTab === 'ทั้งหมด' || booking.status === activeTab) && `${booking.code} ${booking.service} ${booking.technician} ${booking.unitLabel}`.toLowerCase().includes(searchQuery.toLowerCase())).sort((a,b) => sortNewest ? b.id-a.id : a.id-b.id), [bookings, activeTab, sortNewest, searchQuery]);
-  const countFor = (tab: string) => tab === 'ทั้งหมด' ? bookings.length : bookings.filter((booking) => booking.status === tab).length;
-  const candidateBookings = bookings.filter(booking => booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง');
-  const [selectingKey,setSelectingKey] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('ทั้งหมด');
+  const [sortNewest, setSortNewest] = useState(true);
+  // A page of rows at a time; a new filter or search starts again from the top.
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [activeTab, sortNewest, searchQuery]);
+  const filtered = useMemo(() => bookings.filter(booking => (activeTab === 'ทั้งหมด' || booking.status === activeTab) && `${booking.code} ${booking.service} ${booking.technician} ${booking.customer} ${booking.unitLabel}`.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => sortNewest ? b.id - a.id : a.id - b.id), [bookings, activeTab, sortNewest, searchQuery]);
+  const countFor = (tab: string) => tab === 'ทั้งหมด' ? bookings.length : bookings.filter(booking => booking.status === tab).length;
+  const waiting = bookings.filter(booking => booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง');
+  const problems = countFor('มีปัญหาการชำระเงิน');
+  const [selectingKey, setSelectingKey] = useState('');
   useEffect(() => {
     if (role !== 'customer' && role !== 'manager') return;
     const timer = window.setInterval(onRefresh, 12000);
     return () => window.clearInterval(timer);
-  }, [role,onRefresh]);
+  }, [role, onRefresh]);
+
+  /** The step the admin may take for the technician, on a small button; finished or waiting jobs open tracking. */
   function actionFor(booking: Booking) {
-    if (role !== 'technician' && role !== 'admin') {
-      if (booking.status === 'เปิดรับช่าง' || booking.status === 'รอเลือกช่าง') return <div><button className="table-action-button" onClick={() => onStatusChange(booking.id,'ยกเลิก')}>ยกเลิกคำขอ</button><span className="table-secondary">{booking.applicants?.length ? 'มีช่างสนใจ '+booking.applicants.length+' คน' : 'กำลังรอช่างสนใจ'}</span></div>;
-      if (booking.status === 'กำลังเดินทาง' || booking.status === 'รอชำระเงิน' || booking.status === 'มีปัญหาการชำระเงิน') return <button className="table-action-button" onClick={() => onNavigate('tracking')}>{booking.status === 'รอชำระเงิน' ? <Wallet size={13}/> : <Navigation size={13}/>} {booking.status === 'รอชำระเงิน' ? 'ชำระหน้างาน' : 'ติดตามช่าง'} <ChevronRight size={14}/></button>;
-      return <button className="icon-button table-view-button" aria-label="ดูรายละเอียด" title="ดูรายละเอียด" onClick={() => onNavigate('tracking')}><ChevronRight size={17}/></button>;
+    const step = (label: string, status: BookingStatus, icon?: React.ReactNode) => <button type="button" className="ui-btn is-sm" onClick={() => onStatusChange(booking.id, status)}>{icon}{label}</button>;
+    switch (booking.status) {
+      case 'รอยืนยัน': return step('รับงานแทนช่าง', 'ยืนยันแล้ว');
+      case 'ยืนยันแล้ว': return step('เริ่มเดินทาง', 'กำลังเดินทาง', <Navigation size={15}/>);
+      case 'กำลังเดินทาง': return step('ถึงหน้างาน', 'ถึงหน้างาน');
+      case 'ถึงหน้างาน': return step('เริ่มงาน', 'กำลังดำเนินการ');
+      case 'กำลังดำเนินการ': return step('งานเสร็จ', 'รอชำระเงิน');
+      case 'รอชำระเงิน': return <button type="button" className="ui-btn is-sm" onClick={() => onNavigate('tracking')}><Wallet size={15}/> ดูการชำระ</button>;
+      default: return <button type="button" className="ui-btn is-ghost is-sm" aria-label={`ติดตามงาน ${booking.code}`} onClick={() => onNavigate('tracking')}><ChevronRight size={18}/></button>;
     }
-    if (booking.status === 'รอยืนยัน') return <button className="table-action-button" onClick={() => onStatusChange(booking.id,'ยืนยันแล้ว')}>รับงาน <ChevronRight size={14}/></button>;
-    if (booking.status === 'ยืนยันแล้ว') return <button className="table-action-button" onClick={() => onStatusChange(booking.id,'กำลังเดินทาง')}><Navigation size={13}/> เริ่มเดินทาง</button>;
-    if (booking.status === 'กำลังเดินทาง') return <button className="table-action-button" onClick={() => onStatusChange(booking.id,'ถึงหน้างาน')}>ถึงหน้างาน <ChevronRight size={14}/></button>;
-    if (booking.status === 'ถึงหน้างาน') return <button className="table-action-button" onClick={() => onStatusChange(booking.id,'กำลังดำเนินการ')}>เริ่มงาน <ChevronRight size={14}/></button>;
-    if (booking.status === 'กำลังดำเนินการ') return <button className="table-action-button" onClick={() => onStatusChange(booking.id,'รอชำระเงิน')}>งานเสร็จแล้ว <ChevronRight size={14}/></button>;
-    if (booking.status === 'รอชำระเงิน') return <button className="table-action-button" onClick={() => onNavigate('tracking')}><Wallet size={13}/> ยืนยันรับเงิน</button>;
-    return <button className="icon-button table-view-button" aria-label="ดูรายละเอียด" title="ดูรายละเอียด" onClick={() => onNavigate('tracking')}><ChevronRight size={17}/></button>;
   }
-  return <div className="page-stack">
-    <div className="page-heading-row"><div><div className="eyebrow">BOOKING MANAGEMENT</div><h1>การจองของฉัน</h1><p className="page-subtitle">ติดตามนัดหมาย ระหว่างเดินทาง ไปถึงหน้างาน และปิดงานหลังชำระเงิน</p></div>{role !== 'technician' && <button className="primary-button" onClick={onNewBooking}><Plus size={17}/> จองบริการใหม่</button>}</div>
-    <div className="booking-summary-strip"><div><span className="summary-dot summary-dot-teal"/><strong>{countFor('ยืนยันแล้ว')}</strong><span>ยืนยันนัดแล้ว</span></div><div><span className="summary-dot summary-dot-amber"/><strong>{countFor('เปิดรับช่าง') + countFor('รอเลือกช่าง')}</strong><span>รอเลือกช่าง</span></div><div><span className="summary-dot summary-dot-green"/><strong>{countFor('รอชำระเงิน')}</strong><span>รอชำระเงิน</span></div><div className="summary-strip-note"><CalendarDays size={16}/> รับงาน เดินทาง และปิดภารกิจในขั้นตอนเดียว</div></div>
-    <section className="panel bookings-table-panel"><div className="panel-heading"><div><h2>รายการจองทั้งหมด</h2><p>รหัสการจองและข้อมูลนัดหมายล่าสุด</p></div><button className="outline-button small-outline" onClick={() => setSortNewest((value) => !value)}><ArrowDownUp size={15}/> {sortNewest ? 'ใหม่ไปเก่า' : 'เก่าไปใหม่'}</button></div>
-      <div className="booking-tabs">{tabs.map((tab) => <button className={activeTab===tab?'active':''} key={tab} onClick={() => setActiveTab(tab)}>{tab}<span>{countFor(tab)}</span></button>)}</div>
-      <div className="table-scroll"><table className="data-table"><thead><tr><th>รหัส / บริการ</th><th>วันและเวลา</th><th>ช่างผู้ให้บริการ</th><th>ราคา</th><th>สถานะ</th><th>การจัดการ</th></tr></thead><tbody>{filtered.map((booking) => <tr key={booking.id}><td><div className="booking-code">{booking.code}</div><strong>{booking.service}</strong><small className="table-secondary">{booking.unitLabel}</small></td><td><div className="table-date">{thaiDate(booking.date)}</div><small className="table-secondary"><Clock3 size={12}/> {timeLabel(booking)}</small></td><td><div className="table-technician"><span className="avatar avatar-small">{booking.technicianInitials}</span><div><strong>{booking.technician}</strong><small><MapPin size={11}/> {booking.address}</small></div></div></td><td className="table-price">฿{booking.price.toLocaleString()}</td><td><StatusBadge status={booking.status}/></td><td>{actionFor(booking)}</td></tr>)}</tbody></table></div>
-      {filtered.length===0 && <div className="empty-state"><SlidersHorizontal size={24}/><strong>ไม่มีรายการในหมวดนี้</strong><span>เมื่อมีรายการจองใหม่ จะแสดงข้อมูลที่นี่</span></div>}
-      <div className="table-footer"><span>แสดง {filtered.length} จาก {bookings.length} รายการ</span><span>เก็บเงินปลายทาง</span></div>
+
+  return <div className="ui-page ad">
+    <PageHead title="รายการจองทั้งหมด" actions={<>
+      <button type="button" className="ui-btn" onClick={onRefresh}><RefreshCw size={17}/> โหลดใหม่</button>
+      <button type="button" className="ui-btn" onClick={onNewBooking}><Plus size={17}/> สร้างคำขอใหม่</button>
+    </>}>ทุกงานในระบบ ตั้งแต่เปิดรับช่างจนปิดงาน ลูกค้าจ่ายช่างโดยตรง และงานปิดเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</PageHead>
+
+    <dl className="jb-summary ad-summary">
+      <div><dt>ทั้งหมด</dt><dd className="ui-num">{bookings.length}</dd></div>
+      <div><dt>รอเลือกช่าง</dt><dd className="ui-num">{waiting.length}</dd></div>
+      <div><dt>กำลังดำเนินการ</dt><dd className="ui-num">{bookings.filter(booking => running.includes(booking.status)).length}</dd></div>
+      <div className={problems ? 'is-turn' : ''}><dt>มีปัญหาการชำระเงิน</dt><dd className="ui-num">{problems}</dd></div>
+    </dl>
+
+    <section className="ui-card ad-table-card" aria-labelledby="ad-bookings">
+      <div className="ui-card-head">
+        <div><h2 id="ad-bookings">{activeTab === 'ทั้งหมด' ? 'ทุกสถานะ' : activeTab}</h2><p>แสดง {filtered.length} จาก {bookings.length} รายการ{searchQuery ? ` · ค้นหา “${searchQuery}”` : ''}</p></div>
+        <button type="button" className="ui-btn is-sm" onClick={() => setSortNewest(value => !value)}><ArrowDownUp size={15}/> {sortNewest ? 'ใหม่ไปเก่า' : 'เก่าไปใหม่'}</button>
+      </div>
+      <div className="ad-chips" role="group" aria-label="กรองตามสถานะ">
+        {tabs.filter(tab => tab === 'ทั้งหมด' || countFor(tab) > 0).map(tab => <button type="button" key={tab} className="ui-chip" aria-pressed={activeTab === tab} onClick={() => setActiveTab(tab)}>{tab} <b className="ui-num">{countFor(tab)}</b></button>)}
+      </div>
+      {filtered.length === 0
+        ? <EmptyState icon={SlidersHorizontal} title="ไม่มีรายการในหมวดนี้">ลองเลือกสถานะอื่น หรือล้างคำค้นหา</EmptyState>
+        : <table className="ad-table">
+          <thead><tr><th scope="col">งาน</th><th scope="col">วันนัด</th><th scope="col">ลูกค้า / ช่าง</th><th scope="col" className="is-num">ราคา</th><th scope="col">สถานะ</th><th scope="col"><span className="sr-only">ทำต่อ</span></th></tr></thead>
+          <tbody>{filtered.slice(0, shown).map(booking => <tr key={booking.id}>
+            <td data-label="งาน"><span className="ad-code ui-num">{booking.code}</span><strong>{booking.service}</strong><small>{booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</small></td>
+            <td data-label="วันนัด"><span className="ui-num">{thaiDate(booking.date)}</span><small><Clock3 size={12} aria-hidden="true"/> {timeLabel(booking)}</small></td>
+            <td data-label="ลูกค้า / ช่าง"><strong>{booking.customer || '—'}</strong><small><Wrench size={12} aria-hidden="true"/> {booking.technician}</small><small><MapPin size={12} aria-hidden="true"/> {booking.address}</small></td>
+            <td data-label="ราคา" className="is-num ui-num">฿{booking.price.toLocaleString()}</td>
+            <td data-label="สถานะ"><StatusBadge status={booking.status}/></td>
+            <td className="ad-act">{actionFor(booking)}</td>
+          </tr>)}</tbody>
+        </table>}
+      {filtered.length > shown && <button type="button" className="ui-btn is-block" onClick={() => setShown(value => value + PAGE)}>แสดงอีก {Math.min(PAGE, filtered.length - shown)} รายการ (เหลือ {filtered.length - shown})</button>}
     </section>
 
-    {(role === 'customer' || role === 'manager' || role === 'admin') && <section className="panel interested-technicians-panel">
-      <div className="panel-heading"><div><h2>ช่างที่สนใจรับงานของคุณ</h2><p>เปรียบเทียบคะแนน ประสบการณ์ และราคาที่เสนอ ก่อนกดยืนยันช่าง</p></div><button className="outline-button small-outline" onClick={onRefresh}><CheckCircle2 size={15}/> ตรวจสอบล่าสุด</button></div>
-      {candidateBookings.length===0 ? <div className="empty-state compact"><Wrench size={24}/><strong>ยังไม่มีคำขอที่รอเลือกช่าง</strong><span>เมื่อช่างส่งความสนใจ รายชื่อและราคาจะปรากฏในส่วนนี้โดยอัตโนมัติ</span></div> : <div className="candidate-request-list">
-        {candidateBookings.map(booking => <article className="candidate-request" key={booking.id}>
-          <div className="candidate-request-heading"><div><span className="booking-code">{booking.code}</span><h3>{booking.service}</h3><p>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง · {thaiDate(booking.date)} เวลา {timeLabel(booking)}</p><p className="candidate-request-address"><MapPin size={13}/>{booking.address}</p></div><StatusBadge status={booking.status}/></div>
-          {(!booking.applicants || booking.applicants.length===0) ? <div className="candidate-waiting"><Clock3 size={17}/><div><strong>เปิดรับช่างใกล้เคียงแล้ว</strong><span>ระบบจะตรวจสอบรายชื่อช่างที่สนใจเป็นระยะ คุณไม่จำเป็นต้องเลือกช่างตอนสร้างคำขอ</span></div></div> :
-          <div className="candidate-technician-grid">{booking.applicants.map(applicant => <div className="candidate-technician-card" key={applicant.technicianId}>
-            <div className="candidate-tech-head"><span className="avatar avatar-small"><Avatar name={applicant.name} photoId={applicant.photoId}/></span><div><strong>{applicant.name}</strong><small>{applicant.title}</small></div>{applicant.verified && <ShieldCheck size={16} className="candidate-verified"/>}</div>
-            <div className="candidate-tech-stats"><span><Star size={14} fill="currentColor"/>{applicant.rating.toFixed(1)} ({applicant.reviewCount})</span><span><Wrench size={14}/>{applicant.jobsCompleted} งาน</span></div>
-            <div className="candidate-tech-area"><MapPin size={13}/>{applicant.area}</div>
-            {applicant.note && <p className="candidate-tech-note">“{applicant.note}”</p>}
-            <div className="candidate-tech-price"><span>{applicant.selected?'ช่างที่ยืนยันแล้ว':'ราคาที่เสนอ'}</span><strong>฿{applicant.quote.toLocaleString()}</strong></div>
-            <button className={applicant.selected?'outline-button full-width':'primary-button full-width'} disabled={applicant.selected || booking.status==='ยืนยันแล้ว' || selectingKey!==''} onClick={async()=>{setSelectingKey(booking.id+':'+applicant.technicianId);const success=await onSelectTechnician(booking.id,applicant.technicianId);setSelectingKey('');if(success)onRefresh();}}>
-              {selectingKey===booking.id+':'+applicant.technicianId?'กำลังยืนยัน...':applicant.selected?'ช่างที่เลือกแล้ว':'ยืนยันช่างคนนี้'}{applicant.selected?<CheckCircle2 size={15}/>:<ChevronRight size={15}/>}
+    {waiting.length > 0 && <details className="ui-card ad-waiting">
+      <summary><span><strong>งานที่รอลูกค้าเลือกช่าง</strong> <b className="ui-num">{waiting.length}</b></span><small>เลือกช่างแทนลูกค้าได้เมื่อลูกค้าขอให้ช่วย</small></summary>
+      <ul className="ad-waiting-list">{waiting.map(booking => <li key={booking.id}>
+        <div className="ad-waiting-head"><span className="ad-code ui-num">{booking.code}</span><strong>{booking.service}</strong><StatusBadge status={booking.status}/></div>
+        <p>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง · {thaiDate(booking.date)} {timeLabel(booking)} · {booking.address}</p>
+        {!booking.applicants?.length
+          ? <p className="jb-note"><Clock3 size={16}/> ยังไม่มีช่างเสนอราคา</p>
+          : <ul className="ad-offers">{booking.applicants.map(applicant => <li key={applicant.technicianId}>
+            <span className="ad-offer-avatar" aria-hidden="true"><Avatar name={applicant.name} photoId={applicant.photoId}/></span>
+            <span className="ad-offer-text"><strong>{applicant.name} · <span className="ui-num">฿{applicant.quote.toLocaleString()}</span></strong><small><Star size={12} aria-hidden="true"/> {applicant.rating.toFixed(1)} ({applicant.reviewCount}) · {applicant.jobsCompleted} งาน · {applicant.area}</small></span>
+            <button type="button" className="ui-btn is-sm" disabled={applicant.selected || selectingKey !== ''}
+              onClick={async () => { setSelectingKey(booking.id + ':' + applicant.technicianId); const success = await onSelectTechnician(booking.id, applicant.technicianId); setSelectingKey(''); if (success) onRefresh(); }}>
+              {selectingKey === booking.id + ':' + applicant.technicianId ? 'กำลังยืนยัน…' : applicant.selected ? <><CheckCircle2 size={15}/> เลือกแล้ว</> : 'เลือกแทนลูกค้า'}
             </button>
-          </div>)}</div>}
-        </article>)}
-      </div>}
-    </section>}
-    <div className="info-callout"><Wrench size={19}/><div><strong>ภารกิจจะเสร็จสิ้นเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</strong><span>เก็บเงินปลายทาง ลูกค้าจ่ายช่างโดยตรงด้วยเงินสดหรือโอน แล้วทั้งสองฝ่ายกดยืนยันในระบบ</span></div></div>
+          </li>)}</ul>}
+      </li>)}</ul>
+    </details>}
   </div>;
 }

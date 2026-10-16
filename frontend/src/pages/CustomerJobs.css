@@ -4,81 +4,12 @@
 /* ── List ── */
 
 /* ── Buttons ── */
-.cj-primary,
-.cj-ghost,
-.cj-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 12px;
-  font-size: 15.5px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-.cj-primary {
-  border: 0;
-  background: var(--ac-blue);
-  color: #fff;
-}
-.cj-primary:hover:not(:disabled) {
-  background: var(--ac-blue-deep);
-}
-.cj-ghost {
-  border: 1px solid var(--ac-frame);
-  background: #fff;
-  color: var(--ac-ink);
-}
-.cj-ghost:hover:not(:disabled) {
-  background: var(--ac-mist);
-}
-.cj-danger {
-  border: 0;
-  background: var(--ac-red);
-  color: #fff;
-}
-.cj-primary.full {
-  width: 100%;
-}
-.cj-primary:disabled,
-.cj-ghost:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.cj-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ac-blue-deep);
-  font-size: 14.5px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.cj-link.danger {
-  color: var(--ac-red);
-}
 
 /* ── Empty ── */
 
 /* ── Technician extras ── */
 
 /* ── Job photos ── */
-.jp-error {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #fdecea;
-  color: #a53c3c;
-  font-size: 14px;
-}
 
 /* ── Manager: buildings ── */
 .bd-list {
