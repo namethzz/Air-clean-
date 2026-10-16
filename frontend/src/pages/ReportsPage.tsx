@@ -1,3 +1,4 @@
+import { webLink } from '../lib/links';
 import { useState,type FormEvent } from 'react';
 import { CheckCircle2,ClipboardCheck,Clock3,FileCheck2,Image,Plus,ShieldCheck,Wrench } from 'lucide-react';
 import type { Booking,ServiceReportRecord,UserRole } from '../types';
@@ -81,7 +82,7 @@ export default function ReportsPage({bookings,reports,role,onCreateReport,onAppr
      <div className="report-live-detail-head"><div><div className="eyebrow">REPORT · {selected.bookingCode}</div><h2>{bookings.find(item=>item.id===selected.bookingId)?.service||'รายงานบริการ'}</h2><p>บันทึกเมื่อ {dateLabel(selected.createdAt)}</p></div><span className={'report-approval-pill '+(selected.customerApproved?'approved':'')}>{selected.customerApproved?'ลูกค้ายืนยันแล้ว':'รอลูกค้ายืนยัน'}</span></div>
      <div className="report-summary-text"><strong>สรุปงาน</strong><p>{selected.summary}</p></div>
      <div className="report-live-checks"><h3>รายการตรวจเช็ก</h3>{checklistLabels.map(item=><div key={item.key} className="report-live-check"><span>{item.label}</span><strong className={selected[item.key]?'checked':''}>{selected[item.key]?'บันทึกแล้ว':'ไม่ได้ระบุ'}</strong></div>)}</div>
-     <div className="report-live-photos"><h3>ภาพประกอบ</h3><div>{selected.beforePhotoUrl?<a href={selected.beforePhotoUrl} target="_blank" rel="noreferrer">เปิดภาพก่อนทำ</a>:<span>ไม่มีภาพก่อนทำ</span>}{selected.afterPhotoUrl?<a href={selected.afterPhotoUrl} target="_blank" rel="noreferrer">เปิดภาพหลังทำ</a>:<span>ไม่มีภาพหลังทำ</span>}</div></div>
+     <div className="report-live-photos"><h3>ภาพประกอบ</h3><div>{webLink(selected.beforePhotoUrl)?<a href={webLink(selected.beforePhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพก่อนทำ</a>:<span>ไม่มีภาพก่อนทำ</span>}{webLink(selected.afterPhotoUrl)?<a href={webLink(selected.afterPhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพหลังทำ</a>:<span>ไม่มีภาพหลังทำ</span>}</div></div>
      {role==='customer'&&!selected.customerApproved&&<button type="button" className="primary-button full-width" onClick={()=>void approve()}><ShieldCheck size={16}/> ยืนยันรายงานบริการ</button>}
     </>}
     {actionError&&!showForm&&<div className="auth-error" role="alert">{actionError}</div>}

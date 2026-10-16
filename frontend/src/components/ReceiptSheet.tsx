@@ -20,15 +20,17 @@ export default function ReceiptSheet({ bookingId, canIssue, companyFirst = false
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => { fetchReceipt(bookingId).then(setReceipt).catch(reason => setError(reason instanceof Error ? reason.message : 'โหลดใบเสร็จไม่สำเร็จ')); }, [bookingId]);
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.classList.add('receipt-open');
     box.current?.focus({ preventScroll: true });
-    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') close.current(); };
     document.addEventListener('keydown', key);
     return () => { document.body.classList.remove('receipt-open'); document.removeEventListener('keydown', key); before?.focus({ preventScroll: true }); };
-  }, [onClose]);
+  }, []);
 
   // Opens outside the app frame so printing can hide everything else; it carries its own type and focus ring.
   return createPortal(<div className="rt-backdrop" role="dialog" aria-modal="true" aria-label="ใบเสร็จรับเงิน">

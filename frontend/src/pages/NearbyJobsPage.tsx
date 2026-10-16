@@ -1,5 +1,5 @@
 import { timeLabel } from '../lib/time';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, MapPin, Navigation, RefreshCw, ShieldCheck, UserCog, Wind, Wrench } from 'lucide-react';
 import type { Booking, TechnicianApplication } from '../types';
 import { VerificationBanner } from '../components/TechnicianProfileSettings';
@@ -55,7 +55,10 @@ function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Prop
   const [error,setError]=useState('');
   const [locationLabel,setLocationLabel]=useState('กำลังขอตำแหน่ง');
 
+  // Only the latest search may fill the list: an older radius answering late must not win.
+  const searchNo=useRef(0);
   const loadNearby=useCallback(async()=>{
+    const mine=++searchNo.current;
     setLoading(true);setError('');
     try {
       const coords=await new Promise<{latitude:number;longitude:number}>((resolve,reject)=>{
@@ -66,10 +69,12 @@ function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Prop
           {enableHighAccuracy:true,timeout:15000,maximumAge:30000},
         );
       });
+      const found=await fetchNearbyJobs(coords.latitude,coords.longitude,radiusKm);
+      if(mine!==searchNo.current)return;
       setLocationLabel('ค้นหางานในรัศมี '+radiusKm+' กม.');
-      setJobs(await fetchNearbyJobs(coords.latitude,coords.longitude,radiusKm));
-    } catch (err) { setError(messageOf(err)); }
-    finally { setLoading(false); }
+      setJobs(found);
+    } catch (err) { if(mine===searchNo.current)setError(messageOf(err)); }
+    finally { if(mine===searchNo.current)setLoading(false); }
   },[radiusKm]);
 
   useEffect(()=>{void loadNearby();},[loadNearby]);

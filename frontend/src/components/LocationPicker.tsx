@@ -77,6 +77,7 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
   const latest = useRef(value);
   latest.current = value;
   const autoAddress = useRef('');
+  const lookupNo = useRef(0);
   // Grow the address box with its text (filled from the map, or typed), on browsers without CSS field-sizing too.
   const addressBox = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -123,16 +124,19 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
 
   /** Fills the address from the map when the person has not typed their own. */
   async function fillAddressAt(latitude: number, longitude: number) {
+    // Only the latest pin's address is used: two quick taps must not leave the first one's text under the second pin.
+    const mine = ++lookupNo.current;
     setLookingUp(true);
     try {
       const text = await addressAt(latitude, longitude);
+      if (mine !== lookupNo.current) return;
       const current = latest.current.address.trim();
       if (text && (!current || current === autoAddress.current)) {
         autoAddress.current = text;
         patch({ address: text });
       }
     } catch { /* the person can type the address */ }
-    finally { setLookingUp(false); }
+    finally { if (mine === lookupNo.current) setLookingUp(false); }
   }
   function moveTo(latitude: number, longitude: number, note: string) {
     patch({ latitude, longitude, locationSelected: true });
@@ -165,7 +169,10 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
   function startNew() {
     autoAddress.current = '';
     onChange({ id: 'new', label: '', placeType: types[0], address: '', latitude: value.latitude, longitude: value.longitude, locationSelected: false });
-    onRememberChange({ on: true, label: forBuilding ? '' : 'บ้าน' });
+    // Saved places are kept by name, so a second place must not take the name of one already saved.
+    const taken = new Set((saved ?? []).map(item => item.label.trim()));
+    const free = ['บ้าน', 'คอนโด', 'ที่ทำงาน', 'บ้านพ่อแม่'].find(name => !taken.has(name)) ?? `ที่อยู่ ${taken.size + 1}`;
+    onRememberChange({ on: true, label: forBuilding ? '' : free });
     setMode('new'); setMessage('');
   }
   function edit(item: SavedAddress) {

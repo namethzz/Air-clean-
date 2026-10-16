@@ -466,19 +466,23 @@ function RoomChecklist({ booking, onProgress }: { booking: Booking; onProgress: 
   const [rooms, setRooms] = useState(booking.rooms ?? []);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Taps made while a save is on its way stay unsaved, so they are not dropped when that save returns.
+  const taps = useRef(0);
   useEffect(() => { if (!dirty) setRooms(booking.rooms ?? []); }, [booking.rooms]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!dirty) return;
     const timer = window.setTimeout(async () => {
+      const at = taps.current;
       setSaving(true);
       await onProgress(booking.id, 0, rooms.filter(room => room.done).map(room => room.name));
-      setSaving(false); setDirty(false);
+      setSaving(false);
+      if (taps.current === at) setDirty(false);
     }, 800);
     return () => window.clearTimeout(timer);
   }, [rooms, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
   return <section className="cj-block tj-progress">
     <h3>ห้องที่ล้างแล้ว</h3>
-    <RoomBoard rooms={rooms} onToggle={name => { setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
+    <RoomBoard rooms={rooms} onToggle={name => { taps.current++; setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
     <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'แตะห้องเมื่อล้างเสร็จ ลูกค้าเห็นทันทีว่าห้องไหนเสร็จแล้ว'}</p>
   </section>;
 }

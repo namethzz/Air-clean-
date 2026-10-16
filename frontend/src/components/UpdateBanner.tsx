@@ -28,7 +28,8 @@ export default function UpdateBanner() {
       // Reload once per new version; if the page still comes back old (a cached copy), offer the button instead of looping.
       let tried = false;
       try { tried = sessionStorage.getItem(RELOAD_KEY) === version; sessionStorage.setItem(RELOAD_KEY, version); } catch { tried = true; }
-      if (reloadNow && !tried) window.location.reload();
+      const busy = document.querySelector('.ui-backdrop, .rt-backdrop, .ph-viewer, [role="dialog"]');
+      if (reloadNow && !tried && !busy) window.location.reload();
       else setAvailable(true);
     }
     const onVisible = () => { if (document.visibilityState === 'visible') void check(true); };

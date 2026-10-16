@@ -49,7 +49,8 @@ public class ReceiptsController(MongoStore db, Notifier notifier) : AirCleanCont
             return BadRequest(new { message = "เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก" });
         string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         var payer = new BillingInfo { Name = request.Payer.Name.Trim(), TaxId = Clean(taxId), Branch = Clean(request.Payer.Branch), Address = Clean(request.Payer.Address) };
-        var number = $"RC{DateTime.UtcNow:yyyy}-{await store.NextIdAsync("receipts-" + DateTime.UtcNow.Year):000000}";
+        var year = Membership.ThaiNow.Year;
+        var number = $"RC{year}-{await store.NextIdAsync("receipts-" + year):000000}";
         // Only the first issue wins, so two taps never make two numbers for one job.
         var issued = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.ReceiptNo == null,
             Builders<Booking>.Update.Set(x => x.ReceiptNo, number).Set(x => x.ReceiptIssuedAt, DateTime.UtcNow).Set(x => x.ReceiptPayer, payer));
@@ -71,6 +72,6 @@ public class ReceiptsController(MongoStore db, Notifier notifier) : AirCleanCont
         return new ReceiptDto(booking.ReceiptNo is not null, booking.ReceiptNo, booking.ReceiptIssuedAt?.ToString("O", culture), booking.Code,
             booking.ScheduledAt.ToString("yyyy-MM-dd", culture), paidAt.ToString("O", culture), booking.PaymentMethod,
             ToDto(payer), tech?.Name ?? booking.TechnicianName, tech?.Phone, booking.Address, lines, booking.Price,
-            booking.Rooms.Select(x => x.Name).ToList(), customer?.Billing is null ? null : ToDto(customer.Billing));
+            booking.Rooms.Select(x => x.Name).ToList(), customer?.Billing is null || customer.Id != CurrentUserId ? null : ToDto(customer.Billing));
     }
 }

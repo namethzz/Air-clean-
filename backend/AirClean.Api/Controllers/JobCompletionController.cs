@@ -45,8 +45,10 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         }
         // Counting finished units means the work has started.
         if (booking.Status is BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived && done > 0)
-            update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived").Set(x => x.UpdatedAt, DateTime.UtcNow);
-        await store.Bookings.UpdateOneAsync(x => x.Id == id, update);
+            update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived");
+        var status = booking.Status;
+        var written = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.Status == status, update.Set(x => x.UpdatedAt, DateTime.UtcNow));
+        if (written.MatchedCount == 0) return Conflict(new { message = "งานนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
         var saved = await store.Bookings.Find(x => x.Id == id).FirstAsync();
         return Ok(DtoMapper.ToDto(saved));
     }
