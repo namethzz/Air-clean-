@@ -271,9 +271,6 @@
   background: var(--v-surface);
   box-shadow: var(--v-shadow-card);
 }
-.ui-card.is-flat {
-  box-shadow: none;
-}
 .ui-card > h2,
 .ui-card-head h2 {
   margin: 0;
@@ -1025,6 +1022,15 @@ a.ui-row:hover {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ───────── A profile photo inside any avatar circle (Avatar.tsx); the circle keeps its size and shape ───────── */
+.av-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }
 
 /* ───────── Numbers and dates in data ───────── */

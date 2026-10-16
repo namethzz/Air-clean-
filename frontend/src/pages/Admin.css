@@ -19,7 +19,6 @@
     border-top: 1px solid rgb(255 255 255 / 0.16);
   }
 }
-button.ad-summary-link,
 .ad-summary a {
   color: inherit;
 }
@@ -95,9 +94,9 @@ button.ad-summary-link,
     clip-path: inset(50%);
   }
   .ad-table,
-  .ad-table tbody,
-  .ad-table tr,
-  .ad-table td {
+.ad-table tbody,
+.ad-table tr,
+.ad-table td {
     display: block;
   }
   .ad-table tr {
@@ -112,8 +111,8 @@ button.ad-summary-link,
     border: 0;
   }
   .ad-table td[data-label="งาน"],
-  .ad-table td[data-label="วันนัด"],
-  .ad-table td[data-label="ลูกค้า / ช่าง"] {
+.ad-table td[data-label="วันนัด"],
+.ad-table td[data-label="ลูกค้า / ช่าง"] {
     grid-column: 1 / -1;
   }
   .ad-table .is-num {
@@ -235,6 +234,712 @@ button.ad-summary-link,
   align-items: start;
   gap: var(--v-gap-4);
 }
-.tracking-detail-panel > .ad-chips {
-  margin-bottom: 12px;
+
+/* ───────── Tracking (tk-): the chosen job with its map beside the list; on phones the job comes first ───────── */
+.tk {
+  display: grid;
+  gap: var(--v-gap-4);
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .tk {
+    grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr);
+  }
+  .tk-job {
+    position: sticky;
+    top: 88px;
+  }
+}
+.tk-job {
+  scroll-margin-top: 88px;
+}
+.tk-job:focus {
+  outline: none;
+}
+.tk-job-head h2 {
+  overflow-wrap: anywhere;
+}
+.tk-live {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--v-radius);
+  background: var(--v-sunken);
+  color: var(--v-ink-2);
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.tk-live > i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--v-line-strong);
+}
+.tk-live.is-live {
+  background: var(--v-done-bg);
+  color: var(--v-done);
+}
+.tk-live.is-live > i {
+  background: var(--v-done);
+  box-shadow: 0 0 0 4px rgb(14 122 95 / 0.18);
+}
+.tk-live small {
+  display: block;
+  font-weight: 400;
+  color: var(--v-ink-3);
+}
+.tk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: var(--v-text-xs);
+  color: var(--v-ink-3);
+}
+.tk-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tk-pin {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--v-blue-600);
+}
+.tk-pin.is-tech {
+  background: var(--v-turn);
+}
+
+/* ───────── Service reports: what was checked, photo links ───────── */
+.ad-sub {
+  margin: 0;
+  font: 600 var(--v-text-md) / 1.4 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ad-checks {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ad-checks li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--v-line);
+  color: var(--v-ink-3);
+}
+.ad-checks li:first-child {
+  border-top: 0;
+}
+.ad-checks li span {
+  color: var(--v-ink-2);
+}
+.ad-checks small {
+  font-size: var(--v-text-sm);
+}
+.ad-checks li.is-done {
+  color: var(--v-done);
+}
+.ad-checks li.is-done small {
+  font-weight: 600;
+}
+.ad-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.ad-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ───────── Approvals, issues and all technicians (moved from the old theme; tokenised) ───────── */
+.at-search input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.approval-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.approval-tabs button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--v-line);
+  border-radius: 999px;
+  background: var(--v-surface);
+  color: var(--v-ink-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.approval-tabs button span {
+  margin-left: 6px;
+  color: var(--v-ink-3);
+}
+.approval-tabs button.active {
+  border-color: var(--v-blue-600);
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.approval-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+}
+.approval-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+.approval-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.approval-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.approval-card header p {
+  margin: 2px 0 0;
+  color: var(--v-ink-3);
+  font-size: 14px;
+}
+.approval-state {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.approval-state.pending {
+  background: var(--v-wait-bg);
+  color: var(--v-wait);
+}
+.approval-state.approved {
+  background: var(--v-done-bg);
+  color: var(--v-done);
+}
+.approval-state.rejected {
+  background: var(--v-problem-bg);
+  color: var(--v-problem);
+}
+.approval-card dl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.approval-card dl > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 14px;
+}
+.approval-card dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--v-ink-3);
+}
+.approval-card dd {
+  margin: 0;
+  color: var(--v-ink);
+  overflow-wrap: anywhere;
+}
+.approval-card footer,
+.approval-reject > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.approval-reject {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.approval-reject textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  resize: vertical;
+}
+.issue-card .approval-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.issue-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--v-turn);
+  border-radius: 0 10px 10px 0;
+  background: var(--v-wait-bg);
+  color: var(--v-ink);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.issue-reason span {
+  color: var(--v-wait);
+  font-size: 13px;
+}
+.issue-card dd strong {
+  display: block;
+}
+.issue-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin-right: 12px;
+  color: var(--v-blue-700);
+  font-weight: 600;
+  text-decoration: none;
+}
+.issue-contact:hover {
+  text-decoration: underline;
+}
+.issue-history summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--v-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.issue-history ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.issue-history li {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--v-ink);
+}
+.issue-history li svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--v-ink-3);
+}
+.issue-history small {
+  display: block;
+  color: var(--v-ink-3);
+  font-size: 12px;
+}
+.issue-result {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--v-done-bg);
+  color: var(--v-done);
+  font-size: 14px;
+}
+.issue-result svg {
+  flex: none;
+  margin-top: 2px;
+}
+.issue-card select {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: 10px;
+  background: var(--v-surface);
+  font: inherit;
+  font-size: 15px;
+}
+.at-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: 12px;
+  background: var(--v-surface);
+  color: var(--v-ink-3);
+}
+.at-search:focus-within {
+  border-color: var(--v-blue-600);
+  box-shadow: 0 0 0 3px rgb(31 111 224 / 0.18);
+}
+.at-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--v-ink);
+}
+.at-list,
+.at-jobs,
+.at-reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.at-row,
+.at-job {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--v-line);
+  border-radius: 14px;
+  background: var(--v-surface);
+  color: var(--v-ink-3);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.at-row:hover,
+.at-job:hover {
+  border-color: var(--v-line-strong);
+}
+.at-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+  font-weight: 700;
+  font-size: 17px;
+}
+.at-avatar.large {
+  width: 72px;
+  height: 72px;
+  font-size: 26px;
+}
+.at-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.at-main strong {
+  font-size: 15.5px;
+  color: var(--v-ink);
+}
+.at-main > span {
+  font-size: 14px;
+  color: var(--v-ink-2);
+}
+.at-main small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--v-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.at-main small svg {
+  color: #d99a12;
+}
+.at-back {
+  align-self: flex-start;
+}
+.at-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+.at-head-main {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.at-head-main h1 {
+  margin: 0;
+  font-size: 24px;
+}
+.at-head-main p {
+  margin: 0;
+  color: var(--v-ink-3);
+}
+.at-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.at-contact a {
+  text-decoration: none;
+}
+.at-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.at-stats div {
+  padding: 14px 16px;
+  border: 1px solid var(--v-line);
+  border-radius: 14px;
+  background: var(--v-surface);
+}
+.at-stats div.warn {
+  border-color: #f0d7a6;
+  background: var(--v-wait-bg);
+}
+.at-stats dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--v-ink-3);
+}
+.at-stats dd {
+  margin: 4px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--v-ink);
+  font-variant-numeric: tabular-nums;
+}
+.at-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.at-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+.at-section h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.at-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.at-facts > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 14.5px;
+}
+.at-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--v-ink-3);
+}
+.at-facts dd {
+  margin: 0;
+  color: var(--v-ink);
+  overflow-wrap: anywhere;
+}
+.at-facts a {
+  color: var(--v-blue-700);
+  font-weight: 600;
+}
+.at-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.at-reviews li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--v-sunken);
+}
+.at-reviews p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--v-ink);
+}
+.at-reviews small {
+  font-size: 12.5px;
+  color: var(--v-ink-3);
+}
+.at-stars {
+  display: flex;
+  gap: 2px;
+  color: #d99a12;
+}
+.at-job {
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+}
+.at-job-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.at-job-date strong {
+  font-size: 20px;
+  line-height: 1;
+}
+.at-job-date small {
+  font-size: 11.5px;
+}
+.at-job-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.at-job-side small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  color: var(--v-ink-3);
+}
+.at-job-photos {
+  padding: 12px 14px;
+}
+.approval-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.approval-docs > strong {
+  font-size: 14px;
+}
+.approval-docs > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.approval-docs figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+.approval-docs figcaption {
+  font-size: 12px;
+  color: var(--v-ink-3);
+}
+.approval-docs-none {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v-wait);
+}
+@media (max-width: 560px) {
+  .at-row {
+    grid-template-columns: 44px minmax(0, 1fr) 18px;
+  }
+  .at-row .approval-state {
+    grid-column: 2;
+    justify-self: start;
+    grid-row: 2;
+  }
+  .at-row > svg {
+    grid-row: 1 / 3;
+    grid-column: 3;
+  }
+  .at-job {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .at-job-date {
+    width: 48px;
+    height: 48px;
+  }
+  .at-job-side {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .at-facts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* ───────── A password reset link the admin made ───────── */
+.ad-reset-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--v-done-bg);
+  font-size: 14px;
+}
+.ad-reset-link code {
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--v-surface);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.ad-reset-link button {
+  align-self: flex-start;
+}
+.ad-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--v-gap-3);
+}
+.ad-form > .ui-field,
+.ad-form > .ui-alert,
+.ad-form > .ad-reset-link {
+  align-self: stretch;
 }

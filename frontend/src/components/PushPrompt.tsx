@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Share, SquarePlus, X } from 'lucide-react';
+import { BellRing, Info } from 'lucide-react';
+import { Problem, Sheet, Steps } from './kit';
 import type { UserRole } from '../types';
 import { enablePush, isPushEnabled, pushSupport } from '../lib/push';
 
@@ -57,27 +58,21 @@ export default function PushPrompt({ userId, role }: Props) {
     finally { setBusy(false); }
   }
 
-  return <div className="pp-backdrop" role="presentation" onClick={event => { if (event.target === event.currentTarget) close(); }}>
-    <section className="pp-sheet" role="dialog" aria-modal="true" aria-labelledby="pp-title">
-      <button type="button" className="pp-close" onClick={close} aria-label="ปิด"><X size={20}/></button>
-      <span className="pp-icon"><BellRing size={28}/></span>
-      <h2 id="pp-title">เปิดการแจ้งเตือน</h2>
-      <p>{why[role]}</p>
-      {mode === 'install'
-        ? <>
-          <ol className="pp-steps">
-            <li><Share size={18}/><span>กดปุ่ม <strong>แชร์</strong> ด้านล่างของ Safari</span></li>
-            <li><SquarePlus size={18}/><span>เลือก <strong>“เพิ่มไปยังหน้าจอโฮม”</strong></span></li>
-            <li><BellRing size={18}/><span>เปิด AirClean จากไอคอนบนหน้าจอโฮม แล้วกด <strong>“เปิดการแจ้งเตือน”</strong></span></li>
-          </ol>
-          <p className="pp-small">iPhone และ iPad รับการแจ้งเตือนได้เมื่อเปิดจากไอคอนบนหน้าจอโฮม (iOS 16.4 ขึ้นไป)</p>
-          <button type="button" className="pp-primary" onClick={close}>เข้าใจแล้ว</button>
-        </>
-        : <>
-          {error && <p className="pp-error" role="alert">{error}</p>}
-          <button type="button" className="pp-primary" disabled={busy} onClick={() => void allow()}><BellRing size={18}/> {busy ? 'กำลังเปิด...' : 'เปิดการแจ้งเตือน'}</button>
-          <button type="button" className="pp-later" disabled={busy} onClick={close}>ไว้ทีหลัง</button>
-        </>}
-    </section>
-  </div>;
+  // The kit sheet: focus moves in and stays in, Escape and a tap outside mean "not now".
+  if (mode === 'install') return <Sheet title="เปิดการแจ้งเตือน" sub={why[role]} onClose={close}
+    footer={<button type="button" className="ui-btn is-primary is-lg is-block" onClick={close}>เข้าใจแล้ว</button>}>
+    <Steps items={[
+      { title: 'กดปุ่มแชร์', text: 'ปุ่มแชร์อยู่ด้านล่างของ Safari' },
+      { title: 'เลือก “เพิ่มไปยังหน้าจอโฮม”', text: 'AirClean จะมีไอคอนบนหน้าจอโฮม' },
+      { title: 'เปิดจากไอคอน แล้วกด “เปิดการแจ้งเตือน”', text: 'iPhone และ iPad รับการแจ้งเตือนได้เมื่อเปิดจากไอคอนบนหน้าจอโฮม (iOS 16.4 ขึ้นไป)' },
+    ]}/>
+  </Sheet>;
+  return <Sheet title="เปิดการแจ้งเตือน" sub={why[role]} onClose={close}
+    footer={<>
+      <button type="button" className="ui-btn is-primary is-lg is-block" disabled={busy} aria-busy={busy} onClick={() => void allow()}><BellRing size={20}/> {busy ? 'กำลังเปิด…' : 'เปิดการแจ้งเตือน'}</button>
+      <button type="button" className="ui-btn is-ghost is-block" disabled={busy} onClick={close}>ไว้ทีหลัง</button>
+    </>}>
+    <p className="ui-alert is-info"><Info size={18}/><span>เบราว์เซอร์จะถามอีกครั้ง กด “อนุญาต” แล้วปิดได้ทุกเมื่อที่หน้าบัญชี</span></p>
+    {error && <Problem>{error}</Problem>}
+  </Sheet>;
 }

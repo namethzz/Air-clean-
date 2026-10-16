@@ -1,92 +1,89 @@
+import { useRef, useState } from 'react';
+import { CheckCircle2, ChevronRight, Circle, ClipboardCheck, ExternalLink } from 'lucide-react';
+import type { Booking, ServiceReportRecord } from '../types';
 import { webLink } from '../lib/links';
-import { useState,type FormEvent } from 'react';
-import { CheckCircle2,ClipboardCheck,Clock3,FileCheck2,Image,Plus,ShieldCheck,Wrench } from 'lucide-react';
-import type { Booking,ServiceReportRecord,UserRole } from '../types';
-import type { CreateServiceReportPayload } from '../lib/api';
+import { EmptyState, PageHead } from '../components/kit';
+import StatusBadge from '../components/StatusBadge';
+import './Jobs.css';
+import './Admin.css';
 
-interface Props{bookings:Booking[];reports:ServiceReportRecord[];role:UserRole;onCreateReport:(payload:CreateServiceReportPayload)=>Promise<boolean>;onApproveReport:(id:number)=>Promise<boolean>;}
-const checklistLabels=[
- {key:'cleanedFilter',label:'ทำความสะอาดแผ่นกรอง'},
- {key:'cleanedCoil',label:'ทำความสะอาดคอยล์'},
- {key:'checkedDrain',label:'ตรวจท่อน้ำทิ้ง'},
- {key:'checkedCooling',label:'ตรวจการทำงานของเครื่อง'},
+/**
+ * Service reports for the admin (App sends every other role to their own jobs page, where reports are written and
+ * read). The count band, then the reports beside the chosen one: what the technician wrote, what they checked, photos.
+ */
+interface Props { bookings: Booking[]; reports: ServiceReportRecord[]; }
+
+const checklist = [
+  { key: 'cleanedFilter', label: 'ทำความสะอาดแผ่นกรอง' },
+  { key: 'cleanedCoil', label: 'ทำความสะอาดคอยล์' },
+  { key: 'checkedDrain', label: 'ตรวจท่อน้ำทิ้ง' },
+  { key: 'checkedCooling', label: 'ตรวจการทำงานของเครื่อง' },
 ] as const;
-function dateLabel(value:string):string{const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});}
-export default function ReportsPage({bookings,reports,role,onCreateReport,onApproveReport}:Props){
- const [selectedId,setSelectedId]=useState<number|undefined>();
- const [showForm,setShowForm]=useState(false);
- const [targetBookingId,setTargetBookingId]=useState<number|undefined>();
- const [summary,setSummary]=useState('');
- const [cleanedFilter,setCleanedFilter]=useState(false);
- const [cleanedCoil,setCleanedCoil]=useState(false);
- const [checkedDrain,setCheckedDrain]=useState(false);
- const [checkedCooling,setCheckedCooling]=useState(false);
- const [beforePhotoUrl,setBeforePhotoUrl]=useState('');
- const [afterPhotoUrl,setAfterPhotoUrl]=useState('');
- const [submitting,setSubmitting]=useState(false);
- const [actionError,setActionError]=useState('');
- const technicianMode=role==='technician';
- const available=bookings.filter(item=>(item.status==='กำลังดำเนินการ'||item.status==='รอชำระเงิน')&&!reports.some(report=>report.bookingId===item.id));
- const active=available.find(item=>item.id===targetBookingId)||available[0];
- const selected=reports.find(item=>item.id===selectedId)||reports[0];
- const approved=reports.filter(item=>item.customerApproved).length;
- const awaiting=reports.length-approved;
- async function submit(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!active)return;setSubmitting(true);setActionError('');
-  const ok=await onCreateReport({bookingId:active.id,summary:summary.trim(),cleanedFilter,cleanedCoil,checkedDrain,checkedCooling,beforePhotoUrl:beforePhotoUrl.trim()||undefined,afterPhotoUrl:afterPhotoUrl.trim()||undefined});
-  setSubmitting(false);
-  if(ok){setShowForm(false);setSummary('');setCleanedFilter(false);setCleanedCoil(false);setCheckedDrain(false);setCheckedCooling(false);setBeforePhotoUrl('');setAfterPhotoUrl('');}
-  else setActionError('บันทึกไม่สำเร็จ กรุณาตรวจสอบสิทธิ์หรือการเชื่อมต่อแล้วลองอีกครั้ง');
- }
- async function approve(){if(!selected)return;setActionError('');const ok=await onApproveReport(selected.id);if(!ok)setActionError('ยืนยันรายงานไม่สำเร็จ กรุณาลองอีกครั้ง');}
- return <div className="ui-page ad">
-  <div className="ui-page-head"><div><h1>รายงานบริการ</h1><p>ดูรายงานการทำงานและผลตรวจจากข้อมูลที่บันทึกจริง</p></div>
-   {technicianMode&&<button type="button" className="ui-btn is-primary" disabled={!available.length} onClick={()=>{setTargetBookingId(active?.id);setShowForm(v=>!v);}}><Plus size={17}/> บันทึกรายงาน</button>}
-  </div>
-  <div className="report-live-metrics">
-   <div className="report-live-metric"><span className="report-live-icon"><ClipboardCheck size={19}/></span><div><small>รายงานทั้งหมด</small><strong>{reports.length}</strong></div></div>
-   <div className="report-live-metric"><span className="report-live-icon"><CheckCircle2 size={19}/></span><div><small>ลูกค้ายืนยันแล้ว</small><strong>{approved}</strong></div></div>
-   <div className="report-live-metric"><span className="report-live-icon"><Clock3 size={19}/></span><div><small>รอยืนยัน</small><strong>{awaiting}</strong></div></div>
-  </div>
-  {showForm&&technicianMode&&<section className="ui-card report-create-panel">
-   <div className="ui-card-head"><div><h2>บันทึกรายงานหน้างาน</h2><p>ระบุเฉพาะงานที่ทำและตรวจจริง</p></div><button type="button" className="icon-button" onClick={()=>setShowForm(false)} aria-label="ปิดฟอร์ม">×</button></div>
-   {available.length===0?<div className="empty-state"><Wrench size={23}/><strong>ยังไม่มีงานที่บันทึกรายงานได้</strong><span>รายงานได้เมื่อสถานะงานเป็นกำลังดำเนินการหรือรอชำระเงิน</span></div>:<form className="report-create-form" onSubmit={submit}>
-    <label className="form-field"><span>รายการจอง</span><select value={active?.id||''} onChange={e=>setTargetBookingId(Number(e.target.value))} required>{available.map(item=><option key={item.id} value={item.id}>{item.code+' · '+item.service+' · '+item.customer}</option>)}</select></label>
-    <label className="form-field"><span>สรุปงานที่ทำ *</span><textarea value={summary} onChange={e=>setSummary(e.target.value)} rows={4} maxLength={2000} required placeholder="ระบุงานที่ทำ ผลตรวจ และคำแนะนำสำหรับลูกค้า"/></label>
-    <div className="report-check-grid">
-     <label><input type="checkbox" checked={cleanedFilter} onChange={e=>setCleanedFilter(e.target.checked)}/> ทำความสะอาดแผ่นกรอง</label>
-     <label><input type="checkbox" checked={cleanedCoil} onChange={e=>setCleanedCoil(e.target.checked)}/> ทำความสะอาดคอยล์</label>
-     <label><input type="checkbox" checked={checkedDrain} onChange={e=>setCheckedDrain(e.target.checked)}/> ตรวจท่อน้ำทิ้ง</label>
-     <label><input type="checkbox" checked={checkedCooling} onChange={e=>setCheckedCooling(e.target.checked)}/> ตรวจการทำงานของเครื่อง</label>
+function dateLabel(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+const checkedCount = (report: ServiceReportRecord) => checklist.filter(item => report[item.key]).length;
+const hasPhotos = (report: ServiceReportRecord) => Boolean(webLink(report.beforePhotoUrl) || webLink(report.afterPhotoUrl));
+
+export default function ReportsPage({ bookings, reports }: Props) {
+  const [selectedId, setSelectedId] = useState<number | undefined>();
+  const detail = useRef<HTMLElement>(null);
+  const selected = reports.find(item => item.id === selectedId) ?? reports[0];
+  const head = <PageHead title="รายงานบริการ">สรุปงานที่ช่างบันทึกหลังล้างและรายการที่ตรวจ ใช้ดูคุณภาพงาน หรือตอบเมื่อมีเรื่องถูกแจ้ง</PageHead>;
+
+  if (!selected) return <div className="ui-page ad">
+    {head}
+    <EmptyState icon={ClipboardCheck} title="ยังไม่มีรายงานบริการ">เมื่อช่างบันทึกรายงานหลังล้างเสร็จ รายการจะแสดงที่นี่</EmptyState>
+  </div>;
+
+  const job = bookings.find(item => item.id === selected.bookingId);
+  const before = webLink(selected.beforePhotoUrl), after = webLink(selected.afterPhotoUrl);
+  function choose(id: number) {
+    setSelectedId(id);
+    if (window.matchMedia('(max-width: 1023px)').matches) window.requestAnimationFrame(() => detail.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
+  return <div className="ui-page ad">
+    {head}
+    <dl className="jb-summary">
+      <div><dt>รายงานทั้งหมด</dt><dd className="ui-num">{reports.length}</dd></div>
+      <div><dt>ตรวจครบ {checklist.length} ข้อ</dt><dd className="ui-num">{reports.filter(item => checkedCount(item) === checklist.length).length}</dd></div>
+      <div><dt>เดือนนี้</dt><dd className="ui-num">{reports.filter(item => item.createdAt.slice(0, 7) === new Date().toISOString().slice(0, 7)).length}</dd></div>
+    </dl>
+    <div className="tk">
+      <section className="ui-card tk-job" ref={detail} tabIndex={-1} aria-labelledby="rp-title">
+        <div className="ui-card-head tk-job-head">
+          <div><h2 id="rp-title">{selected.bookingCode} · {job?.service ?? 'รายงานบริการ'}</h2><p>บันทึกเมื่อ {dateLabel(selected.createdAt)}{job?.technician ? ` · ${job.technician}` : ''}</p></div>
+          {job && <StatusBadge status={job.status}/>}
+        </div>
+        <p className="jb-report">{selected.summary}</p>
+        <div className="ui-section">
+          <h3 className="ad-sub">รายการที่ตรวจ <span className="ui-num">{checkedCount(selected)}/{checklist.length}</span></h3>
+          <ul className="ad-checks">{checklist.map(item => <li key={item.key} className={selected[item.key] ? 'is-done' : undefined}>
+            {selected[item.key] ? <CheckCircle2 size={18} aria-hidden="true"/> : <Circle size={18} aria-hidden="true"/>}
+            <span>{item.label}</span><small>{selected[item.key] ? 'ทำแล้ว' : 'ไม่ได้ระบุ'}</small>
+          </li>)}</ul>
+        </div>
+        {(before || after) && <div className="ui-section">
+          <h3 className="ad-sub">รูปงาน</h3>
+          <div className="ad-links">
+            {before ? <a className="ui-btn is-sm" href={before} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/> รูปก่อนล้าง</a> : <span>ไม่มีรูปก่อนล้าง</span>}
+            {after ? <a className="ui-btn is-sm" href={after} target="_blank" rel="noopener noreferrer"><ExternalLink size={16}/> รูปหลังล้าง</a> : <span>ไม่มีรูปหลังล้าง</span>}
+          </div>
+        </div>}
+      </section>
+
+      <section className="ui-card tk-list" aria-labelledby="rp-list-title">
+        <div className="ui-card-head"><div><h2 id="rp-list-title">รายงานทั้งหมด</h2><p>ใหม่สุดอยู่บน เลือกเพื่อดูรายละเอียด</p></div></div>
+        <ul className="jb-rows">{reports.map(report => <li key={report.id}>
+          <button type="button" className={'jb-row' + (report.id === selected.id ? ' is-active' : '')} aria-current={report.id === selected.id ? 'true' : undefined} onClick={() => choose(report.id)}>
+            <span className="jb-date"><ClipboardCheck size={22} aria-hidden="true"/></span>
+            <span className="jb-row-text"><strong>{report.bookingCode}</strong><span className="ad-clamp">{report.summary}</span><small>{dateLabel(report.createdAt)} · ตรวจ {checkedCount(report)}/{checklist.length} ข้อ{hasPhotos(report) ? ' · มีรูป' : ''}</small></span>
+            <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
+          </button>
+        </li>)}</ul>
+      </section>
     </div>
-    <div className="form-grid-two">
-     <label className="form-field"><span>ลิงก์ภาพก่อนทำ (ถ้ามี)</span><input type="url" value={beforePhotoUrl} onChange={e=>setBeforePhotoUrl(e.target.value)} maxLength={500} placeholder="https://..."/></label>
-     <label className="form-field"><span>ลิงก์ภาพหลังทำ (ถ้ามี)</span><input type="url" value={afterPhotoUrl} onChange={e=>setAfterPhotoUrl(e.target.value)} maxLength={500} placeholder="https://..."/></label>
-    </div>
-    <p className="report-form-note"><Image size={15}/> ตอนนี้รองรับลิงก์รูปภาพเท่านั้น ยังไม่มีพื้นที่อัปโหลดไฟล์ในระบบ</p>
-    {actionError&&<div className="ui-alert is-problem" role="alert">{actionError}</div>}
-    <button className="ui-btn is-primary" type="submit" disabled={submitting||!summary.trim()}>{submitting?'กำลังบันทึก...':'บันทึกรายงาน'}</button>
-   </form>}
-  </section>}
-  <div className="report-live-layout">
-   <section className="ui-card report-live-list"><div className="ui-card-head"><div><h2>รายการรายงาน</h2><p>สรุปงานที่ช่างบันทึกไว้ เลือกเพื่อดูรายการที่ตรวจ</p></div></div>
-    {reports.length===0?<div className="empty-state"><FileCheck2 size={25}/><strong>ยังไม่มีรายงานบริการ</strong><span>เมื่อช่างบันทึกรายงาน รายการจะปรากฏที่นี่</span></div>:
-    <div className="report-live-items">{reports.map(report=><button type="button" key={report.id} className={'report-live-item '+((selected?.id===report.id)?'active':'')} onClick={()=>setSelectedId(report.id)}>
-      <span className="report-live-item-icon"><ClipboardCheck size={18}/></span>
-      <span className="report-live-item-copy"><strong>{report.bookingCode}</strong><span>{report.summary}</span><small>{dateLabel(report.createdAt)}</small></span>
-      <span className={'report-approval-pill '+(report.customerApproved?'approved':'')}>{report.customerApproved?'ยืนยันแล้ว':'รอยืนยัน'}</span>
-    </button>)}</div>}
-   </section>
-   <section className="ui-card report-live-detail">
-    {!selected?<div className="empty-state"><ShieldCheck size={25}/><strong>ยังไม่มีรายละเอียดรายงาน</strong><span>รายละเอียดและรายการตรวจจะปรากฏเมื่อมีรายงานจากบริการจริง</span></div>:<>
-     <div className="report-live-detail-head"><div><h2>{bookings.find(item=>item.id===selected.bookingId)?.service||'รายงานบริการ'}</h2><p>บันทึกเมื่อ {dateLabel(selected.createdAt)}</p></div><span className={'report-approval-pill '+(selected.customerApproved?'approved':'')}>{selected.customerApproved?'ลูกค้ายืนยันแล้ว':'รอลูกค้ายืนยัน'}</span></div>
-     <div className="report-summary-text"><strong>สรุปงาน</strong><p>{selected.summary}</p></div>
-     <div className="report-live-checks"><h3>รายการตรวจเช็ก</h3>{checklistLabels.map(item=><div key={item.key} className="report-live-check"><span>{item.label}</span><strong className={selected[item.key]?'checked':''}>{selected[item.key]?'บันทึกแล้ว':'ไม่ได้ระบุ'}</strong></div>)}</div>
-     <div className="report-live-photos"><h3>ภาพประกอบ</h3><div>{webLink(selected.beforePhotoUrl)?<a href={webLink(selected.beforePhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพก่อนทำ</a>:<span>ไม่มีภาพก่อนทำ</span>}{webLink(selected.afterPhotoUrl)?<a href={webLink(selected.afterPhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพหลังทำ</a>:<span>ไม่มีภาพหลังทำ</span>}</div></div>
-     {role==='customer'&&!selected.customerApproved&&<button type="button" className="ui-btn is-primary is-block" onClick={()=>void approve()}><ShieldCheck size={16}/> ยืนยันรายงานบริการ</button>}
-    </>}
-    {actionError&&!showForm&&<div className="ui-alert is-problem" role="alert">{actionError}</div>}
-   </section>
-  </div>
- </div>;
+  </div>;
 }

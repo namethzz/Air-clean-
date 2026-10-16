@@ -7,9 +7,9 @@ import type { PriceGuide, PriceSheet, TechnicianApplication } from '../types';
 
 /** Where the technician's application stands with the admin. */
 export function VerificationBanner({ profile }: { profile: TechnicianApplication }) {
-  if (profile.verificationStatus === 'Approved') return <div className="tech-verification approved" role="status"><CheckCircle2 size={18}/><div><strong>ผ่านการตรวจสอบแล้ว</strong><span>คุณดูงานใกล้ตัวและส่งข้อเสนอได้</span></div></div>;
-  if (profile.verificationStatus === 'Rejected') return <div className="tech-verification rejected" role="alert"><XCircle size={18}/><div><strong>ยังไม่ผ่านการตรวจสอบ</strong><span>เหตุผล: {profile.verificationNote || 'กรุณาตรวจข้อมูลอีกครั้ง'} — แก้ไขข้อมูลด้านล่างแล้วกดบันทึก ระบบจะส่งให้ผู้ดูแลตรวจอีกครั้ง</span></div></div>;
-  return <div className="tech-verification pending" role="status"><Clock3 size={18}/><div><strong>รอผู้ดูแลระบบตรวจสอบ</strong><span>ผู้ดูแลอาจโทรยืนยันตามเบอร์ที่ให้ไว้ เมื่ออนุมัติแล้วจะเห็นงานใกล้ตัวทันที</span></div></div>;
+  if (profile.verificationStatus === 'Approved') return <div className="ui-alert is-done" role="status"><CheckCircle2 size={18}/><span><strong>ผ่านการตรวจสอบแล้ว</strong>คุณดูงานใกล้ตัวและส่งข้อเสนอได้</span></div>;
+  if (profile.verificationStatus === 'Rejected') return <div className="ui-alert is-problem" role="alert"><XCircle size={18}/><span><strong>ยังไม่ผ่านการตรวจสอบ</strong>เหตุผล: {profile.verificationNote || 'กรุณาตรวจข้อมูลอีกครั้ง'} — แก้ไขข้อมูลด้านล่างแล้วกดบันทึก ระบบจะส่งให้ผู้ดูแลตรวจอีกครั้ง</span></div>;
+  return <div className="ui-alert is-wait" role="status"><Clock3 size={18}/><span><strong>รอผู้ดูแลระบบตรวจสอบ</strong>ผู้ดูแลอาจโทรยืนยันตามเบอร์ที่ให้ไว้ เมื่ออนุมัติแล้วจะเห็นงานใกล้ตัวทันที</span></div>;
 }
 
 /** Services a technician can tick. The first four are what customers choose when they book. */

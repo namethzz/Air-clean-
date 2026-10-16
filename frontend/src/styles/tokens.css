@@ -76,31 +76,21 @@
   --v-slow: 260ms;
 }
 
-/*
- * Signed-in screens: the older page stylesheets read the --ac-* names, so point those at the new world.
- * Each role's pages are rebuilt on the ui-* components in later steps; these keep the rest coherent meanwhile.
- */
+/* Signed-in screens: the frame sets the world's type, ink and ground once. */
 .ac-shell {
-  --ac-blue: var(--v-blue-600);
-  --ac-blue-deep: var(--v-blue-700);
-  --ac-blue-tint: var(--v-blue-100);
-  --ac-ink: var(--v-ink);
-  --ac-ink-2: var(--v-ink-2);
-  --ac-ink-3: var(--v-ink-3);
-  --ac-white: var(--v-surface);
-  --ac-mist: var(--v-ground);
-  --ac-frame: var(--v-line);
-  --ac-coolant: var(--v-done);
-  --ac-amber: var(--v-wait);
-  --ac-red: var(--v-problem);
-  --ac-focus: var(--v-blue-500);
-  --ac-display: var(--v-font-head);
-  --ac-text: var(--v-font-text);
   font-family: var(--v-font-text);
   color: var(--v-ink);
   background: var(--v-ground);
   accent-color: var(--v-blue-600);
   caret-color: var(--v-blue-600);
+}
+.ac-shell :is(h1, h2, h3) {
+  font-family: var(--v-font-head);
+}
+/* Plain links (a phone number, an email) take the brand blue; classed links such as ui-btn keep their own. */
+:where(.ac-shell) a {
+  color: var(--v-blue-700);
+  text-underline-offset: 3px;
 }
 .ac-shell ::selection {
   background: #c6dafb;

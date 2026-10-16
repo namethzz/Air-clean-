@@ -671,12 +671,6 @@
 .jb-pre {
   white-space: pre-line;
 }
-.jb-job .jp-gallery {
-  padding: var(--v-gap-5);
-  border: 1px solid var(--v-line);
-  border-radius: var(--v-radius-lg);
-  background: var(--v-surface);
-}
 
 @media (max-width: 640px) {
   .jb-after-actions .ui-btn,

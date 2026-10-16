@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, BellRing, CheckCheck, X } from 'lucide-react';
 import type { AppNotification } from '../types';
 import { fetchNotifications, markNotificationsRead } from '../lib/api';
+import './NotificationBell.css';
 
 interface Props { onOpen: (notification: AppNotification) => void; onSetupPush: () => void; }
 
@@ -82,7 +83,7 @@ export default function NotificationBell({ onOpen, onSetupPush }: Props) {
       {items.length > 0 && <ul className="nb-list">{items.map(item => <li key={item.id}>
         <button type="button" className={'nb-item' + (item.read ? '' : ' unread')} onClick={() => void choose(item)}>
           <span className="nb-dot" aria-hidden="true"/>
-          <span className="nb-text"><strong>{item.title}</strong><span>{item.body.split('\n')[0]}</span><small>{timeAgo(item.createdAt)}</small></span>
+          <span className="nb-text"><strong>{!item.read && <span className="sr-only">ยังไม่อ่าน: </span>}{item.title}</strong><span>{item.body.split('\n')[0]}</span><small>{timeAgo(item.createdAt)}</small></span>
         </button>
       </li>)}</ul>}
       <footer className="nb-foot"><button type="button" className="nb-link" onClick={() => { setOpen(false); onSetupPush(); }}><BellRing size={15}/> รับการแจ้งเตือนบนมือถือ</button></footer>
