@@ -67,88 +67,9 @@
 .ac-shell .modal-header {
   border-bottom: 1px solid #eceef1;
 }
-.ac-shell .auth-screen {
-  background: #f7f8fa;
-  color: #16273e;
-}
-.ac-shell .auth-visual {
-  color: #f0f3f8;
-  background: radial-gradient(circle at 83% 18%, #345279 0, transparent 31%), linear-gradient(145deg, #10243e, #0b1b30 72%, #152c49);
-}
-.ac-shell .auth-brand b {
-  color: #a7bdd9;
-}
 .ac-shell .auth-brand-icon {
   background: #dfe7f1;
   color: #143055;
-}
-.ac-shell .auth-visual-copy p {
-  color: #c0cbd9;
-}
-.ac-shell .auth-benefit {
-  color: #e1e8f0;
-}
-.ac-shell .auth-benefit svg {
-  color: #92aed3;
-}
-.ac-shell .auth-mobile-brand b {
-  color: #274c7c;
-}
-.ac-shell .auth-heading h2 {
-  color: #15273f;
-}
-.ac-shell .auth-heading p {
-  color: #788595;
-}
-.ac-shell .auth-mode-switch {
-  background: #eaedf1;
-}
-.ac-shell .auth-mode-switch button {
-  color: #697686;
-}
-.ac-shell .auth-mode-switch button.active {
-  color: #162e4e;
-  box-shadow: 0 2px 7px #11253e0e;
-}
-.ac-shell .auth-field {
-  color: #314259;
-}
-.ac-shell .auth-input-wrap {
-  border: 1px solid #dce1e7;
-  color: #8391a4;
-}
-.ac-shell .auth-input-wrap:focus-within {
-  border-color: #6383ac;
-  box-shadow: 0 0 0 3px #7090bb1b;
-}
-.ac-shell .auth-input-wrap input {
-  color: #16273e;
-}
-.ac-shell .auth-input-wrap input::placeholder {
-  color: #a8aeb7;
-}
-.ac-shell .auth-password-toggle {
-  color: #7c8898;
-}
-.ac-shell .auth-submit {
-  background: #173c6c;
-  box-shadow: 0 8px 18px #173c6c21;
-}
-.ac-shell .auth-submit:hover:not(:disabled) {
-  background: #0f2f59;
-}
-.ac-shell .auth-registration-note {
-  color: #7d8896;
-}
-.ac-shell .auth-security-note {
-  border-top: 1px solid #e7eaee;
-  color: #828c9a;
-}
-.ac-shell .auth-security-note svg {
-  color: #5d7798;
-}
-.ac-shell .auth-copyright {
-  color: #a1a7ae;
 }
 .ac-shell .auth-loading {
   background: #f5f6f8;
@@ -229,9 +150,6 @@
 .ac-shell .profile-saved {
   color: #264a7a;
 }
-.ac-shell .auth-role-lock-note {
-  color: #778496;
-}
 .ac-shell .nearby-job-toolbar {
   border: 1px solid var(--line, #e6e7e9);
 }
@@ -307,9 +225,6 @@
 .ac-shell .landing {
   --landing-ink: #16273d;
   --landing-muted: #606c7b;
-}
-.ac-shell .auth-back-button {
-  color: #657488;
 }
 .ac-shell .aircare-map-frame {
   background: #e7ebf0;

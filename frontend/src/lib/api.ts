@@ -29,13 +29,24 @@ function roleFromApi(role: string): UserRole {
 function fromApiUser(user: ApiUser): UserProfile {
   return { id: user.id, fullName: user.fullName, email: user.email, role: roleFromApi(user.role), hasPassword: user.hasPassword ?? true, providers: user.providers ?? [], emailNotifications: user.emailNotifications ?? true, phone: user.phone ?? null };
 }
-function saveToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+/**
+ * "Keep me signed in": when it is off, the next sign-in token goes to sessionStorage, so it is gone once the
+ * browser (or tab) is closed. Set it before calling login / externalLogin.
+ */
+let keepSignedIn = true;
+export function setKeepSignedIn(keep: boolean): void { keepSignedIn = keep; }
+function readToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+function saveToken(token: string, keep = keepSignedIn): void {
+  (keep ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+  (keep ? sessionStorage : localStorage).removeItem(TOKEN_KEY);
   localStorage.removeItem('aircare.demo.token');
   localStorage.removeItem('aircare.demo.role');
 }
 export function clearAuth(): void {
   localStorage.removeItem(TOKEN_KEY);
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* storage blocked */ }
   localStorage.removeItem('aircare.demo.token');
   localStorage.removeItem('aircare.demo.role');
 }
@@ -43,7 +54,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const base = requireApiBase();
   const headers = new Headers(options.headers);
   if (options.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = readToken();
   if (token) headers.set('Authorization', 'Bearer ' + token);
   let response: Response;
   try { response = await fetch(base + path, { ...options, headers }); }
@@ -94,7 +105,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 /** Other devices are signed out; this browser keeps working with the new token. */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<UserProfile> {
   const result = await request<AuthResponse>('/auth/change-password', { method:'POST', body:JSON.stringify({ currentPassword, newPassword }) });
-  saveToken(result.token);
+  saveToken(result.token, localStorage.getItem(TOKEN_KEY) !== null);
   return fromApiUser(result.user);
 }
 export interface ExternalSignupFields { role: Exclude<UserRole,'admin'>; fullName?: string; phone?: string; serviceArea?: string; experienceYears?: number; }
@@ -153,7 +164,7 @@ export async function deleteSavedAddress(id: string): Promise<void> {
   return request<void>('/me/addresses/' + encodeURIComponent(id), { method:'DELETE' });
 }
 export async function fetchCurrentUser(): Promise<UserProfile | null> {
-  if (!localStorage.getItem(TOKEN_KEY)) { clearAuth(); return null; }
+  if (!readToken()) { clearAuth(); return null; }
   try {
     return fromApiUser(await request<ApiUser>('/auth/me'));
   } catch (error) {
@@ -243,7 +254,7 @@ export async function deleteJobPhoto(id:string):Promise<void> {
 }
 /** Photos need the sign-in token, so they are fetched and shown from a local object URL. */
 export async function jobPhotoUrl(id:string):Promise<string> {
-  const response=await fetch(requireApiBase()+'/photos/'+id,{headers:{Authorization:'Bearer '+(localStorage.getItem(TOKEN_KEY)??'')}});
+  const response=await fetch(requireApiBase()+'/photos/'+id,{headers:{Authorization:'Bearer '+(readToken()??'')}});
   if(!response.ok)throw new ApiError('โหลดรูปไม่สำเร็จ',response.status);
   return URL.createObjectURL(await response.blob());
 }
@@ -278,7 +289,7 @@ export async function fetchTechnicianDocuments(technicianId:number):Promise<Tech
 }
 /** Private images (documents, slips) need the sign-in token, so they come back as a local object URL. */
 export async function privateImageUrl(path:string):Promise<string> {
-  const response=await fetch(requireApiBase()+path,{headers:{Authorization:'Bearer '+(localStorage.getItem(TOKEN_KEY)??'')}});
+  const response=await fetch(requireApiBase()+path,{headers:{Authorization:'Bearer '+(readToken()??'')}});
   if(!response.ok)throw new ApiError('โหลดรูปไม่สำเร็จ',response.status);
   return URL.createObjectURL(await response.blob());
 }

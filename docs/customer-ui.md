@@ -6,8 +6,9 @@ The customer-facing surfaces share one visual identity taken from the service ph
 
 - `frontend/src/components/ui/hero-financial.tsx` and `.css` hold the public hero and its compact version for the signed-in customer overview. The CSS file also defines the shared `--ac-*` colour and font tokens.
 - `frontend/src/pages/LandingPage.tsx` is the public page: hero, services, location privacy, how it works, and the technician invitation.
-- `frontend/src/pages/CustomerExperience.css` styles the landing page (`.acl-*`), the signed-in customer shell (scoped to `.ac-customer-shell`) and the sign-in screen (scoped to `.auth-screen`).
-- `frontend/src/assets/air-cleaning.webp` is the hero photograph. It is also used behind the sign-in panel.
+- `frontend/src/pages/CustomerExperience.css` styles the landing page (`.acl-*`) and the signed-in customer shell (scoped to `.ac-customer-shell`).
+- `frontend/src/components/ui/sign-in.tsx` (+ `sign-in.css`) is the sign-in layout, adapted from the 21st.dev `SignInPage` component: form on the left, photo with three cards on the right from 1024px wide. `pages/AuthPage.tsx` passes its own form as `children` (sign-in, sign-up with roles, forgot and reset password, Google and Apple). The cards state how the service works; they are not customer reviews.
+- `frontend/src/assets/air-cleaning.webp` is the hero photograph. It is also the sign-in photo.
 
 ## Design decisions
 
@@ -15,7 +16,7 @@ The customer-facing surfaces share one visual identity taken from the service ph
 - Layout: left-aligned and editorial. The headline sits above a wide photo, and three plain facts overlap the photo's lower edge. Services are a ruled list rather than a card grid.
 - Numbered markers appear only where the content is a real sequence (how it works, booking form sections).
 - The location privacy section is a small SVG: before the customer confirms a technician only an approximate area is shown, afterwards the exact pin.
-- Motion: one page-load sequence on the public hero (photo reveal, then the three facts). Reduced-motion settings turn it off.
+- Motion: one page-load sequence on the public hero (photo reveal, then the three facts), and one on the sign-in page (form fields fade up in turn, then the photo and cards). Reduced-motion settings turn both off.
 - Surfaces in the customer shell are flat and framed. Status colours keep their meaning (amber waiting, teal confirmed or done, blue in progress, red problem). Small text from the earlier theme is raised to at least 13px.
 
 ## Customer navigation (three places)
@@ -42,3 +43,10 @@ Technicians see **งานใกล้ฉัน**, **งานของฉั�
 Buttons use the existing authentication, booking and navigation handlers. No account records, booking API contracts or payment behaviour are changed. The customer overview no longer repeats a heading above the hero because the hero carries the greeting and the main action.
 
 Run `npm ci` and `npm run build` from `frontend`. Tailwind theme and utilities are imported without Preflight so existing application styles are preserved.
+
+## Tailwind and shadcn-style components
+
+- Components copied from shadcn or 21st.dev go in `src/components/ui/` and import with the `@/` alias (`@/components/ui/sign-in`), set in `vite.config.ts` and `tsconfig.app.json`. Keeping them there separates reusable building blocks from app pages and matches the paths those libraries assume.
+- `index.css` maps the shadcn colour names (`bg-background`, `text-foreground`, `bg-primary`, `text-muted-foreground`, `border-border`, …) to the AirClean palette, so copied components pick up the brand blue without edits. It also imports `tw-animate-css` (`animate-in`, `fade-in-0`, `slide-in-from-top-1`, …).
+- Because there is no Preflight, a copied component's buttons keep the browser's border and background. `sign-in.css` resets them inside `.ac-signin` in the `base` layer, so Tailwind utilities still win. Do the same for the next copied component.
+- "จดจำการเข้าสู่ระบบ" on the sign-in form: when ticked the token is kept in `localStorage` (stays signed in), otherwise in `sessionStorage` (signed out when the browser closes). See `setKeepSignedIn` in `lib/api.ts`.
