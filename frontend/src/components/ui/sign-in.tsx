@@ -94,7 +94,7 @@ export function PasswordInput({ showLabel = defaultLabels.showPassword, hideLabe
 }
 
 const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; delay: string }) => (
-  <div className={`animate-testimonial ${delay} flex w-64 items-start gap-3 rounded-3xl border border-white/40 bg-white/75 p-5 shadow-[0_18px_40px_-18px_rgb(9_30_60/0.45)] backdrop-blur-xl`}>
+  <div className={`animate-testimonial ${delay} flex w-64 shrink-0 items-start gap-3 rounded-3xl border border-white/40 bg-white/75 p-5 shadow-[0_18px_40px_-18px_rgb(9_30_60/0.45)] backdrop-blur-xl`}>
     {testimonial.avatarSrc
       ? <img src={testimonial.avatarSrc} className="h-10 w-10 shrink-0 rounded-2xl object-cover" alt="" />
       : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">{testimonial.icon}</span>}
@@ -197,10 +197,11 @@ export const SignInPage = ({
               <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgb(19_37_59/0.55))]" />
             </div>
             {testimonials.length > 0 && (
-              <div className="absolute bottom-6 left-1/2 flex w-full -translate-x-1/2 justify-center gap-4 px-6">
+              // Cards keep their width; a card shows only when the photo column (half the screen) has room for it.
+              <div className="absolute inset-x-6 bottom-6 flex items-stretch justify-center gap-4">
                 <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />
-                {testimonials[1] && <div className="hidden xl:flex"><TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" /></div>}
-                {testimonials[2] && <div className="hidden 2xl:flex"><TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" /></div>}
+                {testimonials[1] && <div className="hidden min-[1220px]:flex"><TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" /></div>}
+                {testimonials[2] && <div className="hidden min-[1780px]:flex"><TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" /></div>}
               </div>
             )}
           </div>
