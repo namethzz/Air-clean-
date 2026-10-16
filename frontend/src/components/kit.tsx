@@ -99,3 +99,25 @@ export function Sheet({ title, sub, onClose, children, footer, wide, className =
     </section>
   </div>, host);
 }
+
+/** A photo of the work with a line and an action over its lower part: for empty pages and invitations. */
+export function PhotoCard({ src, alt, position = 'center', title, children, action, className = '' }: {
+  src: string; alt: string; position?: string; title: ReactNode; children?: ReactNode; action?: ReactNode; className?: string;
+}) {
+  return <section className={'ui-photo-card' + (className ? ' ' + className : '')}>
+    <img src={src} alt={alt} style={{ objectPosition: position }} loading="lazy" decoding="async"/>
+    <div className="ui-photo-card-body">
+      <h2>{title}</h2>
+      {children && <p>{children}</p>}
+      {action}
+    </div>
+  </section>;
+}
+
+/** A real sequence, so it is numbered: what happens first, next, last. */
+export function Steps({ items }: { items: { title: string; text: ReactNode }[] }) {
+  return <ol className="ui-steps">{items.map((item, index) => <li key={item.title}>
+    <span className="ui-steps-num ui-num" aria-hidden="true">{index + 1}</span>
+    <div><strong>{item.title}</strong><span>{item.text}</span></div>
+  </li>)}</ol>;
+}

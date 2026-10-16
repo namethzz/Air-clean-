@@ -792,6 +792,119 @@ a.ui-row:hover {
   }
 }
 
+/* ───────── Photo card (a photo of the work, a line and an action over it) ───────── */
+.ui-photo-card {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 300px;
+  overflow: hidden;
+  border-radius: var(--v-radius-lg);
+  background: var(--v-blue-800);
+  color: var(--v-on-blue);
+  box-shadow: var(--v-shadow-plate);
+  isolation: isolate;
+}
+.ui-photo-card > img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ui-photo-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgb(11 30 60 / 0) 25%, rgb(11 30 60 / 0.55) 55%, rgb(11 47 116 / 0.94) 100%);
+}
+.ui-photo-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 22px;
+}
+.ui-photo-card h2 {
+  margin: 0;
+  font: 600 var(--v-text-2xl) / 1.2 var(--v-font-head);
+  color: var(--v-on-blue);
+  text-wrap: balance;
+}
+.ui-photo-card p {
+  max-width: 40ch;
+  margin: 0 0 6px;
+  color: var(--v-on-blue-2);
+  line-height: 1.6;
+}
+.ui-photo-card :focus-visible {
+  outline-color: var(--v-on-blue);
+}
+.ui-btn.is-light {
+  border-color: transparent;
+  background: #ffffff;
+  color: var(--v-blue-800);
+  box-shadow: 0 10px 20px -14px rgb(0 0 0 / 0.7);
+}
+.ui-btn.is-light:hover:not(:disabled) {
+  background: var(--v-blue-050);
+}
+
+/* ───────── Numbered steps ───────── */
+.ui-steps {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ui-steps::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 17px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--v-blue-500), var(--v-blue-100));
+}
+.ui-steps li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.ui-steps-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--v-ground);
+  border-radius: 50%;
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
+  font-size: var(--v-text-md);
+  font-weight: 600;
+}
+.ui-steps div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 5px;
+}
+.ui-steps strong {
+  font-weight: 600;
+}
+.ui-steps div span {
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+
 /* ───────── Option cards (one choice from a few, with a line on each) ───────── */
 .ui-option {
   display: flex;

@@ -1,6 +1,6 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarX2, ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone, Wrench } from 'lucide-react';
+import { CalendarX2, ArrowRight, CalendarClock, FileText, Phone, XCircle, Minus, Plus, Banknote, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock3, MapPin, Navigation, Send, Smartphone } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
 import StatusBadge from '../components/StatusBadge';
@@ -15,12 +15,18 @@ import type { CompleteJobPayload } from '../lib/api';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
 import './CustomerJobs.css';
+import './Jobs.css';
+import { PhotoCard, Steps } from '../components/kit';
+import maskPhoto from '../assets/hero/photo-mask.webp';
+import { BellRing, UserCog } from 'lucide-react';
 
 interface Props {
   bookings: Booking[];
   reports: ServiceReportRecord[];
   focus: JobFocus | null;
   onFindJobs: () => void;
+  /** Profile and price: what customers see on an offer. */
+  onOpenProfile: () => void;
   onStatusChange: (id: number, status: BookingStatus) => void;
   onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
   onComplete: (id: number, payload: CompleteJobPayload) => Promise<boolean>;
@@ -203,7 +209,7 @@ function VisitRow({ item, active: current, onSelect, withDate = false, clash = f
 
 /** Technician's single place for their jobs: offers waiting on customers, jobs to go to, and closing a job. */
 export default function TechnicianJobsPage(props: Props) {
-  const { bookings, focus, onFindJobs, onRefresh } = props;
+  const { bookings, focus, onFindJobs, onOpenProfile, onRefresh } = props;
   const wide = useIsWide();
   const [tab, setTab] = useState<'open' | 'closed'>('open');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -238,11 +244,35 @@ export default function TechnicianJobsPage(props: Props) {
   function openJob(id: number | null) { setFinishedId(null); setSelectedId(id); if (id != null) setTab('open'); }
 
   if (!bookings.length) {
-    return <div className="cj-empty">
-      <span className="cj-empty-icon"><Wrench size={30}/></span>
-      <h1>ยังไม่มีงาน</h1>
-      <p>ดูงานใกล้ตัวแล้วกดสนใจ งานที่คุณเสนอราคาจะมาอยู่ที่นี่ทันที และเมื่อลูกค้าเลือกคุณ จะมีที่อยู่และปุ่มนำทาง</p>
-      <button type="button" className="cj-primary" onClick={onFindJobs}><MapPin size={18}/> ดูงานใกล้ฉัน</button>
+    return <div className="ui-page is-narrow tj-first">
+      <PhotoCard src={maskPhoto} alt="ช่างแอร์สวมหน้ากากกำลังถอดแผ่นกรองแอร์" position="30% 35%" className="tj-first-photo"
+        title="เริ่มรับงานแรกของคุณ"
+        action={<button type="button" className="ui-btn is-light is-lg" onClick={onFindJobs}><MapPin size={20}/> ดูงานใกล้ฉัน</button>}>
+        ยังไม่มีงานในตอนนี้ ดูงานล้างแอร์ใกล้ตัวแล้วส่งข้อเสนอได้เลย
+      </PhotoCard>
+      <section className="ui-card" aria-labelledby="tj-first-how">
+        <div className="ui-card-head"><div><h2 id="tj-first-how">งานจะมาที่นี่อย่างไร</h2><p>ทุกงานที่คุณเสนอราคาจะอยู่ในหน้านี้ทันที</p></div></div>
+        <Steps items={[
+          { title: 'ดูงานใกล้ตัว', text: 'เห็นประเภทที่พัก จำนวนเครื่อง ระยะทาง และราคาประเมิน' },
+          { title: 'กดสนใจรับงาน', text: 'ลูกค้าเห็นโปรไฟล์ ราคา และคะแนนของคุณ' },
+          { title: 'ลูกค้าเลือกคุณ', text: 'งานขึ้นตารางของวันนั้น พร้อมที่อยู่ เบอร์โทร และปุ่มนำทาง' },
+        ]}/>
+      </section>
+      <section className="ui-section" aria-labelledby="tj-first-tips">
+        <div className="ui-section-head"><h2 id="tj-first-tips">เพิ่มโอกาสให้ลูกค้าเลือกคุณ</h2></div>
+        <ul className="ui-list">
+          <li><button type="button" className="ui-row" onClick={onOpenProfile}>
+            <span className="ui-row-lead"><UserCog size={22}/></span>
+            <span className="ui-row-text"><strong>รูปโปรไฟล์และราคาครบ</strong><span>ลูกค้าเลือกช่างที่เห็นหน้าและราคาชัดเจนได้ง่ายกว่า</span></span>
+            <span className="ui-row-trail"><ChevronRight size={18}/></span>
+          </button></li>
+          <li><button type="button" className="ui-row" onClick={onOpenProfile}>
+            <span className="ui-row-lead"><BellRing size={22}/></span>
+            <span className="ui-row-text"><strong>เปิดการแจ้งเตือนในมือถือ</strong><span>รู้ทันทีเมื่อลูกค้าเลือกคุณ ไม่พลาดงาน</span></span>
+            <span className="ui-row-trail"><ChevronRight size={18}/></span>
+          </button></li>
+        </ul>
+      </section>
     </div>;
   }
 
