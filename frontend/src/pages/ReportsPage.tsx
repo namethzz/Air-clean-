@@ -39,17 +39,17 @@ export default function ReportsPage({bookings,reports,role,onCreateReport,onAppr
   else setActionError('บันทึกไม่สำเร็จ กรุณาตรวจสอบสิทธิ์หรือการเชื่อมต่อแล้วลองอีกครั้ง');
  }
  async function approve(){if(!selected)return;setActionError('');const ok=await onApproveReport(selected.id);if(!ok)setActionError('ยืนยันรายงานไม่สำเร็จ กรุณาลองอีกครั้ง');}
- return <div className="page-stack">
-  <div className="page-heading-row"><div><div className="eyebrow">SERVICE RECORDS</div><h1>รายงานบริการ</h1><p className="page-subtitle">ดูรายงานการทำงานและผลตรวจจากข้อมูลที่บันทึกจริง</p></div>
-   {technicianMode&&<button type="button" className="primary-button" disabled={!available.length} onClick={()=>{setTargetBookingId(active?.id);setShowForm(v=>!v);}}><Plus size={17}/> บันทึกรายงาน</button>}
+ return <div className="ui-page ad">
+  <div className="ui-page-head"><div><h1>รายงานบริการ</h1><p>ดูรายงานการทำงานและผลตรวจจากข้อมูลที่บันทึกจริง</p></div>
+   {technicianMode&&<button type="button" className="ui-btn is-primary" disabled={!available.length} onClick={()=>{setTargetBookingId(active?.id);setShowForm(v=>!v);}}><Plus size={17}/> บันทึกรายงาน</button>}
   </div>
   <div className="report-live-metrics">
    <div className="report-live-metric"><span className="report-live-icon"><ClipboardCheck size={19}/></span><div><small>รายงานทั้งหมด</small><strong>{reports.length}</strong></div></div>
    <div className="report-live-metric"><span className="report-live-icon"><CheckCircle2 size={19}/></span><div><small>ลูกค้ายืนยันแล้ว</small><strong>{approved}</strong></div></div>
    <div className="report-live-metric"><span className="report-live-icon"><Clock3 size={19}/></span><div><small>รอยืนยัน</small><strong>{awaiting}</strong></div></div>
   </div>
-  {showForm&&technicianMode&&<section className="panel report-create-panel">
-   <div className="panel-heading"><div><h2>บันทึกรายงานหน้างาน</h2><p>ระบุเฉพาะงานที่ทำและตรวจจริง</p></div><button type="button" className="icon-button" onClick={()=>setShowForm(false)} aria-label="ปิดฟอร์ม">×</button></div>
+  {showForm&&technicianMode&&<section className="ui-card report-create-panel">
+   <div className="ui-card-head"><div><h2>บันทึกรายงานหน้างาน</h2><p>ระบุเฉพาะงานที่ทำและตรวจจริง</p></div><button type="button" className="icon-button" onClick={()=>setShowForm(false)} aria-label="ปิดฟอร์ม">×</button></div>
    {available.length===0?<div className="empty-state"><Wrench size={23}/><strong>ยังไม่มีงานที่บันทึกรายงานได้</strong><span>รายงานได้เมื่อสถานะงานเป็นกำลังดำเนินการหรือรอชำระเงิน</span></div>:<form className="report-create-form" onSubmit={submit}>
     <label className="form-field"><span>รายการจอง</span><select value={active?.id||''} onChange={e=>setTargetBookingId(Number(e.target.value))} required>{available.map(item=><option key={item.id} value={item.id}>{item.code+' · '+item.service+' · '+item.customer}</option>)}</select></label>
     <label className="form-field"><span>สรุปงานที่ทำ *</span><textarea value={summary} onChange={e=>setSummary(e.target.value)} rows={4} maxLength={2000} required placeholder="ระบุงานที่ทำ ผลตรวจ และคำแนะนำสำหรับลูกค้า"/></label>
@@ -64,12 +64,12 @@ export default function ReportsPage({bookings,reports,role,onCreateReport,onAppr
      <label className="form-field"><span>ลิงก์ภาพหลังทำ (ถ้ามี)</span><input type="url" value={afterPhotoUrl} onChange={e=>setAfterPhotoUrl(e.target.value)} maxLength={500} placeholder="https://..."/></label>
     </div>
     <p className="report-form-note"><Image size={15}/> ตอนนี้รองรับลิงก์รูปภาพเท่านั้น ยังไม่มีพื้นที่อัปโหลดไฟล์ในระบบ</p>
-    {actionError&&<div className="auth-error" role="alert">{actionError}</div>}
-    <button className="primary-button" type="submit" disabled={submitting||!summary.trim()}>{submitting?'กำลังบันทึก...':'บันทึกรายงาน'}</button>
+    {actionError&&<div className="ui-alert is-problem" role="alert">{actionError}</div>}
+    <button className="ui-btn is-primary" type="submit" disabled={submitting||!summary.trim()}>{submitting?'กำลังบันทึก...':'บันทึกรายงาน'}</button>
    </form>}
   </section>}
   <div className="report-live-layout">
-   <section className="panel report-live-list"><div className="panel-heading"><div><h2>รายการรายงาน</h2><p>ข้อมูลที่ได้รับจาก API</p></div></div>
+   <section className="ui-card report-live-list"><div className="ui-card-head"><div><h2>รายการรายงาน</h2><p>สรุปงานที่ช่างบันทึกไว้ เลือกเพื่อดูรายการที่ตรวจ</p></div></div>
     {reports.length===0?<div className="empty-state"><FileCheck2 size={25}/><strong>ยังไม่มีรายงานบริการ</strong><span>เมื่อช่างบันทึกรายงาน รายการจะปรากฏที่นี่</span></div>:
     <div className="report-live-items">{reports.map(report=><button type="button" key={report.id} className={'report-live-item '+((selected?.id===report.id)?'active':'')} onClick={()=>setSelectedId(report.id)}>
       <span className="report-live-item-icon"><ClipboardCheck size={18}/></span>
@@ -77,15 +77,15 @@ export default function ReportsPage({bookings,reports,role,onCreateReport,onAppr
       <span className={'report-approval-pill '+(report.customerApproved?'approved':'')}>{report.customerApproved?'ยืนยันแล้ว':'รอยืนยัน'}</span>
     </button>)}</div>}
    </section>
-   <section className="panel report-live-detail">
+   <section className="ui-card report-live-detail">
     {!selected?<div className="empty-state"><ShieldCheck size={25}/><strong>ยังไม่มีรายละเอียดรายงาน</strong><span>รายละเอียดและรายการตรวจจะปรากฏเมื่อมีรายงานจากบริการจริง</span></div>:<>
-     <div className="report-live-detail-head"><div><div className="eyebrow">REPORT · {selected.bookingCode}</div><h2>{bookings.find(item=>item.id===selected.bookingId)?.service||'รายงานบริการ'}</h2><p>บันทึกเมื่อ {dateLabel(selected.createdAt)}</p></div><span className={'report-approval-pill '+(selected.customerApproved?'approved':'')}>{selected.customerApproved?'ลูกค้ายืนยันแล้ว':'รอลูกค้ายืนยัน'}</span></div>
+     <div className="report-live-detail-head"><div><h2>{bookings.find(item=>item.id===selected.bookingId)?.service||'รายงานบริการ'}</h2><p>บันทึกเมื่อ {dateLabel(selected.createdAt)}</p></div><span className={'report-approval-pill '+(selected.customerApproved?'approved':'')}>{selected.customerApproved?'ลูกค้ายืนยันแล้ว':'รอลูกค้ายืนยัน'}</span></div>
      <div className="report-summary-text"><strong>สรุปงาน</strong><p>{selected.summary}</p></div>
      <div className="report-live-checks"><h3>รายการตรวจเช็ก</h3>{checklistLabels.map(item=><div key={item.key} className="report-live-check"><span>{item.label}</span><strong className={selected[item.key]?'checked':''}>{selected[item.key]?'บันทึกแล้ว':'ไม่ได้ระบุ'}</strong></div>)}</div>
      <div className="report-live-photos"><h3>ภาพประกอบ</h3><div>{webLink(selected.beforePhotoUrl)?<a href={webLink(selected.beforePhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพก่อนทำ</a>:<span>ไม่มีภาพก่อนทำ</span>}{webLink(selected.afterPhotoUrl)?<a href={webLink(selected.afterPhotoUrl)!} target="_blank" rel="noopener noreferrer">เปิดภาพหลังทำ</a>:<span>ไม่มีภาพหลังทำ</span>}</div></div>
-     {role==='customer'&&!selected.customerApproved&&<button type="button" className="primary-button full-width" onClick={()=>void approve()}><ShieldCheck size={16}/> ยืนยันรายงานบริการ</button>}
+     {role==='customer'&&!selected.customerApproved&&<button type="button" className="ui-btn is-primary is-block" onClick={()=>void approve()}><ShieldCheck size={16}/> ยืนยันรายงานบริการ</button>}
     </>}
-    {actionError&&!showForm&&<div className="auth-error" role="alert">{actionError}</div>}
+    {actionError&&!showForm&&<div className="ui-alert is-problem" role="alert">{actionError}</div>}
    </section>
   </div>
  </div>;

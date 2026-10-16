@@ -84,21 +84,6 @@
 }
 
 /* Topbar and page frame */
-.ac-shell .page-heading-row h1 {
-  font: 700 clamp(26px, 2.6vw, 34px) / 1.3 var(--ac-display);
-  letter-spacing: -0.015em;
-  color: var(--ac-ink);
-}
-.ac-shell .page-subtitle {
-  margin-top: 6px;
-  font-size: 16px;
-  line-height: 1.7;
-  color: var(--ac-ink-2);
-}
-.ac-shell .app-data-alert {
-  border-radius: 12px;
-  font-size: 14px;
-}
 
 /* Buttons */
 .ac-shell .primary-button {
@@ -116,29 +101,6 @@
 .ac-shell .primary-button:hover:not(:disabled) {
   background: var(--ac-blue-deep);
   transform: none;
-}
-.ac-shell .outline-button {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--ac-frame);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--ac-ink);
-  font-size: 15px;
-  font-weight: 600;
-}
-.ac-shell .outline-button:hover {
-  background: var(--ac-mist);
-  border-color: #c7d3e0;
-}
-.ac-shell .small-outline {
-  min-height: 40px;
-  font-size: 14px;
-}
-.ac-shell .text-button {
-  color: var(--ac-blue-deep);
-  font-size: 14px;
-  font-weight: 600;
 }
 .ac-shell .icon-button {
   color: var(--ac-ink-2);
@@ -161,35 +123,12 @@
   border-radius: 16px;
   box-shadow: none;
 }
-.ac-shell .candidate-technician-card {
-  border: 1px solid var(--ac-frame);
-  border-radius: 12px;
-}
-.ac-shell .panel-heading h2 {
-  font: 600 18px/1.4 var(--ac-display);
-  color: var(--ac-ink);
-}
 .ac-shell .panel-heading p,
 .ac-shell .tracking-map-header p,
 .ac-shell .tracking-detail-header p {
   font-size: 14px;
   line-height: 1.7;
   color: var(--ac-ink-3);
-}
-.ac-shell .info-callout {
-  background: var(--ac-blue-tint);
-  border: 0;
-  border-radius: 14px;
-  color: var(--ac-blue-deep);
-}
-.ac-shell .info-callout strong {
-  font-size: 15px;
-  color: var(--ac-ink);
-}
-.ac-shell .info-callout span {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--ac-ink-2);
 }
 .ac-shell .empty-state {
   color: var(--ac-ink-3);
@@ -208,9 +147,6 @@
 /* Overview */
 .ac-dashboard {
   gap: 20px;
-}
-.ac-shell .metric-grid {
-  gap: 14px;
 }
 .ac-shell .metric-card {
   min-height: 0;
@@ -250,216 +186,12 @@
 .ac-shell .metric-copy {
   min-width: 0;
 }
-.ac-shell .interested-technicians-panel {
-  padding: 22px;
-}
-.ac-shell .dashboard-grid {
-  align-items: start;
-}
-.ac-shell .booking-row {
-  padding: 16px 0;
-  border-color: var(--ac-frame);
-}
-.ac-shell .booking-date {
-  border-radius: 12px;
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-}
-.ac-shell .booking-date strong {
-  font: 700 18px/1 var(--ac-display);
-}
-.ac-shell .booking-date span {
-  font-size: 12px;
-}
-.ac-shell .booking-title-line > strong {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ac-ink);
-}
-.ac-shell .booking-row-main > span,
-.ac-shell .booking-meta span {
-  font-size: 14px;
-  color: var(--ac-ink-2);
-}
-.ac-shell .profile-summary-note {
-  background: var(--ac-mist);
-  border: 0;
-  border-radius: 12px;
-  color: var(--ac-ink-2);
-  font-size: 14.5px;
-  line-height: 1.85;
-}
-.ac-shell .activity-item {
-  border-color: var(--ac-frame);
-}
-.ac-shell .activity-icon,
-.ac-shell .activity-icon.booked {
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-}
-.ac-shell .activity-copy strong {
-  font-size: 15px;
-}
-.ac-shell .activity-copy span {
-  font-size: 14px;
-  color: var(--ac-ink-2);
-}
-.ac-shell .activity-item time {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
 
 /* Status badges: colour carries meaning, label stays readable */
 
 /* Bookings table and tabs */
-.ac-shell .booking-summary-strip {
-  padding: 16px 20px;
-}
-.ac-shell .booking-summary-strip > div,
-.ac-shell .summary-strip-note {
-  font-size: 14px;
-  color: var(--ac-ink-2);
-}
-.ac-shell .booking-summary-strip strong {
-  font: 700 22px var(--ac-display);
-  color: var(--ac-ink);
-}
-.ac-shell .summary-dot {
-  background: var(--ac-blue);
-}
-.ac-shell .summary-dot-amber {
-  background: #d98a1c;
-}
-.ac-shell .summary-dot-green {
-  background: var(--ac-coolant);
-}
-.ac-shell .booking-tabs {
-  border-color: var(--ac-frame);
-}
-.ac-shell .booking-tabs button {
-  min-height: 40px;
-  padding: 0 12px;
-  border-radius: 8px;
-  color: var(--ac-ink-2);
-  font-size: 14px;
-}
-.ac-shell .booking-tabs button:hover {
-  background: var(--ac-mist);
-}
-.ac-shell .booking-tabs button.active {
-  background: var(--ac-blue-tint);
-  color: var(--ac-blue-deep);
-  font-weight: 700;
-}
-.ac-shell .booking-tabs button span {
-  font-size: 12px;
-}
-.ac-shell .data-table th {
-  padding: 14px 12px;
-  border-color: var(--ac-frame);
-  color: var(--ac-ink-3);
-  font-size: 13px;
-  font-weight: 600;
-}
-.ac-shell .data-table td {
-  padding: 16px 12px;
-  border-color: var(--ac-frame);
-  font-size: 14.5px;
-  color: var(--ac-ink);
-}
-.ac-shell .data-table tbody tr:hover {
-  background: #fafcfe;
-}
-.ac-shell .data-table td > strong,
-.ac-shell .table-technician strong {
-  font-size: 15px;
-}
-.ac-shell .booking-code {
-  color: var(--ac-blue-deep);
-  font-size: 13px;
-}
-.ac-shell .table-secondary,
-.ac-shell .table-technician small {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
-.ac-shell .table-date {
-  color: var(--ac-ink);
-}
-.ac-shell .table-price {
-  color: var(--ac-ink);
-  font-size: 15px;
-}
-.ac-shell .table-action-button {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid #bcd0f2;
-  border-radius: 8px;
-  background: #fff;
-  color: var(--ac-blue-deep);
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.ac-shell .table-action-button:hover {
-  background: var(--ac-blue-tint);
-}
-.ac-shell .table-view-button {
-  background: #fff;
-  border-color: var(--ac-frame);
-}
-.ac-shell .table-footer {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
 
 /* Candidate offers: the moment the customer chooses */
-.ac-shell .candidate-request-heading h3 {
-  font: 600 19px/1.4 var(--ac-display);
-}
-.ac-shell .candidate-request-heading p,
-.ac-shell .candidate-tech-area,
-.ac-shell .candidate-tech-head small,
-.ac-shell .candidate-tech-stats {
-  font-size: 14px;
-  color: var(--ac-ink-2);
-}
-.ac-shell .candidate-tech-head strong {
-  font-size: 16px;
-}
-.ac-shell .candidate-verified {
-  color: var(--ac-coolant);
-}
-.ac-shell .candidate-tech-stats span:first-child {
-  color: #9a5b00;
-}
-.ac-shell .candidate-tech-note {
-  background: var(--ac-mist);
-  font-size: 14px;
-  color: var(--ac-ink-2);
-}
-.ac-shell .candidate-tech-price {
-  border-color: var(--ac-frame);
-}
-.ac-shell .candidate-tech-price span {
-  font-size: 13px;
-  color: var(--ac-ink-3);
-}
-.ac-shell .candidate-tech-price strong {
-  font-size: 26px;
-  color: var(--ac-blue-deep);
-}
-.ac-shell .candidate-waiting {
-  background: #fdf1dc;
-  border-radius: 12px;
-}
-.ac-shell .candidate-waiting strong {
-  font-size: 15px;
-  color: #7a4700;
-}
-.ac-shell .candidate-waiting span {
-  font-size: 14px;
-  color: #8a5a14;
-}
 
 /* Technician directory */
 .ac-shell .select-control {
@@ -567,9 +299,6 @@
 .ac-shell .modal-header p {
   font-size: 15px;
   color: var(--ac-ink-2);
-}
-.ac-shell .booking-form {
-  padding: 20px 26px 26px;
 }
 .ac-shell .form-section-label {
   font-size: 16px;
@@ -681,9 +410,6 @@
   .ac-shell .booking-form {
     padding-left: 18px;
     padding-right: 18px;
-  }
-  .ac-shell .page-subtitle {
-    font-size: 15px;
   }
 }
 

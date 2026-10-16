@@ -29,17 +29,17 @@ export default function IssuesPage({ onNotice, onChanged }: Props) {
   useEffect(() => { void load(tab); }, [load, tab]);
   function resolved(bookingId: number) { setRows(previous => previous.filter(row => row.bookingId !== bookingId)); onChanged(); }
 
-  return <div className="page-stack">
-    <div className="page-heading-row">
-      <div><div className="eyebrow">REPORTED ISSUES</div><h1>เรื่องที่ถูกแจ้ง</h1><p className="page-subtitle">โทรหรืออีเมลคุยกับลูกค้าและช่างก่อน แล้วปิดเรื่องตามที่ตกลงกัน ทั้งสองฝ่ายจะได้รับแจ้งผลทันที</p></div>
-      <button type="button" className="outline-button" onClick={() => void load(tab)} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
+  return <div className="ui-page ad">
+    <div className="ui-page-head">
+      <div><h1>เรื่องที่ถูกแจ้ง</h1><p>โทรหรืออีเมลคุยกับลูกค้าและช่างก่อน แล้วปิดเรื่องตามที่ตกลงกัน ทั้งสองฝ่ายจะได้รับแจ้งผลทันที</p></div>
+      <button type="button" className="ui-btn" onClick={() => void load(tab)} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
     </div>
     <div className="approval-tabs" role="tablist" aria-label="สถานะเรื่อง">
       <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>รอดำเนินการ{tab === 'open' && !loading && <span>{rows.length}</span>}</button>
       <button type="button" role="tab" aria-selected={tab === 'resolved'} className={tab === 'resolved' ? 'active' : ''} onClick={() => setTab('resolved')}>ปิดแล้ว</button>
     </div>
-    {error && <div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="outline-button" onClick={() => void load(tab)}><RefreshCw size={15}/> ลองใหม่</button></div>}
-    {!loading && !error && rows.length === 0 && <section className="panel nearby-empty"><MessageSquareWarning size={24}/><strong>{tab === 'open' ? 'ไม่มีเรื่องรอดำเนินการ' : 'ยังไม่มีเรื่องที่ปิดแล้ว'}</strong></section>}
+    {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load(tab)}><RefreshCw size={15}/> ลองใหม่</button></div>}
+    {!loading && !error && rows.length === 0 && <section className="ui-card nearby-empty"><MessageSquareWarning size={24}/><strong>{tab === 'open' ? 'ไม่มีเรื่องรอดำเนินการ' : 'ยังไม่มีเรื่องที่ปิดแล้ว'}</strong></section>}
     <div className="approval-grid">{rows.map(row => <IssueCard key={row.bookingId} row={row} onResolved={resolved} onNotice={onNotice}/>)}</div>
   </div>;
 }
@@ -71,7 +71,7 @@ function IssueCard({ row, onResolved, onNotice }: { row: AdminIssue; onResolved:
     finally { setBusy(false); }
   }
 
-  return <article className="panel approval-card issue-card">
+  return <article className="ui-card approval-card issue-card">
     <header>
       <div><h2>{row.code}</h2><p>{row.service} {row.unitCount} เครื่อง · ฿{row.price.toLocaleString()}</p></div>
       <span className={'approval-state ' + (row.issue.open ? 'pending' : row.issue.resolution === 'Cancelled' ? 'rejected' : 'approved')}>
@@ -100,14 +100,14 @@ function IssueCard({ row, onResolved, onNotice }: { row: AdminIssue; onResolved:
             <textarea rows={3} maxLength={1000} value={note} onChange={event => setNote(event.target.value)} placeholder={action === 'close' ? 'เช่น ช่างกลับไปแก้ท่อน้ำทิ้งให้แล้ว' : 'เช่น โทรคุยกับทั้งสองฝ่ายแล้ว ลูกค้าโอนเงินเรียบร้อย'}/></label>
           <div>
             <button type="button" className={'primary-button' + (action === 'cancel' ? ' danger' : '')} disabled={busy || (noteRequired && !note.trim())} onClick={() => void submit()}>{busy ? 'กำลังบันทึก...' : 'ยืนยัน'}</button>
-            <button type="button" className="outline-button" disabled={busy} onClick={() => setAction(null)}>ย้อนกลับ</button>
+            <button type="button" className="ui-btn" disabled={busy} onClick={() => setAction(null)}>ย้อนกลับ</button>
           </div>
         </div>
         : <footer>
           {payment
-            ? <><button type="button" className="primary-button" onClick={() => setAction('paid')}><CheckCircle2 size={15}/> ชำระแล้ว ปิดงาน</button>
-              <button type="button" className="outline-button" onClick={() => setAction('cancel')}><Ban size={15}/> ยกเลิกงาน</button></>
-            : <button type="button" className="primary-button" onClick={() => setAction('close')}><CheckCircle2 size={15}/> ปิดเรื่อง</button>}
+            ? <><button type="button" className="ui-btn is-primary" onClick={() => setAction('paid')}><CheckCircle2 size={15}/> ชำระแล้ว ปิดงาน</button>
+              <button type="button" className="ui-btn" onClick={() => setAction('cancel')}><Ban size={15}/> ยกเลิกงาน</button></>
+            : <button type="button" className="ui-btn is-primary" onClick={() => setAction('close')}><CheckCircle2 size={15}/> ปิดเรื่อง</button>}
         </footer>}
   </article>;
 }

@@ -171,7 +171,7 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
   const [error, setError] = useState('');
   const load = useCallback(() => { setError(''); fetchAdminMembership().then(setData).catch(reason => setError(errorText(reason, 'โหลดข้อมูลไม่สำเร็จ'))); }, []);
   useEffect(load, [load]);
-  if (error) return <div className="ms-page"><div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> ลองใหม่</button></div></div>;
+  if (error) return <div className="ms-page"><div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="ui-btn" onClick={load}><RefreshCw size={15}/> ลองใหม่</button></div></div>;
   if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p></div>;
   const pending = data.payments.filter(item => item.status === 'Pending');
   const done = data.payments.filter(item => item.status !== 'Pending');
@@ -180,7 +180,7 @@ function AdminMembershipView({ onNotice }: { onNotice: (message: string) => void
   return <div className="ms-page ms-admin">
     <div className="ms-admin-head">
       <h1 className="ms-title">ค่าสมาชิกช่าง</h1>
-      <button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> โหลดใหม่</button>
+      <button type="button" className="ui-btn" onClick={load}><RefreshCw size={15}/> โหลดใหม่</button>
     </div>
     <p className="ms-summary">{pending.length ? `${pending.length} สลิปรอตรวจ` : 'ไม่มีสลิปรอตรวจ'} · ช่าง {data.members.length} คน{expired ? ` · หมดอายุ ${expired} คน` : ''}</p>
     <p className={'ms-auto' + (data.autoCheck ? ' on' : '')}>{data.autoCheck
@@ -226,13 +226,13 @@ function SlipReview({ payment, onDone }: { payment: MembershipPayment; onDone: (
       {rejecting
         ? <div className="ms-reject">
           <label className="form-field"><span>เหตุผล (ช่างจะเห็นข้อความนี้)</span><input value={note} maxLength={500} onChange={event => setNote(event.target.value)} placeholder="เช่น ยอดเงินไม่ตรง / ไม่พบยอดเข้า"/></label>
-          <div><button type="button" className="cj-danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}>ยืนยันไม่ผ่าน</button><button type="button" className="cj-ghost" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
+          <div><button type="button" className="ui-btn is-danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}>ยืนยันไม่ผ่าน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
         </div>
         : <div className="ms-actions">
-          <button type="button" className="cj-primary" disabled={busy} onClick={() => void decide(true)}><Check size={17}/> เงินเข้าแล้ว ต่ออายุ</button>
-          <button type="button" className="cj-ghost" disabled={busy} onClick={() => setRejecting(true)}><XCircle size={16}/> ไม่ผ่าน</button>
+          <button type="button" className="ui-btn is-primary" disabled={busy} onClick={() => void decide(true)}><Check size={17}/> เงินเข้าแล้ว ต่ออายุ</button>
+          <button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(true)}><XCircle size={16}/> ไม่ผ่าน</button>
         </div>}
-      {error && <p className="jp-error" role="alert">{error}</p>}
+      {error && <p className="ui-alert is-problem" role="alert">{error}</p>}
     </div>
     {viewing && <ImageViewer url={viewing} alt="สลิป" onClose={() => setViewing(null)}/>}
   </article>;
@@ -255,7 +255,7 @@ function MembersTable({ members, onGranted, onNotice }: { members: MemberRow[]; 
         <em className={'ms-pill ' + row.state.toLowerCase()}>{stateLabel[row.state]}</em>
         <span>{row.memberUntil ? (row.daysLeft > 0 ? `ถึง ${thaiDate(row.memberUntil)} · ${row.daysLeft} วัน` : `หมด ${thaiDate(row.memberUntil)}`) : 'เริ่มเมื่อเปิดหน้าแรก'}</span>
       </div>
-      <button type="button" className="cj-link" disabled={busy === row.technicianId} onClick={() => void grant(row)} title="ให้ฟรี 30 วัน เช่น โปรโมชันหรือชดเชย"><CalendarClock size={14}/> +30 วัน</button>
+      <button type="button" className="ui-link" disabled={busy === row.technicianId} onClick={() => void grant(row)} title="ให้ฟรี 30 วัน เช่น โปรโมชันหรือชดเชย"><CalendarClock size={14}/> +30 วัน</button>
     </li>)}</ul>}
   </section>;
 }
@@ -279,9 +279,9 @@ function SettingsForm({ settings, onSaved }: { settings: MembershipSettings; onS
     <label className="form-field"><span>ทดลองใช้ฟรีหลังอนุมัติ (วัน)</span><input inputMode="numeric" value={trial} placeholder="0" onChange={event => setTrial(numberText(event.target.value, { maxLength: 3 }))}/></label>
     <label className="form-field"><span>พร้อมเพย์ (เบอร์มือถือหรือเลขประจำตัว 13 หลัก)</span><input inputMode="numeric" value={form.promptPayId} maxLength={20} onChange={event => setForm({ ...form, promptPayId: event.target.value })} placeholder="08x-xxx-xxxx"/></label>
     <label className="form-field"><span>ชื่อบัญชีที่ช่างจะเห็น</span><input value={form.payeeName} maxLength={120} onChange={event => setForm({ ...form, payeeName: event.target.value })} placeholder="เช่น บจก. แอร์คลีน"/></label>
-    {error && <div className="auth-error" role="alert">{error}</div>}
+    {error && <div className="ui-alert is-problem" role="alert">{error}</div>}
     <p className="ms-fine">ราคาใหม่ใช้กับสลิปที่ส่งหลังจากนี้ ช่างที่ทดลองใช้อยู่ไม่ถูกเปลี่ยนวัน</p>
-    <button type="submit" className="cj-primary" disabled={busy}><Save size={16}/> {busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+    <button type="submit" className="ui-btn is-primary" disabled={busy}><Save size={16}/> {busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
   </form>;
 }
 

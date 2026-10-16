@@ -27,6 +27,8 @@ import UpdateBanner from './components/UpdateBanner';
 import PushPrompt from './components/PushPrompt';
 import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
+// Older shared page styles (tracking, reports, maps, sign-in) that several pages still use.
+import './pages/CustomerExperience.css';
 import './pages/WorkspaceTheme.css';
 import {
   reopenBooking, answerPriceChange, proposePriceChange, withdrawPriceChange, type ProposeChangePayload, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,

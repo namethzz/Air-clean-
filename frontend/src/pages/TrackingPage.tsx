@@ -4,6 +4,8 @@ import { AlertTriangle, Banknote, Building2, CheckCircle2, Clock3, ExternalLink,
 import type { Booking, BookingStatus, PaymentMethod, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap, { type Coordinates } from '../components/LocationMap';
+import { EmptyState } from '../components/kit';
+import './Admin.css';
 
 interface Props {
   bookings: Booking[];
@@ -40,10 +42,20 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
   const [gpsAttempt, setGpsAttempt] = useState(0);
   const [now, setNow] = useState(Date.now());
   const isTechnician = role === 'technician';
+  // The admin sees every job, narrowed by a chip: on the road now (the default when any are), today, open, or all.
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const scopes = {
+    moving: (item: Booking) => ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ'].includes(item.status),
+    today: (item: Booking) => item.date === today,
+    open: (item: Booking) => !['เสร็จสิ้น', 'ยกเลิก', 'หมดเวลาเลือกช่าง'].includes(item.status),
+    all: () => true,
+  } as const;
+  const scopeNames: Record<keyof typeof scopes, string> = { moving: 'กำลังเดินทาง / อยู่หน้างาน', today: 'นัดวันนี้', open: 'ยังไม่ปิด', all: 'ทั้งหมด' };
+  const [scope, setScope] = useState<keyof typeof scopes>(() => bookings.some(scopes.moving) ? 'moving' : 'open');
   const relevantBookings = useMemo(() => {
-    const rows = role === 'admin' ? bookings : bookings.filter((item) => !['เสร็จสิ้น','ยกเลิก'].includes(item.status));
-    return rows.length ? rows : bookings;
-  }, [bookings, role]);
+    const rows = role === 'admin' ? bookings.filter(scopes[scope]) : bookings.filter((item) => !['เสร็จสิ้น','ยกเลิก'].includes(item.status));
+    return rows.length ? rows : role === 'admin' ? [] : bookings;
+  }, [bookings, role, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const selected = relevantBookings.find((item) => item.id === selectedId) ?? relevantBookings.find((item) => isTechnician ? ['ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'].includes(item.status) : item.status !== 'เสร็จสิ้น') ?? relevantBookings[0];
   const hasCoordinates = selected?.latitude != null && selected?.longitude != null;
   const destination = hasCoordinates ? { latitude: selected!.latitude!, longitude: selected!.longitude! } : FALLBACK_DESTINATION;
@@ -106,8 +118,18 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
     return () => window.clearInterval(timer);
   }, []);
 
+  // The admin's filter chips, shown with the map and also when a filter has nothing, so it can be changed back.
+  const scopeChips = role === 'admin' ? <div className="ad-chips" role="group" aria-label="แสดงงาน">
+    {(Object.keys(scopes) as (keyof typeof scopes)[]).map(key => <button type="button" key={key} className="ui-chip" aria-pressed={scope === key} onClick={() => { setScope(key); setSelectedId(null); }}>{scopeNames[key]} <b className="ui-num">{bookings.filter(scopes[key]).length}</b></button>)}
+  </div> : null;
   if (!selected) {
-    return <div className="page-stack"><div className="page-heading-row"><div><div className="eyebrow">LIVE SERVICE TRACKING</div><h1>แผนที่และการเดินทาง</h1><p className="page-subtitle">ติดตามงานและตำแหน่งช่างได้จากที่เดียว</p></div></div><section className="panel tracking-empty"><MapPin size={30}/><strong>ยังไม่มีงานให้แสดง</strong><p>เมื่อมีการจอง ระบบจะแสดงสถานที่ให้บริการและสถานะการเดินทางของช่างที่นี่</p></section></div>;
+    return <div className="ui-page ad">
+      <div className="ui-page-head"><div><h1>แผนที่และการเดินทาง</h1><p>ติดตามงานและตำแหน่งช่างได้จากที่เดียว</p></div></div>
+      {scopeChips}
+      <EmptyState icon={MapPin} title={role === 'admin' && bookings.length ? `ไม่มีงานในหมวด “${scopeNames[scope]}”` : 'ยังไม่มีงานให้แสดง'}>
+        {role === 'admin' && bookings.length ? 'เลือกหมวดอื่นด้านบน' : 'เมื่อมีการจอง ระบบจะแสดงสถานที่ให้บริการและสถานะการเดินทางของช่างที่นี่'}
+      </EmptyState>
+    </div>;
   }
 
   const mapsUrl = hasCoordinates
@@ -125,8 +147,8 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
     const reason = window.prompt('อธิบายปัญหาการชำระเงิน เพื่อให้ผู้ดูแลตรวจสอบ');
     if (reason?.trim()) onPaymentIssue(selected.id, reason.trim());
   }
-  return <div className="page-stack">
-    <div className="page-heading-row"><div><div className="eyebrow">LIVE SERVICE TRACKING</div><h1>{isTechnician ? 'งานและเส้นทางของฉัน' : 'ช่างอยู่ที่ไหนแล้ว?'}</h1><p className="page-subtitle">{isTechnician ? 'ดูข้อมูลงาน เปิด Google Maps และแชร์ตำแหน่งระหว่างเดินทาง' : 'ติดตามสถานะนัดหมายและตำแหน่งล่าสุดของช่างที่กำลังเดินทางมา'}</p></div><button className="outline-button" onClick={onRefresh}><RefreshCw size={15}/> รีเฟรชข้อมูล</button></div>
+  return <div className="ui-page ad">
+    <div className="ui-page-head"><div><h1>{isTechnician ? 'งานและเส้นทางของฉัน' : 'ช่างอยู่ที่ไหนแล้ว?'}</h1><p>{isTechnician ? 'ดูข้อมูลงาน เปิด Google Maps และแชร์ตำแหน่งระหว่างเดินทาง' : 'ติดตามสถานะนัดหมายและตำแหน่งล่าสุดของช่างที่กำลังเดินทางมา'}</p></div><button className="ui-btn" onClick={onRefresh}><RefreshCw size={15}/> รีเฟรชข้อมูล</button></div>
     <div className="tracking-page-layout">
       <section className="tracking-map-panel">
         <div className="tracking-map-header"><div><h2>แผนที่การให้บริการ</h2><p>{selected.address}</p></div><StatusBadge status={selected.status}/></div>
@@ -138,6 +160,7 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
       </section>
 
       <aside className="tracking-detail-panel">
+        {scopeChips}
         {relevantBookings.length > 1 && <div className="tracking-job-options"><div className="tracking-detail-header"><div><h2>{isTechnician ? 'เลือกงานที่รับไว้' : 'เลือกการจอง'}</h2><p>เปลี่ยนงานเพื่อดูรายละเอียดบนแผนที่</p></div></div>{relevantBookings.map((item) => <button type="button" className={`tracking-job-option ${item.id===selected.id?'active':''}`} key={item.id} onClick={() => setSelectedId(item.id)}><span><Wrench size={15}/></span><span><strong>{item.code} · {item.service}</strong><small>{item.address}</small></span><StatusBadge status={item.status}/></button>)}</div>}
         <div className="tracking-status-line"><div className="tracking-status-icon"><Navigation size={18}/></div><div className="tracking-status-copy"><strong>{statusHeadline(selected.status)}</strong><span>{selected.code} · {selected.technician}</span></div></div>
         <div className="tracking-info-list">
@@ -147,11 +170,11 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
         </div>
 
         <div className="tracking-actions">
-          <a className="primary-button full-width" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={15}/> {isTechnician ? 'นำทางด้วย Google Maps' : 'เปิดสถานที่ใน Google Maps'}</a>
-          {isTechnician && selected.status === 'ยืนยันแล้ว' && <button className="outline-button" onClick={() => onStatusChange(selected.id,'กำลังเดินทาง')}><Navigation size={15}/> เริ่มเดินทางและแชร์ GPS</button>}
-          {isTechnician && selected.status === 'กำลังเดินทาง' && <button className="outline-button" onClick={() => onStatusChange(selected.id,'ถึงหน้างาน')}><MapPin size={15}/> ยืนยันว่าถึงหน้างานแล้ว</button>}
-          {isTechnician && selected.status === 'ถึงหน้างาน' && <button className="outline-button" onClick={() => onStatusChange(selected.id,'กำลังดำเนินการ')}><Wrench size={15}/> เริ่มล้างแอร์</button>}
-          {isTechnician && selected.status === 'กำลังดำเนินการ' && <button className="outline-button" onClick={() => onStatusChange(selected.id,'รอชำระเงิน')}><CheckCircle2 size={15}/> งานเสร็จแล้ว · รอชำระเงิน</button>}
+          <a className="ui-btn is-primary is-block" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={15}/> {isTechnician ? 'นำทางด้วย Google Maps' : 'เปิดสถานที่ใน Google Maps'}</a>
+          {isTechnician && selected.status === 'ยืนยันแล้ว' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'กำลังเดินทาง')}><Navigation size={15}/> เริ่มเดินทางและแชร์ GPS</button>}
+          {isTechnician && selected.status === 'กำลังเดินทาง' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'ถึงหน้างาน')}><MapPin size={15}/> ยืนยันว่าถึงหน้างานแล้ว</button>}
+          {isTechnician && selected.status === 'ถึงหน้างาน' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'กำลังดำเนินการ')}><Wrench size={15}/> เริ่มล้างแอร์</button>}
+          {isTechnician && selected.status === 'กำลังดำเนินการ' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'รอชำระเงิน')}><CheckCircle2 size={15}/> งานเสร็จแล้ว · รอชำระเงิน</button>}
         </div>
 
         {isAwaitingPayment && <div className="tracking-payment-box">
@@ -162,15 +185,15 @@ export default function TrackingPage({ bookings, role, onStatusChange, onLocatio
             <div className="payment-check-row"><CheckCircle2 size={15}/>{customerConfirmed?'ลูกค้ายืนยันว่าชำระแล้ว':'รอลูกค้ายืนยันการชำระเงิน'}</div>
             <div className="payment-check-row"><CheckCircle2 size={15}/>{technicianConfirmed?'ช่างยืนยันว่าได้รับเงินแล้ว':'รอช่างยืนยันว่าได้รับเงิน'}</div>
           </div>
-          {canConfirmPayment && ((role==='customer' && !customerConfirmed) || (isTechnician && !technicianConfirmed)) && <button className="primary-button full-width" style={{marginTop:10}} onClick={() => onPaymentConfirm(selected.id,paymentMethod)}>{role==='customer'?'ฉันชำระเงินแล้ว':'ฉันได้รับเงินแล้ว'} <CheckCircle2 size={15}/></button>}
-          {canConfirmPayment && (role === 'customer' || isTechnician) && <button className="outline-button full-width" style={{marginTop:8}} onClick={reportIssue}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>}
+          {canConfirmPayment && ((role==='customer' && !customerConfirmed) || (isTechnician && !technicianConfirmed)) && <button className="ui-btn is-primary is-block" style={{marginTop:10}} onClick={() => onPaymentConfirm(selected.id,paymentMethod)}>{role==='customer'?'ฉันชำระเงินแล้ว':'ฉันได้รับเงินแล้ว'} <CheckCircle2 size={15}/></button>}
+          {canConfirmPayment && (role === 'customer' || isTechnician) && <button className="ui-btn is-block" style={{marginTop:8}} onClick={reportIssue}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>}
           {selected.status==='มีปัญหาการชำระเงิน' && <p>รายการนี้ถูกส่งให้ผู้ดูแลตรวจสอบแล้ว โปรดติดต่อผู้ดูแลก่อนเปลี่ยนสถานะ</p>}
           <p className="tracking-disclaimer">ลูกค้าจ่ายให้ช่างโดยตรงเมื่องานเสร็จ ด้วยเงินสดหรือโอน AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง</p>
         </div>}
 
         {selected.status === 'เสร็จสิ้น' && <div className="tracking-status-line" style={{marginTop:14}}><div className="tracking-status-icon"><CheckCircle2 size={18}/></div><div className="tracking-status-copy"><strong>ปิดภารกิจเรียบร้อย</strong><span>ลูกค้าและช่างยืนยันการชำระเงินแล้ว · ฿{selected.price.toLocaleString()}</span></div></div>}
         {selected.status === 'มีปัญหาการชำระเงิน' && <div className="tracking-status-line"><div className="tracking-status-icon"><AlertTriangle size={18}/></div><div className="tracking-status-copy"><strong>ส่งให้ผู้ดูแลตรวจสอบแล้ว</strong><span>ระบบยังไม่ถือว่ารายการนี้ชำระสำเร็จ</span></div></div>}
-        {isTechnician && selected.status === 'กำลังเดินทาง' && <div className="tracking-runtime-note" role="status"><LocateFixed size={14} style={{verticalAlign:'middle',marginRight:5}}/> {gpsMessage || 'กำลังรับพิกัดจากอุปกรณ์'}<p>เปิดหน้านี้ไว้ระหว่างเดินทาง การล็อกหน้าจอหรือเปิด Google Maps อาจทำให้ตำแหน่งหยุดอัปเดต ระบบหยุดแชร์เมื่อถึงหน้างาน</p><button className="outline-button" onClick={() => setGpsAttempt(value => value + 1)}>ลองเชื่อมต่อ GPS อีกครั้ง</button></div>}
+        {isTechnician && selected.status === 'กำลังเดินทาง' && <div className="tracking-runtime-note" role="status"><LocateFixed size={14} style={{verticalAlign:'middle',marginRight:5}}/> {gpsMessage || 'กำลังรับพิกัดจากอุปกรณ์'}<p>เปิดหน้านี้ไว้ระหว่างเดินทาง การล็อกหน้าจอหรือเปิด Google Maps อาจทำให้ตำแหน่งหยุดอัปเดต ระบบหยุดแชร์เมื่อถึงหน้างาน</p><button className="ui-btn" onClick={() => setGpsAttempt(value => value + 1)}>ลองเชื่อมต่อ GPS อีกครั้ง</button></div>}
         {role==='customer' && !hasCoordinates && <div className="tracking-runtime-note"><Building2 size={13} style={{verticalAlign:'middle',marginRight:5}}/> รายการนี้ยังไม่มีพิกัดที่อยู่ กรุณาตรวจสอบตำแหน่งที่บันทึกไว้ในรายละเอียดการจอง</div>}
         {role==='admin' && <div className="tracking-runtime-note"><ShieldCheck size={14} style={{verticalAlign:'middle',marginRight:5}}/> โหมดผู้ดูแล: ใช้ตรวจสอบสถานะและข้อมูลตำแหน่งของงานที่เกี่ยวข้อง</div>}
       </aside>

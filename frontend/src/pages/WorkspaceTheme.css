@@ -20,27 +20,6 @@
 .ac-shell .metric-spark span {
   background: #aabbd1;
 }
-.ac-shell .text-button:hover {
-  color: #162d4c;
-}
-.ac-shell .booking-row {
-  border-bottom: 1px solid #edeff2;
-}
-.ac-shell .activity-item {
-  border-bottom: 1px solid #edeff2;
-}
-.ac-shell .booking-tabs {
-  border-bottom: 1px solid #edeff2;
-}
-.ac-shell .data-table th {
-  border-bottom: 1px solid #edeff2;
-}
-.ac-shell .data-table td {
-  border-bottom: 1px solid #eff1f3;
-}
-.ac-shell .info-callout {
-  border-color: #e4e8ee;
-}
 .ac-shell .modal-header {
   border-bottom: 1px solid #eceef1;
 }
@@ -108,9 +87,6 @@
 .ac-shell .report-form-note {
   color: #798696;
 }
-.ac-shell .profile-summary-note {
-  border-top: 1px solid #e7eaee;
-}
 .ac-shell .profile-input-wrap {
   color: #8291a4;
 }
@@ -126,15 +102,6 @@
 }
 .ac-shell .nearby-empty strong {
   color: var(--ink, #1e242b);
-}
-.ac-shell .candidate-request-heading h3 {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .candidate-tech-head strong {
-  color: var(--ink, #1e242b);
-}
-.ac-shell .candidate-tech-price {
-  border-top: 1px solid var(--line, #e6e7e9);
 }
 .ac-shell .landing {
   --landing-ink: #16273d;
