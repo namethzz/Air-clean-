@@ -281,10 +281,10 @@
   color: var(--v-blue-700);
 }
 .jb-journey .is-now .jb-stop {
-  border-color: var(--v-lime);
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
-  box-shadow: 0 0 0 4px rgb(217 248 74 / 0.28);
+  border-color: var(--v-turn);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
+  box-shadow: 0 0 0 4px rgb(255 122 26 / 0.32);
 }
 .jb-stop-label {
   font-size: var(--v-text-xs);
@@ -331,7 +331,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--v-lime-ink);
+  background: var(--v-turn-ink);
   transition: width 1s linear;
 }
 .jb-clock.is-low .jb-clock-bar span {

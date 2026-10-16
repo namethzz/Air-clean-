@@ -1,6 +1,8 @@
-import HeroFinancial from '../components/ui/hero-financial';
+import HeroSection6 from '../components/ui/hero-section-6';
+import BrandMark from '../components/BrandMark';
+import { heroShots } from '../assets/hero';
 import './CustomerExperience.css';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Wrench } from 'lucide-react';
 
 type Start = (mode: 'login' | 'register', role?: 'customer' | 'technician' | 'manager') => void;
 
@@ -55,7 +57,20 @@ function PrivacyAfter() {
 export default function LandingPage({ onStart }: { onStart: Start }) {
   return <div className="acl">
     <main>
-      <HeroFinancial onStart={() => onStart('register', 'customer')} onLogin={() => onStart('login')} onTechnician={() => onStart('register', 'technician')}/>
+      <HeroSection6 {...heroShots.landing}
+        nav={<header className="hx-nav">
+          <a className="hx-brand" href="#" aria-label="AirClean หน้าหลัก"><span className="hx-brand-mark"><BrandMark className="w-[82%] h-auto"/></span>AirClean</a>
+          <nav className="hx-links" aria-label="เมนูหลัก"><a href="#services">บริการ</a><a href="#how">วิธีใช้งาน</a><a href="#partner">สำหรับช่างแอร์</a></nav>
+          <div className="hx-nav-actions">
+            <button type="button" className="hx-btn" onClick={() => onStart('login')}>เข้าสู่ระบบ</button>
+            <button type="button" className="hx-btn is-primary" onClick={() => onStart('register', 'customer')}>สมัครใช้งาน</button>
+          </div>
+        </header>}
+        badge="จ่ายเงินเมื่อล้างเสร็จ ไม่ต้องจ่ายล่วงหน้า"
+        title={<>ช่างล้างแอร์ใกล้บ้าน<br/>เสนอราคาให้คุณเลือก</>}
+        text="ส่งคำขอครั้งเดียว ช่างในพื้นที่ที่สนใจจะเสนอราคาและโปรไฟล์ให้คุณเปรียบเทียบ ก่อนตัดสินใจยืนยัน"
+        primary={{ label: 'ขอช่างล้างแอร์', onClick: () => onStart('register', 'customer'), icon: ArrowRight, trailing: true }}
+        secondary={{ label: 'สมัครเป็นช่าง', onClick: () => onStart('register', 'technician'), icon: Wrench }}/>
 
       <section id="services" className="acl-section acl-services" aria-labelledby="services-title">
         <div className="acl-head">
@@ -99,12 +114,12 @@ export default function LandingPage({ onStart }: { onStart: Start }) {
         </ol>
       </section>
 
-      <section className="acl-partner" aria-labelledby="partner-title">
+      <section id="partner" className="acl-partner" aria-labelledby="partner-title">
         <div className="acl-partner-inner">
           <div>
             <h2 id="partner-title">คุณเป็นช่างแอร์?<br/>รับงานใกล้บ้านผ่าน AirClean</h2>
             <p>สร้างโปรไฟล์ กำหนดราคาและพื้นที่บริการ ค้นหางานใกล้ตัว แล้วส่งความสนใจให้ลูกค้าเลือก</p>
-            <button type="button" className="acx-btn acx-btn-light" onClick={() => onStart('register', 'technician')}>สมัครเป็นช่าง<ArrowRight size={18}/></button>
+            <button type="button" className="hx-btn" onClick={() => onStart('register', 'technician')}>สมัครเป็นช่าง<ArrowRight size={18}/></button>
           </div>
           <ul>{technicianPoints.map(text => <li key={text}><Check size={20}/>{text}</li>)}</ul>
         </div>

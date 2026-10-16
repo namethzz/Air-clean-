@@ -146,7 +146,7 @@
   font-weight: 600;
 }
 .sh-rail :focus-visible {
-  outline-color: var(--v-lime);
+  outline-color: var(--v-on-blue);
 }
 .sh-count {
   display: inline-grid;
@@ -155,8 +155,8 @@
   height: 22px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
   font: 600 var(--v-text-xs) / 1 var(--v-font-text);
 }
 .sh-rail-foot {
@@ -327,7 +327,7 @@
   color: var(--v-on-blue-2);
 }
 .sh-band :focus-visible {
-  outline-color: var(--v-lime);
+  outline-color: var(--v-on-blue);
 }
 /* The bell on blue */
 .sh-band .nb-trigger {
@@ -340,8 +340,8 @@
 }
 .sh-band .nb-count {
   border-color: var(--v-blue-700);
-  background: var(--v-lime);
-  color: var(--v-lime-ink);
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
 }
 
 /* ───────── Phone tab bar ───────── */

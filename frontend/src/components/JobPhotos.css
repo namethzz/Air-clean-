@@ -152,7 +152,7 @@
   background: rgb(255 255 255 / 0.26);
 }
 .ph-viewer-btn:focus-visible {
-  outline: 2px solid var(--v-lime);
+  outline: 2px solid var(--v-on-blue);
   outline-offset: 2px;
 }
 .ph-viewer-close {
