@@ -379,16 +379,6 @@
   border-color: #bcd0f2;
 }
 
-/* ───────────────────────── Session check ─────────────────────────
-   The sign-in page itself is components/ui/sign-in.tsx; this is the screen shown while a saved session is checked. */
-.auth-loading {
-  background: var(--ac-mist);
-  color: var(--ac-ink-2);
-}
-.auth-loading .auth-brand-icon {
-  background: var(--ac-blue);
-  color: #fff;
-}
 
 /* ───────────────────────── Responsive and motion ───────────────────────── */
 @media (max-width: 850px) {

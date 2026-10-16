@@ -341,7 +341,7 @@ export default function App() {
     if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
   }
   if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
-  if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
+  if(checkingSession)return <div className="au-loading" role="status"><span className="au-brand-mark"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ…</p></div>;
   if(!user) {
     if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;

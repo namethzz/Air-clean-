@@ -23,14 +23,6 @@
 .ac-shell .modal-header {
   border-bottom: 1px solid #eceef1;
 }
-.ac-shell .auth-brand-icon {
-  background: #dfe7f1;
-  color: #143055;
-}
-.ac-shell .auth-loading {
-  background: #f5f6f8;
-  color: #5c6b7f;
-}
 .ac-shell .report-live-metric small {
   color: #7f8a98;
 }

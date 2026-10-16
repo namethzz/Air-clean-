@@ -8,3 +8,6 @@ if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
     element.replaceChildren(link);
   });
 }
+
+/** The contents list starts folded on narrow screens, where it would push the text a long way down. */
+if (window.matchMedia('(max-width: 959px)').matches) document.querySelector('.lg-toc details')?.removeAttribute('open');
