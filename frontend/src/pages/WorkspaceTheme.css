@@ -4,25 +4,6 @@
    re-tinted here to the brand blue (hue 214) with its lightness and saturation preserved, so contrast
    ratios stay close to the original design. Properties already set by hand in CustomerExperience.css are skipped.
    Amber, sand and lavender accents are left untouched. */
-.ac-shell .brand-caption {
-  color: #99a8bc;
-}
-.ac-shell .workspace-icon {
-  background: #283e5b;
-  color: #c9d6e8;
-}
-.ac-shell .workspace-copy span {
-  color: #93a2b5;
-}
-.ac-shell .workspace-copy strong {
-  color: #f1f3f6;
-}
-.ac-shell .breadcrumb {
-  color: #838d9a;
-}
-.ac-shell .breadcrumb span {
-  color: #c3c7cc;
-}
 .ac-shell .eyebrow {
   color: #7c8897;
 }
@@ -47,10 +28,6 @@
 }
 .ac-shell .activity-item {
   border-bottom: 1px solid #edeff2;
-}
-.ac-shell .loading-indicator {
-  border: 1px solid #e6e9ec;
-  box-shadow: 0 4px 15px #12253e10;
 }
 .ac-shell .booking-tabs {
   border-bottom: 1px solid #edeff2;
@@ -638,10 +615,6 @@
   border-top: 1px solid #e8eef4;
 }
 /* The page bars style every direct div, strong and span; keep the bell and its panel independent of them. */
-.mobile-page-bar > .nb {
-  flex: none;
-  margin-left: auto;
-}
 .nb .nb-head strong {
   font:
     600 16px/1.4 "IBM Plex Sans Thai",

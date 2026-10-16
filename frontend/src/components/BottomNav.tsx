@@ -21,7 +21,7 @@ function useStickToScreenBottom() {
         const typing = document.activeElement instanceof HTMLElement && document.activeElement.matches('input:not([type=file]):not([type=checkbox]):not([type=radio]),textarea,select');
         const keyboard = typing && layoutHeight - view.height > 120;
         const gap = Math.round(view.offsetTop + view.height - layoutHeight);
-        nav.classList.toggle('bn-hidden', keyboard);
+        nav.classList.toggle('is-hidden', keyboard);
         nav.style.transform = !keyboard && Math.abs(gap) > 1 ? `translateY(${gap}px)` : '';
       });
     };
@@ -57,28 +57,28 @@ interface Props {
   onNewBooking: () => void;
 }
 
-/** Thumb-reach navigation for customers on phones. Hidden on wide screens, where the sidebar is used. */
+/** Thumb-reach navigation on phones and tablets for customers, managers and technicians. The rail takes over on wide screens. */
 export default function BottomNav({ role, page, actionCount, onNavigate, onNewBooking }: Props) {
   const ref = useStickToScreenBottom();
   const item = (key: PageKey, label: string, Icon: typeof Home, badge = 0) => {
     const active = page === key;
-    return <button type="button" className={'bn-item' + (active ? ' active' : '')} aria-current={active ? 'page' : undefined} onClick={() => onNavigate(key)}>
-      <span className="bn-icon"><Icon size={22} strokeWidth={active ? 2.3 : 1.9}/>{badge > 0 && <b aria-label={`${badge} งานรอคุณ`}>{badge}</b>}</span>
-      <span>{label}</span>
+    return <button type="button" className={'sh-tab' + (active ? ' is-active' : '')} aria-current={active ? 'page' : undefined} onClick={() => onNavigate(key)}>
+      <span className="sh-tab-icon"><Icon size={23} strokeWidth={active ? 2.3 : 1.9}/>{badge > 0 && <b className="sh-count" aria-label={`${badge} งานรอคุณ`}>{badge}</b>}</span>
+      <span className="sh-tab-label">{label}</span>
     </button>;
   };
   if (role === 'technician') {
-    return <nav ref={ref} className="bottom-nav bn-3" aria-label="เมนูหลัก">
+    return <nav ref={ref} className="sh-tabbar is-3" aria-label="เมนูหลัก">
       {item('nearbyJobs', 'งานใกล้ฉัน', MapPin)}
       {item('bookings', 'งานของฉัน', ClipboardList, actionCount)}
-      {item('profile', 'โปรไฟล์และราคา', UserCog)}
+      {item('profile', 'โปรไฟล์', UserCog)}
     </nav>;
   }
   const manager = role === 'manager';
-  return <nav ref={ref} className="bottom-nav" aria-label="เมนูหลัก">
+  return <nav ref={ref} className="sh-tabbar" aria-label="เมนูหลัก">
     {item('overview', 'หน้าแรก', Home)}
     {item('bookings', manager ? 'งานอาคาร' : 'งานของฉัน', ClipboardList, actionCount)}
-    <button type="button" className="bn-add" onClick={onNewBooking}><span className="bn-add-dot"><Plus size={26} strokeWidth={2.4}/></span><span>ขอช่าง</span></button>
+    <button type="button" className="sh-tab sh-tab-book" onClick={onNewBooking}><span className="sh-tab-plus" aria-hidden="true"><Plus size={26} strokeWidth={2.5}/></span><span className="sh-tab-label">ขอช่าง</span></button>
     {manager ? item('buildings', 'อาคาร', Building2) : item('history', 'ประวัติ', History)}
     {item('profile', 'บัญชี', UserRound)}
   </nav>;

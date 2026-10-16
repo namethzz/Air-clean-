@@ -12,8 +12,8 @@ Rules for every step
 ## Steps
 
 - [x] **0. Product record.** `PRODUCT.md` (users, purpose, positioning, brand commitments). Owner answers 2026-10-16: the customer is the primary user; technicians use phones on site, are not confident with tech, and want fitting jobs, clear pay, easy accept/decline, job status and earnings; customers are city workers; keep the logo, name and blue.
-- [ ] **1. Direction.** Choose the visual direction with the owner, then record it in the surface brief (direction contract).
-- [ ] **2. Foundation.** Design tokens (colour, type, spacing, radius, elevation, motion) and core components: buttons, inputs, selects, chips, status badges, list rows, cards, sheets/dialogs, toasts, empty/error/loading states. App shell: sidebar or rail, top bar, phone bottom bar.
+- [x] **1. Direction.** Owner chose **A · ป้ายเสื้อวิน** (the motorcycle-taxi vest plate in AirClean blue). The contract is in `.impeccable/surfaces/frontend-src-app-tsx.md`: vest-blue bands and plates, white cards on a cool ground, hi-vis lime only for "your turn", Kanit numerals and headings, IBM Plex Sans Thai Looped text, 52px controls on phones.
+- [x] **2. Foundation.** `frontend/src/styles/tokens.css` (vest-blue palette, ink and ground, lime for "your turn", state colours, Kanit + IBM Plex Sans Thai Looped, spacing, radius, shadows, motion). It also points the old `--ac-*` names at the new world inside the app. `styles/ui.css` has the `ui-*` components: page head, buttons, fields, cards, lists and rows, **plate** and **strip**, badges, chips, tabs, alerts, empty state, skeleton, sheet. `styles/shell.css` and the rewritten `Sidebar`, `Topbar`, `BottomNav` and `App` frame give a blue rail plus a top bar on wide screens, and a blue band plus a tab bar on phones and tablets (the admin gets a slide-in menu). `components/kit.tsx` has `PageHead`, `Plate`, `Strip` and `EmptyState`. `StatusBadge` now uses `ui-badge`. Old frame CSS was removed.
 - [ ] **3. Customer.** Home, the booking request flow (`BookingModal`, location, rooms, time), the job list and job page (offers and choosing, tracking, payment, review, receipt), "แอร์ของฉัน" history, profile.
 - [ ] **4. Technician.** Nearby jobs (offer flow), my jobs and the day's schedule, the job page (travel, arrival, cleaning, report and photos, payment), membership and slip, profile, service and documents.
 - [ ] **5. Building manager.** Home, buildings and rooms, bulk booking, jobs, receipts.
@@ -22,4 +22,5 @@ Rules for every step
 - [ ] **8. Finish.** Review against the direction contract, write `DESIGN.md` from the built result, refresh `docs/screenshots/` and the README.
 
 ## Log
+- 2026-10-16: Step 1 done (owner chose A). Step 2 done: tokens, ui-* components, new frame. Pages still use their old layouts and are rebuilt in steps 3–6. Startup for screenshots: Docker+Mongo, API on DB `airclean_css` port 5080, Vite on 5173 with `VITE_API_BASE_URL=http://localhost:5080/api`.
 - 2026-10-16: Step 0 done. Direction roll ran degraded (the roll service is blocked by the sandbox network), with grounded directions only.

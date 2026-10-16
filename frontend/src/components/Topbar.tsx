@@ -1,23 +1,22 @@
 import type { ReactNode } from 'react';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { PageKey, UserRole } from '../types';
 
 interface Props { role: UserRole; page: PageKey; title: string; searchQuery: string; onSearchChange: (value: string) => void; onNewBooking: () => void; bell?: ReactNode; }
 
 /** Search only filters these pages, so it appears only there. */
-const searchHints: Partial<Record<PageKey, string>> = { technicians: 'ค้นหาช่าง...', bookings: 'ค้นหารายการจอง...' };
+const searchHints: Partial<Record<PageKey, string>> = { technicians: 'ค้นหาช่าง', bookings: 'ค้นหารายการจอง' };
 
+/** The wide-screen top bar: the page's name, search where it filters, and the bell. */
 export default function Topbar({ role, page, title, searchQuery, onSearchChange, onNewBooking, bell }: Props) {
-  // Customers' job list is short and has its own tabs, so it has no search box.
-  const hint = role === 'customer' || role === 'technician' ? undefined : searchHints[page];
-  // The overview already has its own single call to action.
-  // Customers have the button in the sidebar and bottom bar already.
-  const canBook = role !== 'technician' && role !== 'customer' && page !== 'overview';
-  return <header className="topbar">
-    <div className="topbar-context"><div className="breadcrumb">AIRCLEAN <span>/</span> WORKSPACE</div><div className="topbar-title">{title}</div></div>
-    <div className="topbar-actions">
-      {hint && <label className="global-search"><Search size={17}/><input value={searchQuery} onChange={event => onSearchChange(event.target.value)} placeholder={hint} aria-label={hint.replace('...', '')}/></label>}
-      {canBook && <button type="button" className="primary-button topbar-book-button" onClick={onNewBooking}>ขอช่างล้างแอร์</button>}
+  const hint = role === 'admin' || role === 'manager' ? searchHints[page] : undefined;
+  // Managers book from the rail too, but the job list is where they look for it.
+  const canBook = role === 'manager' && page === 'bookings';
+  return <header className="sh-top">
+    <h1 className="sh-top-title">{title}</h1>
+    <div className="sh-top-actions">
+      {hint && <label className="sh-search"><Search size={18} aria-hidden="true"/><input value={searchQuery} onChange={event => onSearchChange(event.target.value)} placeholder={hint + '…'} aria-label={hint}/></label>}
+      {canBook && <button type="button" className="ui-btn is-primary" onClick={onNewBooking}><Plus size={18}/>ขอช่างล้างแอร์</button>}
       {bell}
     </div>
   </header>;

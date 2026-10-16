@@ -39,7 +39,9 @@
   font: 600 24px/1 var(--ac-display);
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 0 0 4px var(--ac-white), 0 6px 16px -8px rgb(19 37 59 / 0.45);
+  box-shadow:
+    0 0 0 4px var(--ac-white),
+    0 6px 16px -8px rgb(19 37 59 / 0.45);
 }
 .pf-avatar .av-img {
   transition: filter 0.15s ease;

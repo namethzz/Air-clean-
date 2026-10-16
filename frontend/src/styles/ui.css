@@ -1,0 +1,730 @@
+/*
+ * Shared components for every signed-in screen (ui-*). Built on tokens.css.
+ * Standard controls the visitor already knows; the world shows in colour, type, density and the plate.
+ */
+
+/* ───────── Page frame ───────── */
+.ui-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-6);
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.ui-page.is-narrow {
+  max-width: 760px;
+}
+.ui-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--v-gap-3) var(--v-gap-4);
+}
+.ui-page-head h1 {
+  margin: 0;
+  font: 600 var(--v-text-2xl) / 1.25 var(--v-font-head);
+  letter-spacing: -0.01em;
+  color: var(--v-ink);
+}
+.ui-page-head p {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  font-size: var(--v-text-md);
+  line-height: 1.6;
+  color: var(--v-ink-3);
+  text-wrap: pretty;
+}
+.ui-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-3);
+}
+.ui-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--v-gap-3);
+  margin-top: var(--v-gap-2);
+}
+.ui-section-head h2 {
+  margin: 0;
+  font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ui-section-head p {
+  margin: 2px 0 0;
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+
+/* ───────── Buttons ───────── */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--v-control);
+  padding: 0 20px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  font: 600 var(--v-text-md) / 1.2 var(--v-font-text);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--v-fast) var(--v-ease),
+    border-color var(--v-fast) var(--v-ease),
+    color var(--v-fast) var(--v-ease),
+    transform var(--v-fast) var(--v-ease);
+}
+.ui-btn:hover:not(:disabled) {
+  border-color: var(--v-blue-400);
+  background: var(--v-blue-050);
+}
+.ui-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.ui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ui-btn[aria-busy="true"] {
+  cursor: progress;
+}
+.ui-btn svg {
+  flex: none;
+}
+.ui-btn.is-primary {
+  border-color: var(--v-blue-700);
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
+  box-shadow: 0 8px 18px -12px rgb(11 47 116 / 0.9);
+}
+.ui-btn.is-primary:hover:not(:disabled) {
+  border-color: var(--v-blue-800);
+  background: var(--v-blue-800);
+}
+.ui-btn.is-turn {
+  border-color: var(--v-lime-deep);
+  background: var(--v-lime);
+  color: var(--v-lime-ink);
+}
+.ui-btn.is-turn:hover:not(:disabled) {
+  background: #cdef33;
+}
+.ui-btn.is-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--v-blue-700);
+}
+.ui-btn.is-ghost:hover:not(:disabled) {
+  background: var(--v-blue-100);
+}
+.ui-btn.is-danger {
+  border-color: #f1c3be;
+  color: var(--v-problem);
+}
+.ui-btn.is-danger:hover:not(:disabled) {
+  border-color: var(--v-problem);
+  background: var(--v-problem-bg);
+}
+.ui-btn.is-lg {
+  min-height: var(--v-control-lg);
+  padding: 0 24px;
+  font-size: var(--v-text-lg);
+}
+.ui-btn.is-sm {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: var(--v-radius);
+  font-size: var(--v-text-sm);
+}
+.ui-btn.is-block {
+  width: 100%;
+}
+.ui-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  color: var(--v-ink-2);
+  cursor: pointer;
+  transition:
+    background-color var(--v-fast) var(--v-ease),
+    color var(--v-fast) var(--v-ease);
+}
+.ui-icon-btn:hover {
+  background: var(--v-blue-050);
+  color: var(--v-blue-700);
+}
+.ui-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v-blue-700);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ───────── Form fields ───────── */
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ui-field > label,
+.ui-field > .ui-label {
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-ink-2);
+}
+.ui-field > small {
+  font-size: var(--v-text-sm);
+  line-height: 1.5;
+  color: var(--v-ink-3);
+}
+.ui-field > small.is-error {
+  color: var(--v-problem);
+  font-weight: 600;
+}
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  min-height: var(--v-control);
+  padding: 0 14px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  font: 400 16px / 1.4 var(--v-font-text);
+  transition:
+    border-color var(--v-fast) var(--v-ease),
+    box-shadow var(--v-fast) var(--v-ease);
+}
+.ui-textarea {
+  min-height: 112px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+.ui-select {
+  padding-right: 40px;
+  appearance: none;
+  background: var(--v-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2352627a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E")
+    no-repeat right 14px center;
+}
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus {
+  border-color: var(--v-blue-600);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(31 111 224 / 0.18);
+}
+.ui-input[aria-invalid="true"],
+.ui-select[aria-invalid="true"],
+.ui-textarea[aria-invalid="true"] {
+  border-color: var(--v-problem);
+}
+.ui-input:disabled,
+.ui-select:disabled,
+.ui-textarea:disabled {
+  background: var(--v-sunken);
+  color: var(--v-ink-3);
+}
+
+/* ───────── Cards and lists ───────── */
+.ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  padding: var(--v-gap-5);
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-card);
+}
+.ui-card.is-flat {
+  box-shadow: none;
+}
+.ui-card > h2,
+.ui-card-head h2 {
+  margin: 0;
+  font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ui-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--v-gap-3);
+}
+.ui-card-head p {
+  margin: 2px 0 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+.ui-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  overflow: hidden;
+}
+.ui-list > li + li {
+  border-top: 1px solid var(--v-line);
+}
+.ui-row {
+  display: flex;
+  align-items: center;
+  gap: var(--v-gap-3);
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.ui-row,
+a.ui-row {
+  cursor: pointer;
+  transition: background-color var(--v-fast) var(--v-ease);
+}
+button.ui-row:hover,
+a.ui-row:hover {
+  background: var(--v-blue-050);
+}
+.ui-row-lead {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--v-radius);
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+  font: 600 var(--v-text-md) / 1 var(--v-font-head);
+}
+.ui-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ui-row-text strong {
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.ui-row-text span {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.ui-row-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--v-gap-2);
+  flex: none;
+  color: var(--v-ink-3);
+}
+
+/* ───────── The plate: the one fact that matters, readable at arm's length ───────── */
+.ui-plate {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px var(--v-gap-3);
+  padding: var(--v-gap-4) var(--v-gap-5);
+  border-radius: var(--v-radius-md);
+  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 62%, var(--v-blue-800) 100%);
+  color: var(--v-on-blue);
+  box-shadow: var(--v-shadow-plate);
+  overflow: hidden;
+}
+.ui-plate-num {
+  grid-column: 1;
+  font: 600 var(--v-num) / 1 var(--v-font-head);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ui-plate-num small {
+  margin-left: 6px;
+  font-size: var(--v-text-md);
+  font-weight: 500;
+  color: var(--v-on-blue-2);
+}
+.ui-plate-side {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.ui-plate-meta {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: var(--v-text-sm);
+  color: var(--v-on-blue-2);
+}
+.ui-plate-meta strong {
+  color: var(--v-on-blue);
+  font-weight: 600;
+}
+.ui-plate.is-quiet {
+  border: 1px solid var(--v-line);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  box-shadow: var(--v-shadow-card);
+}
+.ui-plate.is-quiet .ui-plate-num {
+  color: var(--v-blue-700);
+}
+.ui-plate.is-quiet .ui-plate-num small,
+.ui-plate.is-quiet .ui-plate-meta {
+  color: var(--v-ink-3);
+}
+.ui-plate.is-quiet .ui-plate-meta strong {
+  color: var(--v-ink);
+}
+.ui-plate-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  color: var(--v-on-blue);
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ui-plate.is-quiet .ui-plate-tag {
+  background: var(--v-done-bg);
+  color: var(--v-done);
+}
+
+/* The reflective strip: only for "your turn now". It glints once when it appears. */
+.ui-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: var(--v-radius);
+  background: var(--v-lime);
+  color: var(--v-lime-ink);
+  font-weight: 600;
+  overflow: hidden;
+}
+.ui-plate > .ui-strip {
+  grid-column: 1 / -1;
+  margin: 6px calc(var(--v-gap-5) * -1) calc(var(--v-gap-4) * -1);
+  border-radius: 0;
+}
+.ui-strip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.7) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: ui-glint 1.1s var(--v-ease) 0.25s 1 forwards;
+  pointer-events: none;
+}
+@keyframes ui-glint {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* ───────── Status badges and chips ───────── */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--v-sunken);
+  color: var(--v-ink-2);
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.ui-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ui-badge.is-active {
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.ui-badge.is-done {
+  background: var(--v-done-bg);
+  color: var(--v-done);
+}
+.ui-badge.is-wait {
+  background: var(--v-wait-bg);
+  color: var(--v-wait);
+}
+.ui-badge.is-problem {
+  background: var(--v-problem-bg);
+  color: var(--v-problem);
+}
+.ui-badge.is-turn {
+  background: var(--v-lime);
+  color: var(--v-lime-ink);
+}
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: 999px;
+  background: var(--v-surface);
+  color: var(--v-ink-2);
+  font: 500 var(--v-text-sm) / 1.2 var(--v-font-text);
+  cursor: pointer;
+  transition:
+    background-color var(--v-fast) var(--v-ease),
+    border-color var(--v-fast) var(--v-ease),
+    color var(--v-fast) var(--v-ease);
+}
+.ui-chip:hover {
+  border-color: var(--v-blue-400);
+  color: var(--v-blue-700);
+}
+.ui-chip[aria-pressed="true"],
+.ui-chip.is-on {
+  border-color: var(--v-blue-700);
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
+}
+.ui-chip b {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(15 30 51 / 0.08);
+  font-size: var(--v-text-xs);
+  text-align: center;
+}
+.ui-chip[aria-pressed="true"] b,
+.ui-chip.is-on b {
+  background: rgb(255 255 255 / 0.2);
+}
+
+/* ───────── Tabs (segmented) ───────── */
+.ui-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+}
+.ui-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--v-ink-3);
+  font: 600 var(--v-text-sm) / 1.2 var(--v-font-text);
+  cursor: pointer;
+  transition:
+    background-color var(--v-fast) var(--v-ease),
+    color var(--v-fast) var(--v-ease);
+}
+.ui-tabs > button:hover {
+  color: var(--v-ink);
+}
+.ui-tabs > button[aria-selected="true"] {
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
+}
+
+/* ───────── Messages ───────── */
+.ui-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: var(--v-sunken);
+  color: var(--v-ink-2);
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+}
+.ui-alert svg {
+  flex: none;
+  margin-top: 2px;
+}
+.ui-alert.is-done {
+  border-color: #b9e4d4;
+  background: var(--v-done-bg);
+  color: #0a5c48;
+}
+.ui-alert.is-wait {
+  border-color: #f0d7a6;
+  background: var(--v-wait-bg);
+  color: #7a4800;
+}
+.ui-alert.is-problem {
+  border-color: #f1c3be;
+  background: var(--v-problem-bg);
+  color: #8f1c13;
+}
+.ui-alert.is-info {
+  border-color: #c9dbf8;
+  background: var(--v-blue-050);
+  color: var(--v-blue-800);
+}
+.ui-alert strong {
+  display: block;
+  color: inherit;
+}
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 20px;
+  border: 1px dashed var(--v-line-strong);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  text-align: center;
+}
+.ui-empty > svg {
+  color: var(--v-blue-600);
+}
+.ui-empty h3 {
+  margin: 4px 0 0;
+  font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ui-empty p {
+  max-width: 40ch;
+  margin: 0;
+  color: var(--v-ink-3);
+  line-height: 1.6;
+}
+.ui-skeleton {
+  border-radius: var(--v-radius);
+  background: linear-gradient(90deg, var(--v-sunken) 25%, #e6edf6 50%, var(--v-sunken) 75%);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.4s linear infinite;
+}
+@keyframes ui-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ───────── Sheets (bottom sheet on phones, dialog on wide screens) ───────── */
+.ui-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(11 30 60 / 0.5);
+  animation: ui-fade var(--v-slow) var(--v-ease);
+}
+.ui-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  width: 100%;
+  max-width: 520px;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 18px 20px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-raised);
+  animation: ui-rise var(--v-slow) var(--v-ease);
+}
+@keyframes ui-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ui-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+@media (min-width: 640px) {
+  .ui-backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+  .ui-sheet {
+    border-radius: 22px;
+  }
+}
+
+/* ───────── Numbers and dates in data ───────── */
+.ui-num {
+  font-family: var(--v-font-head);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .ui-card {
+    padding: var(--v-gap-4);
+  }
+  .ui-page {
+    gap: var(--v-gap-5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-strip::after,
+  .ui-skeleton,
+  .ui-backdrop,
+  .ui-sheet {
+    animation: none;
+  }
+  .ui-btn,
+  .ui-chip,
+  .ui-tabs > button {
+    transition: none;
+  }
+}

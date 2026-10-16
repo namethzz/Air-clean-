@@ -1,5 +1,12 @@
 import type { BookingStatus } from '../types';
-const toneMap: Record<string, string> = { 'เปิดรับช่าง': 'info', 'รอเลือกช่าง': 'warning', 'รอยืนยัน': 'warning', 'ยืนยันแล้ว': 'confirmed', 'กำลังเดินทาง': 'progress', 'ถึงหน้างาน': 'progress', 'กำลังดำเนินการ': 'progress', 'รอชำระเงิน': 'warning', 'มีปัญหาการชำระเงิน': 'danger', 'เสร็จสิ้น': 'success', 'ยกเลิก': 'neutral', 'หมดเวลาเลือกช่าง': 'danger', 'ใกล้ถึงรอบ': 'warning', 'สุขภาพดี': 'success', 'ควรตรวจเช็ก': 'danger' };
+
+/** Status colours carry meaning only: blue is moving, amber waits, teal is done, red is a problem. */
+const toneMap: Record<string, '' | 'is-active' | 'is-wait' | 'is-done' | 'is-problem'> = {
+  'เปิดรับช่าง': 'is-active', 'รอเลือกช่าง': 'is-wait', 'รอยืนยัน': 'is-wait', 'ยืนยันแล้ว': 'is-done',
+  'กำลังเดินทาง': 'is-active', 'ถึงหน้างาน': 'is-active', 'กำลังดำเนินการ': 'is-active', 'รอชำระเงิน': 'is-wait',
+  'มีปัญหาการชำระเงิน': 'is-problem', 'เสร็จสิ้น': 'is-done', 'ยกเลิก': '', 'หมดเวลาเลือกช่าง': 'is-problem',
+  'ใกล้ถึงรอบ': 'is-wait', 'สุขภาพดี': 'is-done', 'ควรตรวจเช็ก': 'is-problem',
+};
 export default function StatusBadge({ status }: { status: BookingStatus | string }) {
-  return <span className={`status-badge ${toneMap[status] ?? 'neutral'}`}><span className="status-dot"/>{status}</span>;
+  return <span className={'ui-badge ' + (toneMap[status] ?? '')}>{status}</span>;
 }
