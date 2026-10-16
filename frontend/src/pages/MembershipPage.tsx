@@ -157,7 +157,7 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
         </li>
       </ol>
       {turnedDown && <div className="ms-turned-down" role="alert"><XCircle size={18}/><div><strong>สลิปไม่ผ่านการตรวจ</strong><span>{turnedDown}</span></div></div>}
-      {error && <div className="auth-error" role="alert">{error}</div>}
+      {error && <p className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span></p>}
       <button type="button" className="ui-btn is-primary is-lg is-block" disabled={!slip || busy} aria-busy={busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="ui-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
       <p className="ms-fine">{data.autoCheck ? <><ShieldCheck size={13}/> ระบบตรวจสลิปกับธนาคารทันที ถ้าเงินเข้าบัญชี AirClean ครบ ต่ออายุให้เลย สลิปปลอมหรือสลิปที่เคยใช้แล้วจะไม่ผ่าน</> : 'ผู้ดูแลตรวจยอดเงินเข้าแล้วต่ออายุให้ ส่วนใหญ่ภายในวันเดียวกัน'}</p>
     </>}

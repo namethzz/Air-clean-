@@ -227,10 +227,11 @@ export default function LocationPicker({ value, onChange, remember, onRememberCh
   const rooms = condo && !forBuilding;
   const field = (key: string) => id + key;
   return <div className="pl">
-    <div className="pl-head">
+    {/* On its own (editing a saved place) the sheet around it already says what this is. */}
+    {!standalone && <div className="pl-head">
       <div><h3 className="pl-title">{value.id !== 'new' ? `แก้ไข ${value.label}` : forBuilding ? 'อาคารที่ให้ช่างไป' : 'ส่งช่างไปที่ไหน'}</h3></div>
-      {!standalone && !!saved?.length && <button type="button" className="ui-btn is-ghost is-sm" onClick={() => { setMode('saved'); if (value.id === 'new') choose(saved[0]); }}>{forBuilding ? 'เลือกจากอาคารของฉัน' : 'เลือกจากที่บันทึกไว้'}</button>}
-    </div>
+      {!!saved?.length && <button type="button" className="ui-btn is-ghost is-sm" onClick={() => { setMode('saved'); if (value.id === 'new') choose(saved[0]); }}>{forBuilding ? 'เลือกจากอาคารของฉัน' : 'เลือกจากที่บันทึกไว้'}</button>}
+    </div>}
     {standalone && <div className="ui-field"><label htmlFor={field('name')}>ชื่อเรียก{word} *</label><input id={field('name')} className="ui-input" value={remember.label} onChange={event => onRememberChange({ on: true, label: event.target.value })} placeholder={forBuilding ? 'เช่น คอนโด A, ออฟฟิศสาขาบางนา' : 'เช่น บ้าน'} maxLength={60} required/></div>}
     <div className="pl-find">
       <div className="pl-search">
