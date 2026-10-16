@@ -66,10 +66,10 @@
   flex: none;
   width: 44px;
   height: 44px;
+  border: 1px solid rgb(255 255 255 / 0.24);
   border-radius: 12px;
-  background: var(--v-surface);
-  color: var(--v-blue-700);
-  box-shadow: 0 6px 14px -8px rgb(0 0 0 / 0.5);
+  background: rgb(255 255 255 / 0.12);
+  color: #ffffff;
 }
 .sh-brand-text {
   display: flex;
@@ -292,9 +292,10 @@
   flex: none;
   width: 40px;
   height: 40px;
+  border: 1px solid rgb(255 255 255 / 0.24);
   border-radius: 11px;
-  background: var(--v-surface);
-  color: var(--v-blue-700);
+  background: rgb(255 255 255 / 0.12);
+  color: #ffffff;
 }
 .sh-band-btn {
   display: grid;

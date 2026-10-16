@@ -220,6 +220,7 @@
   overflow: hidden;
   border-radius: 12px;
   background: var(--v-blue-700);
+  color: #ffffff;
 }
 .hx-links {
   display: none;
