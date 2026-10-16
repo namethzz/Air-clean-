@@ -28,11 +28,8 @@ export const Iphone15Pro: React.FC<Iphone15ProProps> = ({ width = '100%', height
       <path opacity="0.5" d="M174 5H258V5.5C258 6.60457 257.105 7.5 256 7.5H176C174.895 7.5 174 6.60457 174 5.5V5Z" fill="#404040"/>
       {/* Screen */}
       <path d="M21.25 75C21.25 44.2101 46.2101 19.25 77 19.25H355C385.79 19.25 410.75 44.2101 410.75 75V807C410.75 837.79 385.79 862.75 355 862.75H77C46.2101 862.75 21.25 837.79 21.25 807V75Z" fill="#111"/>
-      {src && <foreignObject x="21.25" y="19.25" width="389.5" height="843.5" clipPath={`url(#${clip})`}>
-        <div style={{ width: '100%', height: '100%', borderRadius: '55.75px', overflow: 'hidden', position: 'relative', backgroundColor: '#111' }}>
-          <img src={src} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} decoding="async"/>
-        </div>
-      </foreignObject>}
+      {/* An SVG image, not foreignObject: Safari draws foreignObject content unscaled, which blew the screen up on iPhones */}
+      {src && <image href={src} x="21.25" y="19.25" width="389.5" height="843.5" preserveAspectRatio="xMidYMin slice" clipPath={`url(#${clip})`}/>}
       {/* Dynamic island */}
       <path d="M154 48.5C154 38.2827 162.283 30 172.5 30H259.5C269.717 30 278 38.2827 278 48.5C278 58.7173 269.717 67 259.5 67H172.5C162.283 67 154 58.7173 154 48.5Z" fill="#262626"/>
       <path d="M249 48.5C249 42.701 253.701 38 259.5 38C265.299 38 270 42.701 270 48.5C270 54.299 265.299 59 259.5 59C253.701 59 249 54.299 249 48.5Z" fill="#111"/>
