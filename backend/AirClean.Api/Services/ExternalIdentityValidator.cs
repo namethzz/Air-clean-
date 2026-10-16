@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 namespace AirClean.Api.Services;
 
-public record ExternalIdentity(string Provider, string Subject, string? Email, bool EmailVerified, string? Name);
+/// <param name="Picture">Google's profile picture, only when it is on Google's image servers (see <see cref="ExternalIdentityValidator.PictureUrl"/>).</param>
+public record ExternalIdentity(string Provider, string Subject, string? Email, bool EmailVerified, string? Name, string? Picture = null);
 
 /// <summary>
 /// Verifies Google and Apple ID tokens against each provider's published signing keys, issuer and our client ID.
@@ -45,7 +47,8 @@ public class ExternalIdentityValidator(IConfiguration configuration, IWebHostEnv
             var email = Claim("email")?.Trim().ToLowerInvariant();
             // Apple sends email_verified as the string "true"; Google sends a boolean.
             var verified = string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase);
-            return new ExternalIdentity(p.Name, subject, string.IsNullOrWhiteSpace(email) ? null : email, verified, Claim("name"));
+            var picture = p.Name == "google" ? PictureUrl(Claim("picture"), environment.IsProduction() ? null : TestAuthority(p)) : null;
+            return new ExternalIdentity(p.Name, subject, string.IsNullOrWhiteSpace(email) ? null : email, verified, Claim("name"), picture);
         }
         catch (Exception error)
         {
@@ -53,6 +56,23 @@ public class ExternalIdentityValidator(IConfiguration configuration, IWebHostEnv
             return null;
         }
     }
+
+    /// <summary>
+    /// The address the server may download the picture from: https on Google's image servers (googleusercontent.com),
+    /// asked for at 400 px instead of the 96 px in the token. Anything else is dropped, so a token cannot make the server
+    /// fetch other addresses. Outside production the test identity provider's own host is allowed too.
+    /// </summary>
+    internal static string? PictureUrl(string? claim, Uri? testAuthority)
+    {
+        if (!Uri.TryCreate(claim?.Trim(), UriKind.Absolute, out var uri) || uri.UserInfo != "") return null;
+        if (testAuthority is not null && uri.Scheme == testAuthority.Scheme && uri.Authority == testAuthority.Authority) return uri.AbsoluteUri;
+        var host = uri.IdnHost.ToLowerInvariant();
+        if (uri.Scheme != Uri.UriSchemeHttps || !uri.IsDefaultPort || !host.EndsWith(".googleusercontent.com")) return null;
+        return SizeSuffix.Replace(uri.AbsoluteUri, "=s400-c");
+    }
+    private static readonly Regex SizeSuffix = new(@"=s\d+(-c)?$", RegexOptions.CultureInvariant);
+
+    private Uri? TestAuthority(Provider p) => Uri.TryCreate(configuration[p.AuthorityKey], UriKind.Absolute, out var uri) ? uri : null;
 
     private static Provider? Find(string provider) => Providers.FirstOrDefault(x => string.Equals(x.Name, provider?.Trim(), StringComparison.OrdinalIgnoreCase));
     private string[] ClientIds(Provider p) => (configuration[p.ClientIdKey] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

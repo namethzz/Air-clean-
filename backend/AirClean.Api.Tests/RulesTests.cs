@@ -153,3 +153,40 @@ public class UploadedImageTests
         Assert.NotEqual(a, ApiHelpers.NewId());
     }
 }
+
+public class ProviderPictureTests
+{
+    [Theory]
+    [InlineData("https://lh3.googleusercontent.com/a/ACg8ocK=s96-c", "https://lh3.googleusercontent.com/a/ACg8ocK=s400-c")]
+    [InlineData("https://lh3.googleusercontent.com/a-/AOh14Gj", "https://lh3.googleusercontent.com/a-/AOh14Gj")]
+    public void Google_pictures_are_fetched_at_a_usable_size(string claim, string expected) =>
+        Assert.Equal(expected, ExternalIdentityValidator.PictureUrl(claim, null));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not a link")]
+    [InlineData("http://lh3.googleusercontent.com/a/x=s96-c")]
+    [InlineData("https://lh3.googleusercontent.com:8443/a/x")]
+    [InlineData("https://googleusercontent.com.evil.example/a/x")]
+    [InlineData("https://evilgoogleusercontent.com/a/x")]
+    [InlineData("https://user@lh3.googleusercontent.com/a/x")]
+    [InlineData("http://169.254.169.254/latest/meta-data")]
+    [InlineData("http://localhost:5099/google/picture")]
+    public void Other_addresses_are_never_fetched(string? claim) => Assert.Null(ExternalIdentityValidator.PictureUrl(claim, null));
+
+    [Fact]
+    public void The_test_identity_provider_host_is_allowed_only_when_given()
+    {
+        var test = new Uri("http://localhost:5099/google");
+        Assert.Equal("http://localhost:5099/google/picture.png", ExternalIdentityValidator.PictureUrl("http://localhost:5099/google/picture.png", test));
+        Assert.Null(ExternalIdentityValidator.PictureUrl("http://localhost:5080/api/anything", test));
+    }
+
+    [Fact]
+    public void Only_jpeg_png_and_webp_count_as_images()
+    {
+        Assert.Equal("image/png", ApiHelpers.ImageType([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0]));
+        Assert.Equal("image/jpeg", ApiHelpers.ImageType([0xFF, 0xD8, 0xFF, 0xE0]));
+        Assert.Equal("", ApiHelpers.ImageType("<html></html>"u8.ToArray()));
+    }
+}

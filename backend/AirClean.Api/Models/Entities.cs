@@ -32,6 +32,8 @@ public class AppUser {
  public List<int> DueRemindedFor {get;set;}=[];
  /// <summary>The current profile photo (a <see cref="ProfilePhoto"/> id), or null for initials.</summary>
  public string? PhotoId {get;set;}
+ /// <summary>The Google picture was already offered: copied in, or the account had its own photo. A photo removed later stays removed.</summary>
+ public bool ProviderPhotoChecked {get;set;}
 }
 public class BillingInfo { public string Name {get;set;}=""; public string? TaxId {get;set;} public string? Branch {get;set;} public string? Address {get;set;} }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }

@@ -18,6 +18,9 @@ if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls("http://0.0.0.0:" 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<MongoStore>();
 builder.Services.AddHttpClient();
+// Profile pictures from Google: no redirects, so nothing but the checked address is fetched.
+builder.Services.AddHttpClient(ProfilePhotoService.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton<ProfilePhotoService>();
 builder.Services.AddSingleton<EmailSender>();
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddSingleton<Notifier>();

@@ -28,11 +28,15 @@ internal static class ApiHelpers
         try { data = Convert.FromBase64String(encoded.Contains(',') ? encoded[(encoded.IndexOf(',') + 1)..] : encoded); }
         catch (FormatException) { return "ไฟล์รูปไม่ถูกต้อง"; }
         if (data.Length == 0 || data.Length > maxBytes) return $"รูปใหญ่เกินไป (สูงสุด {maxBytes / 1_000_000.0:0.#} MB)";
-        contentType = data.Length > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF ? "image/jpeg"
-            : data.Length > 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 ? "image/png"
-            : data.Length > 12 && Encoding.ASCII.GetString(data, 0, 4) == "RIFF" && Encoding.ASCII.GetString(data, 8, 4) == "WEBP" ? "image/webp" : "";
+        contentType = ImageType(data);
         return contentType == "" ? "รองรับเฉพาะรูป JPEG, PNG หรือ WebP" : null;
     }
+
+    /// <summary>The image type from the file's first bytes (JPEG, PNG or WebP), or "" for anything else.</summary>
+    internal static string ImageType(byte[] data) =>
+        data.Length > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF ? "image/jpeg"
+        : data.Length > 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 ? "image/png"
+        : data.Length > 12 && Encoding.ASCII.GetString(data, 0, 4) == "RIFF" && Encoding.ASCII.GetString(data, 8, 4) == "WEBP" ? "image/webp" : "";
 
     /// <summary>Empty, or an absolute http(s) link: anything else (javascript:, data:) would run in the customer's browser.</summary>
     internal static bool IsWebLink(string? url) => string.IsNullOrWhiteSpace(url)
