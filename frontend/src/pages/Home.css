@@ -52,7 +52,9 @@
   font: 600 var(--v-text-lg) / 1 var(--v-font-text);
   cursor: pointer;
   box-shadow: 0 10px 20px -14px rgb(0 0 0 / 0.6);
-  transition: background-color var(--v-fast) var(--v-ease), transform var(--v-fast) var(--v-ease);
+  transition:
+    background-color var(--v-fast) var(--v-ease),
+    transform var(--v-fast) var(--v-ease);
 }
 .hm-next-cta:hover {
   background: var(--v-blue-050);

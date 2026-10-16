@@ -1,0 +1,179 @@
+/* ───────── Job photos: the gallery, the full-screen viewer, and the technician's picker ───────── */
+.ph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  min-width: 0;
+}
+.ph-title {
+  margin: 0;
+  font: 600 var(--v-text-lg) / 1.3 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ph-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ph-kind {
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-ink-2);
+}
+.ph-kind .ui-num {
+  margin-left: 2px;
+  font-weight: 400;
+  color: var(--v-ink-3);
+}
+.ph-kind em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--v-ink-3);
+}
+.ph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.ph-thumb {
+  position: relative;
+  margin: 0;
+}
+.ph-thumb-img {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: var(--v-sunken);
+  color: var(--v-ink-3);
+  cursor: zoom-in;
+}
+.ph-thumb-img:disabled {
+  cursor: default;
+}
+.ph-thumb-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--v-slow) var(--v-ease);
+}
+.ph-thumb-img:hover:not(:disabled) img {
+  transform: scale(1.04);
+}
+.ph-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid var(--v-surface);
+  border-radius: 50%;
+  background: var(--v-ink);
+  color: var(--v-on-blue);
+  cursor: pointer;
+}
+.ph-remove:hover {
+  background: var(--v-problem);
+}
+.ph-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 1;
+  border: 1.5px dashed var(--v-blue-400);
+  border-radius: var(--v-radius);
+  background: var(--v-blue-050);
+  color: var(--v-blue-700);
+  font: 600 var(--v-text-sm) / 1.2 var(--v-font-text);
+  cursor: pointer;
+}
+.ph-add:hover {
+  background: var(--v-blue-100);
+}
+
+/* Full screen, dark, the photo as large as it fits */
+.ph-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: 64px 12px 72px;
+  background: rgb(8 16 30 / 0.94);
+  animation: ui-fade var(--v-slow) var(--v-ease);
+}
+.ph-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--v-radius-sm);
+  object-fit: contain;
+}
+.ph-viewer-note {
+  margin: 0;
+  color: var(--v-on-blue-2);
+}
+.ph-viewer-caption {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  color: var(--v-on-blue);
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ph-viewer-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.14);
+  color: var(--v-on-blue);
+  cursor: pointer;
+}
+.ph-viewer-btn:hover {
+  background: rgb(255 255 255 / 0.26);
+}
+.ph-viewer-btn:focus-visible {
+  outline: 2px solid var(--v-lime);
+  outline-offset: 2px;
+}
+.ph-viewer-close {
+  top: calc(10px + env(safe-area-inset-top));
+  right: 10px;
+}
+.ph-viewer-nav {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ph-viewer-nav.is-prev {
+  left: 10px;
+}
+.ph-viewer-nav.is-next {
+  right: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-viewer {
+    animation: none;
+  }
+  .ph-thumb-img img {
+    transition: none;
+  }
+}

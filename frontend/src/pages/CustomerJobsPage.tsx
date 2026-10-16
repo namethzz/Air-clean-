@@ -177,7 +177,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
     {hasTech && <TechnicianCard booking={booking}/>}
     {booking.status === 'เสร็จสิ้น' && <AfterService booking={booking} onNewBooking={onNewBooking} onOpenPassport={onOpenPassport} onReportProblem={onReportProblem}/>}
     {report && <ReportBlock report={report}/>}
-    {booking.status === 'เสร็จสิ้น' && <JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง"/>}
+    {booking.status === 'เสร็จสิ้น' && <JobPhotoGallery bookingId={booking.id} title="รูปงานจากช่าง" className="ui-card"/>}
 
     <section className="ui-card jb-facts-card">
       <h2>รายละเอียดงาน</h2>

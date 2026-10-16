@@ -503,48 +503,6 @@ select:focus-visible {
   color: #86948d;
   font-size: 9px;
 }
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 30px;
-  padding: 4px 7px;
-  font-size: 9px;
-  font-weight: 600;
-  white-space: nowrap;
-  background: #f1f3f1;
-  color: #718078;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.status-badge.warning {
-  background: #fff1d9;
-  color: #a87932;
-}
-.status-badge.confirmed {
-  background: #e4f1ed;
-  color: #2c7768;
-}
-.status-badge.progress {
-  background: #e6eff9;
-  color: #4b7aa6;
-}
-.status-badge.success {
-  background: #e6f4e9;
-  color: #3a8655;
-}
-.status-badge.danger {
-  background: #fde8e7;
-  color: #b35d54;
-}
-.status-badge.neutral {
-  background: #eff1ee;
-  color: #86918a;
-}
 .row-arrow {
   margin-left: auto;
 }
@@ -881,32 +839,6 @@ select:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.success-state {
-  padding: 28px 12px;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 10px;
-}
-.success-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: #e0f4e7;
-  color: #3b936d;
-}
-.success-state h3 {
-  margin: 5px 0 0;
-  font-size: 17px;
-}
-.success-state p {
-  font-size: 11px;
-  color: #8a9a90;
-  margin: 0 0 9px;
-}
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1043,10 +975,6 @@ select:focus-visible {
   .booking-title-line > strong {
     font-size: 10px;
   }
-  .status-badge {
-    font-size: 8px;
-    padding: 4px 6px;
-  }
   .select-control {
     flex: 1;
   }
@@ -1141,10 +1069,6 @@ button:disabled {
 .panel-heading p {
   font-size: 11px;
   line-height: 1.5;
-}
-.status-badge {
-  font-size: 10px;
-  padding: 5px 8px;
 }
 .form-field > span {
   font-size: 12px;
@@ -1603,10 +1527,6 @@ button:disabled {
 /* Keep sign-out easy to find on desktop and mobile, even when the sidebar is collapsed. */
 
 /* Nearby technician marketplace and customer candidate review */
-.status-badge.info {
-  background: #e8f4f1;
-  color: #287c6d;
-}
 .nearby-job-toolbar {
   display: flex;
   align-items: center;
@@ -1973,40 +1893,6 @@ button:disabled {
   color: #8d7855;
   font-size: 12px;
   line-height: 1.5;
-}
-.marketplace-estimate {
-  border: 1px solid #d8e9df;
-  background: #f1f8f3;
-  border-radius: 14px;
-  padding: 14px 15px;
-  display: grid;
-  gap: 8px;
-}
-.marketplace-estimate > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.marketplace-estimate span {
-  color: #587063;
-  font-size: 12px;
-}
-.marketplace-estimate strong {
-  color: #287c6d;
-  font-size: 24px;
-}
-.marketplace-estimate small {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  color: #62766b;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.marketplace-estimate svg {
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 @media (max-width: 760px) {
   .nearby-job-grid,

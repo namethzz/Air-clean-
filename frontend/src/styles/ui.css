@@ -246,6 +246,13 @@
 .ui-textarea[aria-invalid="true"] {
   border-color: var(--v-problem);
 }
+.ui-input[aria-invalid="true"]:focus,
+.ui-select[aria-invalid="true"]:focus,
+.ui-textarea[aria-invalid="true"]:focus {
+  border-color: var(--v-problem);
+  outline-color: var(--v-problem);
+  box-shadow: 0 0 0 3px rgb(180 35 24 / 0.16);
+}
 .ui-input:disabled,
 .ui-select:disabled,
 .ui-textarea:disabled {

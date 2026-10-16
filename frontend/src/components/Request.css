@@ -102,6 +102,18 @@
 .rq-type[aria-checked="true"] .rq-type-icon {
   stroke: var(--v-blue-700);
 }
+@media (max-width: 559px) {
+  .rq-type {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+  }
+  .rq-type-icon {
+    flex: none;
+    width: 52px;
+  }
+}
 .rq-chips {
   display: flex;
   flex-wrap: wrap;
@@ -174,7 +186,8 @@
   flex-direction: column;
   align-items: center;
   gap: var(--v-gap-3);
-  padding: 32px 8px 16px;
+  margin: auto 0;
+  padding: 32px 8px;
   text-align: center;
 }
 .rq-done-mark {
@@ -229,6 +242,7 @@
   padding: 2px 20px 6px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
+  scroll-padding-inline: 20px;
   scrollbar-width: none;
 }
 .tm-days::-webkit-scrollbar {
@@ -297,7 +311,7 @@
 }
 .tm-windows {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
   gap: 8px;
 }
 .tm-window {
@@ -446,13 +460,15 @@
   padding: 6px 2px 0;
 }
 .pl-saved-actions.is-confirm {
+  justify-content: flex-end;
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: var(--v-radius);
   background: var(--v-problem-bg);
 }
 .pl-saved-actions.is-confirm span {
-  flex: 1 1 220px;
+  flex: 1 1 100%;
+  margin-bottom: 4px;
   font-size: var(--v-text-sm);
   font-weight: 600;
   color: var(--v-ink);

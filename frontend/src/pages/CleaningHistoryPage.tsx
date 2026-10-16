@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { CalendarClock, Check, ChevronRight, FileText, History, Plus, Star } from 'lucide-react';
 import ReceiptSheet from '../components/ReceiptSheet';
+import { EmptyState } from '../components/kit';
 import type { Booking, ServiceReportRecord } from '../types';
-import './CustomerJobs.css';
+import './Jobs.css';
+import './History.css';
 
 interface Props {
   bookings: Booking[];
@@ -34,49 +36,52 @@ export default function CleaningHistoryPage({ bookings, reports, onOpenJob, onNe
   const [receiptFor, setReceiptFor] = useState<number | null>(null);
 
   if (!done.length) {
-    return <div className="cj-empty">
-      <span className="cj-empty-icon"><History size={30}/></span>
-      <h1>ยังไม่มีประวัติการล้างแอร์</h1>
-      <p>ทุกครั้งที่ช่างล้างเสร็จและปิดงาน วันที่ ช่าง ค่าบริการ และรายการที่ทำจะถูกเก็บไว้ที่นี่ให้อัตโนมัติ</p>
-      <button type="button" className="cj-primary" onClick={onNewBooking}><Plus size={18}/> ขอช่างล้างแอร์</button>
+    return <div className="ui-page hs">
+      <EmptyState icon={History} title="ยังไม่มีประวัติการล้างแอร์"
+        action={<button type="button" className="ui-btn is-primary is-lg" onClick={onNewBooking}><Plus size={20}/> ขอช่างล้างแอร์</button>}>
+        ทุกครั้งที่ช่างล้างเสร็จและปิดงาน วันที่ ช่าง ค่าบริการ และรายการที่ทำจะถูกเก็บไว้ที่นี่ให้อัตโนมัติ
+      </EmptyState>
     </div>;
   }
 
-  return <div className="ch-page">
-    <h1>ประวัติการล้างแอร์</h1>
-    <section className={'ch-next' + (overdue ? ' due' : '')}>
-      <CalendarClock size={22}/>
-      <div>
-        <strong>{overdue ? 'ถึงรอบล้างแอร์แล้ว' : `ล้างครั้งถัดไป ${next!.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}`}</strong>
-        <span>ล้างล่าสุด {longDate(last.date)} · แนะนำล้างทุก 6 เดือน</span>
+  return <div className="ui-page hs">
+    <section className={'hs-next' + (overdue ? ' is-due' : '')} aria-labelledby="hs-next-title">
+      <div className="hs-next-body">
+        <span className="hs-next-label"><CalendarClock size={18} aria-hidden="true"/> {overdue ? 'รอบล้างแอร์' : 'ล้างครั้งถัดไป'}</span>
+        <h2 id="hs-next-title">{overdue ? 'ถึงรอบล้างแอร์แล้ว' : next!.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</h2>
+        <p>ล้างล่าสุด {longDate(last.date)} · แนะนำล้างทุก 6 เดือน</p>
       </div>
-      <button type="button" className={overdue ? 'cj-primary' : 'cj-ghost'} onClick={onNewBooking}>ขอช่างล้างแอร์</button>
+      <button type="button" className={'ui-btn is-lg' + (overdue ? ' is-turn' : '')} onClick={onNewBooking}><Plus size={19}/> ขอช่างล้างแอร์</button>
     </section>
-    <dl className="ch-stats">
-      <div><dt>ล้างไปแล้ว</dt><dd>{done.length} ครั้ง</dd></div>
-      <div><dt>รวม</dt><dd>{units} เครื่อง</dd></div>
-      <div><dt>ค่าบริการรวม</dt><dd>฿{spent.toLocaleString()}</dd></div>
+
+    <dl className="hs-stats">
+      <div><dt>ล้างไปแล้ว</dt><dd><span className="ui-num">{done.length}</span> ครั้ง</dd></div>
+      <div><dt>รวม</dt><dd><span className="ui-num">{units}</span> เครื่อง</dd></div>
+      <div><dt>ค่าบริการรวม</dt><dd className="ui-num">฿{spent.toLocaleString()}</dd></div>
     </dl>
-    {years.map(year => <section key={year} aria-label={`ปี ${Number(year) + 543}`}>
-      <h2 className="ch-year">{Number(year) + 543}</h2>
-      <ol className="ch-list">{done.filter(item => item.date.startsWith(year)).map(item => {
+
+    {years.map(year => <section key={year} className="ui-section" aria-labelledby={'hs-' + year}>
+      <div className="ui-section-head"><h2 id={'hs-' + year} className="ui-num">{Number(year) + 543}</h2></div>
+      <ol className="hs-list">{done.filter(item => item.date.startsWith(year)).map(item => {
         const report = reports.find(row => row.bookingId === item.id);
-        return <li key={item.id}>
-          <button type="button" className="ch-item" onClick={() => onOpenJob(item.id)} aria-label={`${item.service} ${longDate(item.date)} เปิดดูงาน`}>
-            <span className="cj-row-date"><strong>{day(item.date).getDate()}</strong><span>{day(item.date).toLocaleDateString('th-TH', { month: 'short' })}</span></span>
-            <span className="ch-main">
+        return <li key={item.id} className="hs-item">
+          <button type="button" className="hs-open" onClick={() => onOpenJob(item.id)} aria-label={`${item.service} ${longDate(item.date)} เปิดดูงาน`}>
+            <span className="jb-date"><strong>{day(item.date).getDate()}</strong><small>{day(item.date).toLocaleDateString('th-TH', { month: 'short' })}</small></span>
+            <span className="hs-main">
               <strong>{item.service} · {item.unitCount || 1} เครื่อง</strong>
-              <span>{item.unitLabel || item.propertyType || ''}</span>
-              <small>ช่าง {item.technician} · ฿{item.price.toLocaleString()} {item.paymentMethod === 'PromptPay' ? '(โอน)' : '(เงินสด)'}</small>
-              {report && <span className="ch-checks">{checklist.filter(row => report[row.key]).map(row => <em key={row.key}><Check size={12} strokeWidth={3}/>{row.label}</em>)}</span>}
-              {report?.summary && <span className="ch-summary">“{report.summary}”</span>}
-              {item.customerRating
-                ? <span className="ch-rating" aria-label={`ให้คะแนน ${item.customerRating} ดาว`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} size={14} fill={index < item.customerRating! ? 'currentColor' : 'none'}/>)}</span>
-                : <span className="ch-rate">ยังไม่ได้ให้คะแนนช่าง</span>}
+              {(item.unitLabel || item.propertyType) && <span>{item.unitLabel || item.propertyType}</span>}
+              <small>ช่าง {item.technician} · <span className="ui-num">฿{item.price.toLocaleString()}</span> {item.paymentMethod === 'PromptPay' ? '(โอน)' : '(เงินสด)'}</small>
+              {report && <span className="hs-checks">{checklist.filter(row => report[row.key]).map(row => <em key={row.key}><Check size={13} strokeWidth={3} aria-hidden="true"/>{row.label}</em>)}</span>}
+              {report?.summary && <q className="hs-summary">{report.summary}</q>}
             </span>
-            <ChevronRight size={18} aria-hidden="true"/>
+            <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
           </button>
-          {item.paymentStatus === 'Paid' && <button type="button" className="ch-receipt" onClick={() => setReceiptFor(item.id)}><FileText size={14}/> ใบเสร็จ</button>}
+          <div className="hs-item-foot">
+            {item.customerRating
+              ? <span className="hs-rating" role="img" aria-label={`ให้คะแนน ${item.customerRating} ดาว`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} size={16} fill={index < item.customerRating! ? 'currentColor' : 'none'} aria-hidden="true"/>)}</span>
+              : <span className="hs-unrated">ยังไม่ได้ให้คะแนนช่าง</span>}
+            {item.paymentStatus === 'Paid' && <button type="button" className="ui-btn is-ghost is-sm" onClick={() => setReceiptFor(item.id)}><FileText size={16}/> ใบเสร็จ</button>}
+          </div>
         </li>;
       })}</ol>
     </section>)}

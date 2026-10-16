@@ -150,7 +150,7 @@ export default function BookingModal({technicians,units=[],initialUnitId,role,in
       <small>{unitCount} เครื่อง · จ่ายเมื่อล้างเสร็จ</small>
     </div>
     <button type="submit" form="rq-form" className="ui-btn is-primary is-lg rq-send" disabled={submitting} aria-busy={submitting}>
-      {submitting?'กำลังส่งคำขอ…':<>ส่งคำขอ<span className="rq-send-more">ให้ช่างใกล้เคียง</span> <ArrowRight size={18}/></>}
+      {submitting?'กำลังส่งคำขอ…':<><span>ส่งคำขอ<span className="rq-send-more">ให้ช่างใกล้เคียง</span></span><ArrowRight size={18}/></>}
     </button>
   </div>}>
     <form id="rq-form" ref={formRef} onSubmit={submit} className="rq" noValidate>

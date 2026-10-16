@@ -77,7 +77,9 @@
   text-align: left;
   cursor: pointer;
   box-shadow: var(--v-shadow-card);
-  transition: border-color var(--v-fast) var(--v-ease), background-color var(--v-fast) var(--v-ease);
+  transition:
+    border-color var(--v-fast) var(--v-ease),
+    background-color var(--v-fast) var(--v-ease);
 }
 .jb-row:hover {
   border-color: var(--v-blue-400);
@@ -586,7 +588,10 @@
   background: var(--v-surface);
   color: var(--v-line-strong);
   cursor: pointer;
-  transition: transform var(--v-fast) var(--v-ease), color var(--v-fast) var(--v-ease), border-color var(--v-fast) var(--v-ease);
+  transition:
+    transform var(--v-fast) var(--v-ease),
+    color var(--v-fast) var(--v-ease),
+    border-color var(--v-fast) var(--v-ease);
 }
 .jb-stars button.is-on {
   border-color: #f2c25c;
