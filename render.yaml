@@ -34,9 +34,7 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
-      # Sign in with Google / Apple. Leave empty to hide that option. The static site needs the same IDs
-      # as VITE_GOOGLE_CLIENT_ID / VITE_APPLE_CLIENT_ID.
+      # Sign in with Google. Leave empty to hide that option. The static site needs the same ID
+      # as VITE_GOOGLE_CLIENT_ID.
       - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: APPLE_CLIENT_ID
         sync: false

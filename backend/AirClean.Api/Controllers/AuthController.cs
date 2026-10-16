@@ -16,7 +16,7 @@ using static AirClean.Api.Controllers.ApiHelpers;
 
 namespace AirClean.Api.Controllers;
 
-/// <summary>Sign-in, sign-up (password, Google and Apple), profile, password reset, and the admin helpers for test e-mail and reset links.</summary>
+/// <summary>Sign-in, sign-up (password and Google), profile, password reset, and the admin helpers for test e-mail and reset links.</summary>
 [ApiController]
 [Route("api")]
 public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<AppUser> hasher, IConfiguration configuration, EmailSender email, ILogger<AuthController> logger, IWebHostEnvironment environment, ExternalIdentityValidator externalIdentity, ProfilePhotoService photos) : AirCleanControllerBase(db, notifier)
@@ -26,7 +26,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
-        // Accounts created with Google or Apple have no password until the user sets one.
+        // Accounts created with Google have no password until the user sets one.
         if (user is null || string.IsNullOrEmpty(user.PasswordHash) || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return Ok(CreateLoginResponse(user));
@@ -55,12 +55,12 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     public async Task<IActionResult> ExternalLogin(ExternalLoginRequest request)
     {
         var providerName = request.Provider.Trim().ToLowerInvariant();
-        var label = providerName == "apple" ? "Apple" : "Google";
+        const string label = "Google";
         if (!externalIdentity.IsEnabled(providerName)) return BadRequest(new { message = $"ยังไม่ได้เปิดใช้การเข้าสู่ระบบด้วย {label}" });
         var identity = await externalIdentity.ValidateAsync(providerName, request.IdToken);
         if (identity is null) return Unauthorized(new { message = $"ยืนยันตัวตนกับ {label} ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
 
-        // 1. This Google/Apple account is already linked.
+        // 1. This Google account is already linked.
         var user = await store.Users.Find(x => x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
         if (user is not null) return Ok(CreateLoginResponse(await photos.ImportFromProviderAsync(user, identity)));
 
@@ -69,10 +69,10 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
             var existing = await store.Users.Find(x => x.Email == identity.Email).FirstOrDefaultAsync();
             if (existing is not null) {
                 if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
-                // Whether Google or Apple already proved this address for the account, before this link.
+                // Whether Google already proved this address for the account, before this link.
                 var proven = (existing.ExternalLogins ?? []).Any(l => string.Equals(l.Email, identity.Email, StringComparison.OrdinalIgnoreCase));
                 await LinkExternalLoginAsync(existing, identity);
-                // Sign-up never proved this email belonged to whoever set the password; Google or Apple just proved it is this
+                // Sign-up never proved this email belonged to whoever set the password; Google just proved it is this
                 // person's. So a password set before is dropped and every other session signed out: someone who registered the
                 // address first cannot keep a way into the owner's account. The owner can set a new one with "forgot password".
                 if (!proven && !string.IsNullOrEmpty(existing.PasswordHash)) {
@@ -175,7 +175,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     {
         var user = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         if (user is null) return Unauthorized();
-        // Google/Apple-only accounts may set a first password without a current one.
+        // Google-only accounts may set a first password without a current one.
         if (!string.IsNullOrEmpty(user.PasswordHash) && (string.IsNullOrEmpty(request.CurrentPassword)
             || hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed))
             return BadRequest(new { message = "รหัสผ่านปัจจุบันไม่ถูกต้อง" });

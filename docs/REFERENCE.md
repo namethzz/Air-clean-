@@ -18,7 +18,7 @@ AirClean is a responsive air-conditioner service booking workspace built with Re
 - Payment is cash on delivery (เก็บเงินปลายทาง): the customer pays the technician directly in cash or by transfer. The technician closes the job with one press, "งานเสร็จและได้รับเงินแล้ว", which records the payment, the service report and the Aircon Passport history; the customer then rates the technician and sees the next recommended cleaning. AirClean does not collect money.
 - Technicians see their offers in "งานของฉัน" right after sending them, and once chosen get a "งานที่ต้องไป" view with the address, map and directions. Sharing the location while driving is optional, and arrival is detected from GPS (within about 150 m), so there is nothing to press until the end.
 - Password reset by email (single-use link, 30 minutes), change password on the profile page, and admin-created reset links (24 hours) for users without email access. Changing or resetting a password signs out the account's other sessions.
-- Sign in or sign up with Google or Apple. The API verifies the provider's ID token (signature, issuer, audience, expiry). A Google/Apple account with a verified email that matches an existing account is linked to it; otherwise the person picks a role (technicians add phone and area and wait for approval). Admin accounts stay password-only. Accounts created this way can set a password later on the profile page.
+- Sign in or sign up with Google. The API verifies Google's ID token (signature, issuer, audience, expiry). A Google account with a verified email that matches an existing account is linked to it; otherwise the person picks a role (technicians add phone and area and wait for approval). Admin accounts stay password-only. Accounts created this way can set a password later on the profile page.
 - Job notifications are in-app and push only (no job emails; email is used for password resets). In-app notifications: a bell in the top bar lists every job and account event with an unread count; tapping one opens that job or page. It refreshes every 30 seconds and immediately when a push arrives.
 - Push notifications: people can turn on notifications per device on their profile; the API sends standard Web Push (aes128gcm, VAPID) to Chrome, Edge, Firefox and Safari, including iPhone when AirClean is added to the Home Screen (iOS 16.4+). In-app browsers such as Messenger or LINE cannot receive push and the profile says so. The VAPID key pair is created once and stored in the database (or set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT). Signing out removes the device's subscription.
 - Saved addresses are stored in the account and appear on every device. Addresses saved by the earlier browser-only version move to the account the first time the booking form opens.
@@ -49,8 +49,7 @@ Configure these on the Render API service:
 - SMTP_HOST, SMTP_PORT (default 587), SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM: alternative SMTP mail server, used only when BREVO_API_KEY is empty. SMTP_ENABLE_SSL=false only for a local test server. Without SMTP, users are told a link was sent but nothing is delivered; an admin can create the link instead.
 - PASSWORD_RESET_URL: optional site address used in reset links; defaults to the first FRONTEND_ORIGIN
 - GOOGLE_CLIENT_ID: OAuth client ID (Web application) from Google Cloud Console; enables Sign in with Google
-- APPLE_CLIENT_ID: Services ID from the Apple Developer account; enables Sign in with Apple
-- GOOGLE_OIDC_AUTHORITY / APPLE_OIDC_AUTHORITY: test-only override for a local identity provider; ignored in Production
+- GOOGLE_OIDC_AUTHORITY: test-only override for a local identity provider; ignored in Production
 - SEED_DEMO_DATA: demo fixtures are allowed only in non-production environments when explicitly set to true; production never seeds examples
 
 After deployment, open https://YOUR-API.onrender.com/health and confirm the response is healthy.
@@ -63,7 +62,7 @@ For the Render Static Site:
 - Publish directory: dist
 - Build-time environment variable: VITE_API_BASE_URL=https://YOUR-API.onrender.com/api
 - Optional: VITE_CONTACT_EMAIL, the contact address shown on the privacy policy (/privacy.html) and terms (/terms.html) pages
-- Optional: VITE_GOOGLE_CLIENT_ID and VITE_APPLE_CLIENT_ID (same values as the API) to show the Google and Apple buttons; VITE_APPLE_REDIRECT_URI if the Apple Return URL is not the site's home page
+- Optional: VITE_GOOGLE_CLIENT_ID (same value as the API) to show the Google button
 
 The public home page introduces the marketplace and routes customers and technicians to their respective sign-up forms. Customers can publish a request before the first technician joins; the initial estimate uses a fallback base rate of 550 THB until technician profiles exist.
 
@@ -92,4 +91,4 @@ Frontend: from frontend, run npm install, set VITE_API_BASE_URL in .env.local, t
 
 ## Automated validation
 
-GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, Google/Apple token verification and account linking (against a local test identity provider), technician approval, saved-address sync, password reset and session sign-out, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.
+GitHub Actions builds both apps and runs `tests/marketplace_smoke.py` against an isolated MongoDB container. Checks cover account ownership, destination privacy before selection, hidden competitor quotes, Google token verification and account linking (against a local test identity provider), technician approval, saved-address sync, password reset and session sign-out, one report and one review per job, Aircon Passport ownership and history, admin-only technician verification, unchanged submitted quotes, concurrent applications, job status transitions, onsite payment confirmations, and cancellation in both waiting states. Never point this test at the production database.

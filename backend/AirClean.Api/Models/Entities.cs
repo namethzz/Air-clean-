@@ -20,7 +20,7 @@ public class AppUser {
  public int SessionVersion {get;set;}
  /// <summary>SHA-256 of the single active reset token. The token itself is never stored.</summary>
  public string? PasswordResetTokenHash {get;set;} public DateTime? PasswordResetExpiresAt {get;set;} public DateTime? PasswordResetRequestedAt {get;set;}
- /// <summary>Google or Apple accounts linked to this user. Accounts created this way have an empty password hash.</summary>
+ /// <summary>Google accounts linked to this user. Accounts created this way have an empty password hash.</summary>
  public List<ExternalLogin> ExternalLogins {get;set;}=[];
  /// <summary>Job and account emails. Older records without the field keep the default (on).</summary>
  public bool EmailNotifications {get;set;}=true;

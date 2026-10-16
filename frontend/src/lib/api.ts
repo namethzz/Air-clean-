@@ -118,8 +118,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return fromApiUser(result.user);
 }
 export interface ExternalSignupFields { role: Exclude<UserRole,'admin'>; fullName?: string; phone?: string; serviceArea?: string; experienceYears?: number; }
-/** Signs in with a Google or Apple ID token. Without `signup`, an unknown account throws ApiError with code 'signup_required'. */
-export async function externalLogin(provider: 'google'|'apple', idToken: string, signup?: ExternalSignupFields): Promise<UserProfile> {
+/** Signs in with a Google ID token. Without `signup`, an unknown account throws ApiError with code 'signup_required'. */
+export async function externalLogin(provider: 'google', idToken: string, signup?: ExternalSignupFields): Promise<UserProfile> {
   const result = await request<AuthResponse>('/auth/external', { method:'POST', body:JSON.stringify({ provider, idToken, createAccount:Boolean(signup), ...signup }) });
   saveToken(result.token);
   return fromApiUser(result.user);

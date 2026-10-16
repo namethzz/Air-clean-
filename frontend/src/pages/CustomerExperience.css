@@ -408,12 +408,6 @@
 /* Topbar shows the current page; the account card and sign-out live in the sidebar */
 
 /* ───────────────────────── Customer navigation: three places, one main action ───────────────────────── */
-/* The hidden drawer was casting its shadow onto the left edge of every phone screen */
-
-/* Password reset and technician application on the sign-in screen */
-
-/* Google and Apple sign-in */
-
 /* Address picker: saved places first, then search / my location / map for a new one */
 .lp-danger,
 .cj-link.lp-danger {

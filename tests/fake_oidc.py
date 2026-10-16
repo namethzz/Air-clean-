@@ -1,6 +1,6 @@
 """A minimal OpenID Connect provider for tests: publishes discovery and JWKS and signs ID tokens.
 
-The API trusts it only outside production, through GOOGLE_OIDC_AUTHORITY / APPLE_OIDC_AUTHORITY.
+The API trusts it only outside production, through GOOGLE_OIDC_AUTHORITY.
 """
 import base64
 import json
@@ -91,8 +91,7 @@ class FakeIdentityProvider:
         claims = {'iss': issuer or self.issuer(provider), 'aud': audience, 'sub': subject, 'iat': now, 'exp': now + expires_in}
         if email is not None:
             claims['email'] = email
-            # Apple sends the flag as a string, Google as a boolean.
-            claims['email_verified'] = ('true' if email_verified else 'false') if provider == 'apple' else email_verified
+            claims['email_verified'] = email_verified
         if name:
             claims['name'] = name
         if picture:

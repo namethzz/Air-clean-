@@ -82,7 +82,7 @@ public class MongoStore {
   await Notifications.Indexes.CreateOneAsync(new CreateIndexModel<AppNotification>(Builders<AppNotification>.IndexKeys.Ascending(x=>x.UserId).Descending(x=>x.CreatedAt)));
   try { await PushSubscriptions.Indexes.CreateOneAsync(new CreateIndexModel<PushSubscriptionRecord>(Builders<PushSubscriptionRecord>.IndexKeys.Ascending(x=>x.Endpoint),new CreateIndexOptions{Unique=true})); }
   catch (MongoCommandException) { }
-  // One AirClean account per Google/Apple account. Users without linked logins are left out of the index.
+  // One AirClean account per Google account. Users without linked logins are left out of the index.
   try {
    await Users.Indexes.CreateOneAsync(new CreateIndexModel<AppUser>(
     Builders<AppUser>.IndexKeys.Ascending("ExternalLogins.Provider").Ascending("ExternalLogins.Subject"),

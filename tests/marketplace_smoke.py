@@ -303,14 +303,14 @@ call('/auth/change-password', 'POST', {'currentPassword': 'wrong-password', 'new
 changed = call('/auth/change-password', 'POST', {'currentPassword': 'BrandNewPass456!', 'newPassword': 'ChangedPass789!'}, fresh)['token']
 call('/auth/me', token=fresh, expected=401)
 call('/auth/me', token=changed)
-# Google and Apple sign-in, against a local identity provider (the API only trusts it outside production).
+# Google sign-in, against a local identity provider (the API only trusts it outside production).
 idp_port = os.environ.get('TEST_OIDC_PORT')
 if idp_port:
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from fake_oidc import FakeIdentityProvider
     idp = FakeIdentityProvider(int(idp_port))
-    google_aud, apple_aud = os.environ['GOOGLE_CLIENT_ID'], os.environ['APPLE_CLIENT_ID']
+    google_aud = os.environ['GOOGLE_CLIENT_ID']
     social_email = 'social' + suffix + '@example.test'
     picture = idp.issuer('google') + '/picture.png'
     google = lambda **kw: idp.token('google', google_aud, 'g-' + suffix, email=social_email, name='โซเชียล ทดสอบ', picture=picture, **kw)
@@ -318,7 +318,9 @@ if idp_port:
     for bad in [google(wrong_key=True), idp.token('google', 'someone-else', 'g-' + suffix, email=social_email),
                 google(issuer='http://evil.example'), google(expires_in=-600)]:
         call('/auth/external', 'POST', {'provider': 'google', 'idToken': bad}, expected=401)
-    call('/auth/external', 'POST', {'provider': 'facebook', 'idToken': google()}, expected=400)
+    # Only Google is offered (Apple sign-in was dropped), so any other provider is refused.
+    for other in ['facebook', 'apple']:
+        call('/auth/external', 'POST', {'provider': other, 'idToken': google()}, expected=400)
     # Unknown account: the client is asked to pick a role, then the account is created and linked.
     ask = call('/auth/external', 'POST', {'provider': 'google', 'idToken': google()}, expected=404)
     assert ask['code'] == 'signup_required' and ask['email'] == social_email and ask['fullName'] == 'โซเชียล ทดสอบ'
@@ -342,11 +344,9 @@ if idp_port:
     assert with_password['user']['hasPassword']
     call('/auth/login', 'POST', {'email': social_email, 'password': 'SocialPass123!'})
     call('/auth/change-password', 'POST', {'currentPassword': '', 'newPassword': 'Another123!'}, with_password['token'], 400)
-    # Apple with the same verified email links to the same account.
-    apple_token = idp.token('apple', apple_aud, 'a-' + suffix, email=social_email)
-    linked = call('/auth/external', 'POST', {'provider': 'apple', 'idToken': apple_token})
-    assert linked['user']['id'] == created['user']['id'] and sorted(linked['user']['providers']) == ['apple', 'google']
-    # The address was already proven by Google, so the password set since then keeps working.
+    # Signing in with Google again keeps the password set since: the address was already proven by Google.
+    relinked = call('/auth/external', 'POST', {'provider': 'google', 'idToken': google()})
+    assert relinked['user']['id'] == created['user']['id'] and relinked['user']['hasPassword']
     call('/auth/login', 'POST', {'email': social_email, 'password': 'SocialPass123!'})
     # Someone registered an address that is not theirs: when its owner signs in with Google, the account becomes the
     # owner's alone. The squatter's password stops working and their session ends.
@@ -359,9 +359,9 @@ if idp_port:
     call('/auth/me', token=owner['token'])
     # An unverified email never links to an existing password account.
     _, victim_email = register('Customer')
-    sneaky = idp.token('apple', apple_aud, 'a-sneaky-' + suffix, email=victim_email, email_verified=False)
-    assert call('/auth/external', 'POST', {'provider': 'apple', 'idToken': sneaky}, expected=404)['code'] == 'signup_required'
-    call('/auth/external', 'POST', {'provider': 'apple', 'idToken': sneaky, 'createAccount': True}, expected=400)
+    sneaky = idp.token('google', google_aud, 'g-sneaky-' + suffix, email=victim_email, email_verified=False)
+    assert call('/auth/external', 'POST', {'provider': 'google', 'idToken': sneaky}, expected=404)['code'] == 'signup_required'
+    call('/auth/external', 'POST', {'provider': 'google', 'idToken': sneaky, 'createAccount': True}, expected=400)
     # Redirects are not followed, a page that is not an image is not kept, and other hosts are never fetched; the
     # sign-in itself still works. A redirect or bad file is tried again at the next sign-in.
     for n, bad_picture in enumerate([idp.issuer('google') + '/moved', idp.issuer('google') + '/page.html', 'http://127.0.0.1:' + os.environ.get('PORT', '5080') + '/api/health']):
@@ -371,12 +371,12 @@ if idp_port:
     # Admin accounts stay password-only.
     admin_token = idp.token('google', google_aud, 'g-admin-' + suffix, email=admin_email)
     call('/auth/external', 'POST', {'provider': 'google', 'idToken': admin_token}, expected=409)
-    # A technician signing up with Apple applies like everyone else and starts pending.
-    tech_email = 'apple-tech' + suffix + '@example.test'
-    tech_apple = idp.token('apple', apple_aud, 'a-tech-' + suffix, email=tech_email)
-    applied = call('/auth/external', 'POST', {'provider': 'apple', 'idToken': tech_apple, 'createAccount': True, 'role': 'technician',
-                                               'fullName': 'ช่าง แอปเปิล', 'phone': '0899999999', 'serviceArea': 'บางนา', 'experienceYears': 2}, expected=201)
-    assert applied['user']['fullName'] == 'ช่าง แอปเปิล'
+    # A technician signing up with Google applies like everyone else and starts pending.
+    tech_email = 'google-tech' + suffix + '@example.test'
+    tech_google = idp.token('google', google_aud, 'g-tech-' + suffix, email=tech_email)
+    applied = call('/auth/external', 'POST', {'provider': 'google', 'idToken': tech_google, 'createAccount': True, 'role': 'technician',
+                                               'fullName': 'ช่าง กูเกิล', 'phone': '0899999999', 'serviceArea': 'บางนา', 'experienceYears': 2}, expected=201)
+    assert applied['user']['fullName'] == 'ช่าง กูเกิล'
     assert call('/technicians/me', token=applied['token'])['verificationStatus'] == 'Pending'
 # Email through Brevo's HTTPS API, against a local stand-in (BREVO_API_URL), as used on hosts that block SMTP.
 brevo_port = os.environ.get('TEST_BREVO_PORT')
@@ -999,4 +999,4 @@ if os.environ.get('MONGODB_URI'):
     db.bookings.update_one({'_id': timed['id']}, {'$set': {'ScheduledAt': datetime.now(timezone.utc) - timedelta(days=2)}})
     assert call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer, 409)['code'] == 'date_passed'
     call(f"/bookings/{timed['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, t_customer, 204)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google/Apple sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, profile photos, membership, automatic slip checks, reminders and the hour to pick a technician.')
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, profile photos, membership, automatic slip checks, reminders and the hour to pick a technician.')

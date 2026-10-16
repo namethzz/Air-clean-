@@ -31,7 +31,7 @@ A marketplace that matches people who need their air conditioners cleaned with n
 ## Capabilities and Constraints
 - Roles: customer, technician, manager (building), admin. The role is chosen at sign-up and cannot be changed by the user.
 - Booking statuses (Thai labels) map onto five stages per role (`frontend/src/lib/jobFlow.ts`).
-- Sign-in with email/password, Google and Apple. Password reset by email (Brevo).
+- Sign-in with email/password or Google (Apple sign-in was dropped on 2026-10-17). Password reset by email (Brevo).
 - Stack: React 18 + TypeScript + Vite, Tailwind 4 without Preflight, lucide-react icons. ASP.NET Core 8 API. MongoDB.
 - No paid Google Cloud services (the owner does not want Google Cloud billing).
 - Redesign scope: every frontend screen for all four roles. Behaviour, API contracts and statuses stay as they are unless a change is agreed.

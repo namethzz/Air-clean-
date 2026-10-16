@@ -41,9 +41,7 @@ jobs:
           TEST_ADMIN_EMAIL: ci-admin@example.test
           TEST_ADMIN_PASSWORD: isolated-ci-admin-password
           GOOGLE_CLIENT_ID: ci-google-client.apps.googleusercontent.com
-          APPLE_CLIENT_ID: ci.airclean.signin
           GOOGLE_OIDC_AUTHORITY: http://localhost:5099/google
-          APPLE_OIDC_AUTHORITY: http://localhost:5099/apple
           TEST_OIDC_PORT: 5099
           BREVO_API_KEY: ci-brevo-key
           BREVO_API_URL: http://localhost:5098/v3
