@@ -52,17 +52,33 @@ internal static class ApiHelpers
         at.ToString("ddd d MMM", new System.Globalization.CultureInfo("th-TH")) + " " + (window is null ? at.ToString("HH:mm") + " น." : window.Replace("-", "–") + " น.");
 
     /// <summary>
-    /// Distance to a point up to about 600 m from the customer's pin (fixed per job), so repeated searches from different
-    /// places cannot pin down the home before the customer chooses a technician.
+    /// A point 300–700 m from the home in a random direction, from a cryptographic random source. It is drawn once
+    /// per job and stored, so nothing about it can be worked out from the job's id or by searching again.
+    /// </summary>
+    internal static (double Latitude, double Longitude) FuzzPoint(double latitude, double longitude)
+    {
+        var angle = RandomNumberGenerator.GetInt32(0, 360_000) / 360_000.0 * 2 * Math.PI;
+        var meters = 300 + RandomNumberGenerator.GetInt32(0, 401);
+        return (latitude + meters / 111_320.0 * Math.Cos(angle),
+                longitude + meters / (111_320.0 * Math.Cos(latitude * Math.PI / 180)) * Math.Sin(angle));
+    }
+
+    /// <summary>Gives a job its stored random point if it has none yet (jobs from before it existed). True when one was added.</summary>
+    internal static bool EnsureFuzz(Booking booking)
+    {
+        if (booking.FuzzLatitude.HasValue && booking.FuzzLongitude.HasValue || !booking.Latitude.HasValue || !booking.Longitude.HasValue) return false;
+        (booking.FuzzLatitude, booking.FuzzLongitude) = FuzzPoint(booking.Latitude.Value, booking.Longitude.Value);
+        return true;
+    }
+
+    /// <summary>
+    /// How far an open job is, as a technician who has not been chosen may know it: measured from the job's random
+    /// point, and rounded up to whole kilometres, so searching from many places cannot narrow it down to the home.
     /// </summary>
     internal static double BlurredDistanceKm(double latitude, double longitude, Booking booking)
     {
-        var seed = (uint)booking.Id * 2654435761u;
-        var angle = (seed % 3600) / 3600.0 * 2 * Math.PI;
-        var meters = 300 + (seed >> 12) % 300;
-        var lat = booking.Latitude!.Value + meters / 111_320.0 * Math.Cos(angle);
-        var lng = booking.Longitude!.Value + meters / (111_320.0 * Math.Cos(booking.Latitude.Value * Math.PI / 180)) * Math.Sin(angle);
-        return DistanceKm(latitude, longitude, lat, lng);
+        EnsureFuzz(booking);
+        return Math.Max(1, Math.Ceiling(DistanceKm(latitude, longitude, booking.FuzzLatitude!.Value, booking.FuzzLongitude!.Value)));
     }
 
     /// <summary>A job this technician offered on that the customer has not decided yet.</summary>

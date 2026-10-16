@@ -32,12 +32,16 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
         if (technician.Status != VerificationStates.Approved) return NotApprovedResult(technician);
         var rows = await store.Bookings.Find(x => x.Status == BookingStates.OpenForTechnicians || x.Status == BookingStates.AwaitingCustomerSelection).ToListAsync();
+        // Jobs from before the random point existed get one now, kept so every later search uses the same point.
+        foreach (var job in rows.Where(EnsureFuzz))
+            await store.Bookings.UpdateOneAsync(x => x.Id == job.Id && x.FuzzLatitude == null, Builders<Booking>.Update
+                .Set(x => x.FuzzLatitude, job.FuzzLatitude).Set(x => x.FuzzLongitude, job.FuzzLongitude));
         var nearby = rows
             .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
             .Select(x => new { Booking = x, DistanceKm = BlurredDistanceKm(latitude, longitude, x) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
-            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, Math.Max(1, Math.Round(x.DistanceKm))), technician.Id))
+            .Select(x => OpenJobView(DtoMapper.ToDto(x.Booking, technician.Id, x.DistanceKm), technician.Id))
             .ToList();
         return Ok(nearby);
     }

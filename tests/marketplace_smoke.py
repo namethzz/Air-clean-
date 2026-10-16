@@ -122,6 +122,15 @@ call('/technicians/999999/verification', 'PATCH', {'verified': True}, admin, 404
 feed = call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech)
 job = next(row for row in feed if row['id'] == id)
 assert job['latitude'] is None and job['longitude'] is None and 'PRIVATE-HOUSE' not in json.dumps(job)
+# Distance to an open job comes from a random point drawn for the job, in whole kilometres only.
+assert job['distanceKm'] == int(job['distanceKm']) and job['distanceKm'] >= 1
+if os.environ.get('MONGODB_URI'):
+    from pymongo import MongoClient
+    from math import radians, sin, cos, asin, sqrt
+    stored = MongoClient(os.environ['MONGODB_URI'])[os.environ.get('MONGODB_DATABASE', 'airclean_ci')].bookings.find_one({'_id': id})
+    lat1, lon1, lat2, lon2 = map(radians, [stored['Latitude'], stored['Longitude'], stored['FuzzLatitude'], stored['FuzzLongitude']])
+    meters = 2 * 6371000 * asin(sqrt(sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2))
+    assert 290 <= meters <= 710, meters
 call('/bookings/' + str(id), token=other_customer, expected=403)
 call('/bookings/' + str(id), token=tech, expected=403)
 application = call(f'/bookings/{id}/applications', 'POST', {'note': 'พร้อมรับงาน'}, tech)

@@ -116,7 +116,7 @@ function NearbyJobs({onApply,onOpenMembership,onOpenMyJobs,myJobs}:{onApply:Prop
         return <article className="nearby-job-card" key={job.id}>
           <div className="nearby-job-card-top"><span className="booking-code">{job.code}</span><StatusBadge status={job.status}/></div>
           <h2>{job.service}</h2>
-          <div className="nearby-job-distance"><MapPin size={15}/><strong>{job.distanceKm==null?'ระยะทางไม่ทราบ':job.distanceKm.toFixed(1)+' กม.'}</strong><span>จากตำแหน่งคุณ</span></div>
+          <div className="nearby-job-distance"><MapPin size={15}/><strong>{job.distanceKm==null?'ระยะทางไม่ทราบ':'ประมาณ '+Math.round(job.distanceKm)+' กม.'}</strong><span>จากตำแหน่งคุณ</span></div>
           <div className="nearby-job-facts">
             <div><span>ประเภทที่พัก</span><strong>{job.propertyType||'ไม่ระบุ'}</strong></div>
             <div><span>จำนวนแอร์</span><strong>{job.unitCount||1} เครื่อง</strong></div>

@@ -56,16 +56,34 @@ public class VisitTimeTests
 public class LocationPrivacyTests
 {
     [Fact]
-    public void Distance_to_a_job_is_measured_from_a_point_near_but_not_at_the_home()
+    public void Each_job_gets_its_own_random_point_near_but_not_at_the_home()
     {
-        var job = new Booking { Id = 42, Latitude = 13.7563, Longitude = 100.5018 };
-        var fromHome = ApiHelpers.BlurredDistanceKm(13.7563, 100.5018, job);
-        Assert.InRange(fromHome, 0.29, 0.61);
-        // The same job always gives the same answer, so repeating a search reveals nothing new.
-        Assert.Equal(fromHome, ApiHelpers.BlurredDistanceKm(13.7563, 100.5018, job));
-        // Different jobs are moved in different directions.
-        var other = new Booking { Id = 43, Latitude = 13.7563, Longitude = 100.5018 };
-        Assert.NotEqual(fromHome, ApiHelpers.BlurredDistanceKm(13.7563, 100.5018, other));
+        var points = Enumerable.Range(1, 200).Select(id => new Booking { Id = id, Latitude = 13.7563, Longitude = 100.5018 }).ToList();
+        foreach (var job in points) Assert.True(ApiHelpers.EnsureFuzz(job));
+        foreach (var job in points) {
+            var meters = ApiHelpers.DistanceKm(13.7563, 100.5018, job.FuzzLatitude!.Value, job.FuzzLongitude!.Value) * 1000;
+            Assert.InRange(meters, 295, 705);
+        }
+        // Drawn at random, not from the job id: two jobs with the same id and home get different points.
+        var a = new Booking { Id = 42, Latitude = 13.7563, Longitude = 100.5018 };
+        var b = new Booking { Id = 42, Latitude = 13.7563, Longitude = 100.5018 };
+        ApiHelpers.EnsureFuzz(a); ApiHelpers.EnsureFuzz(b);
+        Assert.NotEqual(a.FuzzLatitude, b.FuzzLatitude);
+        // Kept once drawn.
+        var kept = a.FuzzLatitude;
+        Assert.False(ApiHelpers.EnsureFuzz(a));
+        Assert.Equal(kept, a.FuzzLatitude);
+    }
+
+    [Fact]
+    public void Open_jobs_are_only_ever_a_whole_number_of_kilometres_away()
+    {
+        var job = new Booking { Id = 7, Latitude = 13.7563, Longitude = 100.5018 };
+        // Standing on the home, or anywhere close, the answer is the same 1 km.
+        Assert.Equal(1, ApiHelpers.BlurredDistanceKm(13.7563, 100.5018, job));
+        Assert.Equal(1, ApiHelpers.BlurredDistanceKm(13.7565, 100.5020, job));
+        var far = ApiHelpers.BlurredDistanceKm(13.80, 100.55, job);
+        Assert.Equal(Math.Floor(far), far);
     }
 
     [Fact]
