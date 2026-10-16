@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/airclean-logo.png" width="200" alt="AirClean logo"></p>
+
 # AirClean
 
 [ภาษาไทย](README.md) · **English**

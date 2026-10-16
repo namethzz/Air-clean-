@@ -1,4 +1,5 @@
-import { ArrowRight, ChevronRight, MapPin, ShieldCheck, UserCheck, Wind } from 'lucide-react';
+import { ArrowRight, ChevronRight, MapPin, ShieldCheck, UserCheck } from 'lucide-react';
+import BrandMark from '../BrandMark';
 import { AirCleaningPhoto } from '@/components/ui/hero-financial-utils/assets-index';
 import { useMediaQuery } from '@/components/ui/hero-financial-utils/use-media-query';
 import MotionDrawer from '@/components/ui/hero-financial-utils/motion-drawer';
@@ -41,7 +42,7 @@ export function HeroFinancial({compact=false,userName,heading,description,primar
   const nav=<nav aria-label="เมนูเว็บไซต์"><a href="#services">บริการ</a><a href="#how">วิธีใช้งาน</a><button type="button" onClick={onTechnician}>สำหรับช่างแอร์</button></nav>;
   return <section className="acx-hero">
     <header className="acx-nav">
-      <a className="acx-wordmark" href="#" aria-label="AirClean หน้าหลัก"><span className="acx-wordmark-mark"><Wind size={21}/></span>AirClean</a>
+      <a className="acx-wordmark" href="#" aria-label="AirClean หน้าหลัก"><span className="acx-wordmark-mark"><BrandMark className="w-[82%] h-auto"/></span>AirClean</a>
       {isMobile?<MotionDrawer>{nav}</MotionDrawer>:nav}
       <button type="button" className="acx-btn acx-btn-ink acx-nav-login" onClick={onLogin}>เข้าสู่ระบบ</button>
     </header>

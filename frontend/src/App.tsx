@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, Wind, X } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
+import BrandMark from './components/BrandMark';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import CustomerJobsPage, { type JobFocus } from './pages/CustomerJobsPage';
@@ -300,7 +301,7 @@ export default function App() {
     if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
   }
   if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
-  if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><Activity size={23}/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
+  if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
   if(!user) {
     if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
@@ -314,7 +315,7 @@ export default function App() {
     <main className="main-shell">
       <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={bell}/>
       {customer
-        ?<div className="mobile-page-bar customer-bar"><span className="customer-bar-mark"><Wind size={18}/></span><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}</div>
+        ?<div className="mobile-page-bar customer-bar"><span className="customer-bar-mark"><BrandMark className="w-[82%] h-auto"/></span><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}</div>
         :<div className="mobile-page-bar"><button className="icon-button" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={20}/></button><div><strong>{titleFor(user.role,page)}</strong><span>{todayLabel()}</span></div>{bell}{user.role!=='technician'&&<button className="icon-button" onClick={()=>openBooking()} aria-label="จองบริการ"><Activity size={19}/></button>}</div>}
       {dataError&&<div className="app-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button className="outline-button" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
       <div className="page-content">{content}</div>
