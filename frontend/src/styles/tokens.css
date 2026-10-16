@@ -40,6 +40,16 @@
   --v-wait-bg: #fff4dd;
   --v-problem: #b42318;
   --v-problem-bg: #fdecea;
+  /* Borders and text on the state tints (alerts, notes) */
+  --v-done-line: #b9e4d4;
+  --v-done-ink: #0a5c48;
+  --v-wait-line: #f0d7a6;
+  --v-wait-ink: #7a4800;
+  --v-problem-line: #f1c3be;
+  --v-problem-ink: #8f1c13;
+  --v-blue-line: #c9dbf8;
+  /* Rating stars: amber dark enough to read on white (4.5:1) */
+  --v-star: #a86f00;
 
   /* Type */
   --v-font-head: "Kanit", "IBM Plex Sans Thai Looped", "Noto Sans Thai", sans-serif;

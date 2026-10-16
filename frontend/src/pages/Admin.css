@@ -313,7 +313,7 @@
   background: var(--v-blue-600);
 }
 .tk-pin.is-tech {
-  background: var(--v-turn);
+  background: var(--v-ink);
 }
 
 /* ───────── Service reports: what was checked, photo links ───────── */
@@ -498,8 +498,8 @@
   gap: 4px;
   margin: 0;
   padding: 10px 12px;
-  border-left: 3px solid var(--v-turn);
-  border-radius: 0 10px 10px 0;
+  border: 1px solid var(--v-wait-line);
+  border-radius: var(--v-radius);
   background: var(--v-wait-bg);
   color: var(--v-ink);
   font-size: 15px;
@@ -678,7 +678,7 @@
   white-space: nowrap;
 }
 .at-main small svg {
-  color: #d99a12;
+  color: var(--v-star);
 }
 .at-back {
   align-self: flex-start;
@@ -727,7 +727,7 @@
   background: var(--v-surface);
 }
 .at-stats div.warn {
-  border-color: #f0d7a6;
+  border-color: var(--v-wait-line);
   background: var(--v-wait-bg);
 }
 .at-stats dt {
@@ -812,7 +812,7 @@
 .at-stars {
   display: flex;
   gap: 2px;
-  color: #d99a12;
+  color: var(--v-star);
 }
 .at-job {
   grid-template-columns: 56px minmax(0, 1fr) auto;
@@ -942,4 +942,10 @@
 .ad-form > .ui-alert,
 .ad-form > .ad-reset-link {
   align-self: stretch;
+}
+
+.approval-card dd a {
+  color: var(--v-blue-700);
+  font-weight: 600;
+  text-decoration: none;
 }

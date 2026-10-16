@@ -470,7 +470,7 @@
   align-items: center;
   gap: 14px;
   background: var(--v-wait-bg);
-  border-color: #f0d7a6;
+  border-color: var(--v-wait-line);
 }
 .ms-pending > svg {
   color: var(--v-wait);
@@ -579,7 +579,7 @@
   flex-direction: row;
   align-items: flex-start;
   gap: 16px;
-  border-color: #f0d7a6;
+  border-color: var(--v-wait-line);
 }
 .ms-slip-card .pi-thumb {
   width: 112px;

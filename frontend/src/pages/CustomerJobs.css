@@ -109,9 +109,9 @@
   gap: 8px;
   padding: 12px;
   border-radius: 12px;
-  background: #fdecea;
+  background: var(--v-problem-bg);
   font-size: 14px;
-  color: #7a2a24;
+  color: var(--v-problem-ink);
 }
 
 /* ── Building rooms ── */

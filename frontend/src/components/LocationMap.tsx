@@ -49,7 +49,7 @@ export default function LocationMap({ center, destination, technician, onPick, h
       <MapPickerEvents onPick={onPick} />
       {destination && <Marker position={[destination.latitude, destination.longitude]} icon={destinationIcon}><Popup>{destination.label}</Popup></Marker>}
       {technician && <Marker position={[technician.latitude, technician.longitude]} icon={technicianIcon}><Popup>{technician.label}</Popup></Marker>}
-      {technician && accuracy != null && accuracy > 0 && <Circle center={[technician.latitude, technician.longitude]} radius={accuracy} pathOptions={{ color: '#d6a052', weight: 1, fillOpacity: 0.12 }}><Popup>ความแม่นยำของ GPS ประมาณ {Math.round(accuracy)} เมตร</Popup></Circle>}
+      {technician && accuracy != null && accuracy > 0 && <Circle center={[technician.latitude, technician.longitude]} radius={accuracy} pathOptions={{ color: '#0f1e33', weight: 1, fillOpacity: 0.1 }}><Popup>ความแม่นยำของ GPS ประมาณ {Math.round(accuracy)} เมตร</Popup></Circle>}
     </MapContainer>
     {onPick && <div className="map-pick-hint"><span/> แตะบนแผนที่เพื่อปักหมุด</div>}
     <div className="map-attribution-note">แผนที่ © OpenStreetMap</div>

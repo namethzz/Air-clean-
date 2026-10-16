@@ -76,7 +76,7 @@
   color: var(--v-ink);
 }
 .tj-week-day.busy:hover {
-  border-color: #b9cbe3;
+  border-color: var(--v-line-strong);
 }
 .tj-week-day.today {
   background: var(--v-blue-100);
@@ -154,7 +154,7 @@
   cursor: pointer;
 }
 .tj-visit:hover {
-  border-color: #b9cbe3;
+  border-color: var(--v-line-strong);
 }
 .tj-visit.active {
   border-color: var(--v-blue-600);
@@ -265,7 +265,7 @@
   gap: 4px;
   padding: 1px 8px;
   border-radius: 999px;
-  background: #fdeceb;
+  background: var(--v-problem-bg);
   color: var(--v-problem);
   font-size: 12.5px;
   font-weight: 700;

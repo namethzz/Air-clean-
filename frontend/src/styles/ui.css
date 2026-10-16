@@ -89,7 +89,6 @@
   transform: translateY(1px);
 }
 .ui-btn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 .ui-btn[aria-busy="true"] {
@@ -114,7 +113,7 @@
   color: var(--v-turn-ink);
 }
 .ui-btn.is-turn:hover:not(:disabled) {
-  background: #ff8f3d;
+  background: var(--v-turn-deep);
 }
 .ui-btn.is-ghost {
   border-color: transparent;
@@ -125,12 +124,24 @@
   background: var(--v-blue-100);
 }
 .ui-btn.is-danger {
-  border-color: #f1c3be;
+  border-color: var(--v-problem-line);
   color: var(--v-problem);
 }
 .ui-btn.is-danger:hover:not(:disabled) {
   border-color: var(--v-problem);
   background: var(--v-problem-bg);
+}
+/* Disabled: a plain grey, not a faded colour, so it stays readable outdoors and still reads as "not yet".
+   Doubled class so it outranks every variant above. */
+.ui-btn.ui-btn:disabled {
+  border-color: var(--v-line);
+  background: var(--v-sunken);
+  color: var(--v-ink-3);
+  box-shadow: none;
+}
+.ui-btn.ui-btn.is-ghost:disabled {
+  border-color: transparent;
+  background: none;
 }
 .ui-btn.is-lg {
   min-height: var(--v-control-lg);
@@ -606,22 +617,22 @@ a.ui-row:hover {
   margin-top: 2px;
 }
 .ui-alert.is-done {
-  border-color: #b9e4d4;
+  border-color: var(--v-done-line);
   background: var(--v-done-bg);
-  color: #0a5c48;
+  color: var(--v-done-ink);
 }
 .ui-alert.is-wait {
-  border-color: #f0d7a6;
+  border-color: var(--v-wait-line);
   background: var(--v-wait-bg);
-  color: #7a4800;
+  color: var(--v-wait-ink);
 }
 .ui-alert.is-problem {
-  border-color: #f1c3be;
+  border-color: var(--v-problem-line);
   background: var(--v-problem-bg);
-  color: #8f1c13;
+  color: var(--v-problem-ink);
 }
 .ui-alert.is-info {
-  border-color: #c9dbf8;
+  border-color: var(--v-blue-line);
   background: var(--v-blue-050);
   color: var(--v-blue-800);
 }

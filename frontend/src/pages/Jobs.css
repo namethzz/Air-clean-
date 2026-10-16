@@ -177,7 +177,7 @@
   overflow: hidden;
 }
 .jb-hero.is-off {
-  background: linear-gradient(160deg, #5f708a, #3d4c62);
+  background: linear-gradient(160deg, var(--v-ink-3) 0%, var(--v-ink-2) 100%);
 }
 .jb-hero-top {
   display: flex;
@@ -413,7 +413,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid #c9dbf8;
+  border: 1px solid var(--v-blue-line);
   border-radius: var(--v-radius-md);
   background: var(--v-blue-050);
 }
@@ -423,7 +423,7 @@
   color: var(--v-ink);
 }
 .jb-confirm.is-danger {
-  border-color: #f1c3be;
+  border-color: var(--v-problem-line);
   background: var(--v-problem-bg);
 }
 .jb-confirm-actions {
@@ -594,9 +594,9 @@
     border-color var(--v-fast) var(--v-ease);
 }
 .jb-stars button.is-on {
-  border-color: #f2c25c;
-  background: #fff7e0;
-  color: #e2a000;
+  border-color: var(--v-wait-line);
+  background: var(--v-wait-bg);
+  color: var(--v-star);
 }
 .jb-stars button:active {
   transform: scale(0.94);

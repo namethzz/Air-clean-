@@ -27,15 +27,15 @@ Full stack: React + TypeScript, ASP.NET Core 8, MongoDB · เก็บค่า
     <td align="center">ต่ออายุสมาชิกด้วย QR</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/09-booking-form.png" alt="ฟอร์มขอช่าง" width="190"></td>
+    <td><img src="docs/screenshots/09-booking-form.png" alt="ฟอร์มขอช่าง พร้อมราคากลางของงาน" width="190"></td>
+    <td><img src="docs/screenshots/12-nearby-jobs.png" alt="งานใกล้ช่าง พร้อมราคาจากใบราคาของช่าง" width="190"></td>
     <td><img src="docs/screenshots/10-building-rooms.png" alt="ผู้ดูแลอาคารจัดการรายห้อง" width="190"></td>
-    <td><img src="docs/screenshots/01-landing.png" alt="หน้าแรก" width="190"></td>
     <td><img src="docs/screenshots/04-sign-up.png" alt="สมัครแยกตามบทบาท" width="190"></td>
   </tr>
   <tr>
     <td align="center">ฟอร์มขอช่าง</td>
+    <td align="center">งานใกล้ช่าง</td>
     <td align="center">อาคารแบบรายห้อง</td>
-    <td align="center">หน้าแรก</td>
     <td align="center">สมัครตามบทบาท</td>
   </tr>
 </table>
@@ -47,6 +47,7 @@ Full stack: React + TypeScript, ASP.NET Core 8, MongoDB · เก็บค่า
 ## ทำอะไรได้บ้าง
 
 - **ผู้ใช้ 4 บทบาท** ลูกค้า ช่างแอร์ ผู้ดูแลอาคาร (จัดการทั้งตึกแบบรายห้อง) และแอดมิน แต่ละบทบาทมีหน้าของตัวเอง
+- **ราคาที่ลูกค้าเข้าใจได้** ลูกค้าบอกแค่สิ่งที่เห็น (ชนิดแอร์ จำนวน อาการ) ราคามาจากใบราคาของช่างแต่ละคน พร้อมช่วงราคากลางจากช่างทุกคนในระบบ ราคาล็อกเมื่อเลือกช่าง ถ้าหน้างานต้องปรับ ช่างขอในแอปพร้อมเหตุผลและลูกค้ากดอนุมัติก่อน
 - **ช่างเสนอราคาแทนราคาตายตัว** ช่างเห็นงานใกล้ตัวเรียงตามระยะทางแล้วเสนอราคา ลูกค้ามีเวลาเลือก 1 ชั่วโมงนับจากข้อเสนอแรก ถ้าหมดเวลา ข้อเสนอหมดอายุและเปิดรับใหม่ได้ในปุ่มเดียว
 - **ติดตามงานจริง** หลังยืนยันแล้ว ลูกค้าเห็นตำแหน่งช่างบนแผนที่ โทรหากันได้ เลื่อนวันนัดได้ ช่างติ๊กห้องที่ล้างเสร็จ แนบรูปก่อนและหลังล้าง แล้วปิดงานในขั้นตอนเดียว
 - **ตารางงานของช่าง** แยกตามวันพร้อมแถบ 7 วัน และเตือนเมื่อเวลานัดชนกัน
@@ -168,7 +169,8 @@ frontend/src
   components/    ส่วนที่ใช้ร่วมกัน: ฟอร์มขอช่าง แผนที่ ตัวเลือกเวลา กระดิ่งแจ้งเตือน
   lib/           API client, QR พร้อมเพย์, จำนวนเงินเป็นตัวอักษร, ตรวจเวลานัดชน (+ unit test)
 tests/           smoke test แบบ end-to-end และตัวจำลอง Google, push, Brevo, Slip2Go
-docs/            REFERENCE.md (การตั้งค่า), PROJECT-SUMMARY.md, screenshots/
+DESIGN.md        ระบบดีไซน์ (โทเคน คอมโพเนนต์ ui-* และกติกาการใช้สี)
+docs/            REFERENCE.md (การตั้งค่า), PROJECT-SUMMARY.md, redesign/PLAN.md, screenshots/
 ```
 
 ## รันบนเครื่องตัวเอง

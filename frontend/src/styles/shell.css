@@ -341,8 +341,6 @@
 }
 .sh-band .nb-count {
   border-color: var(--v-blue-700);
-  background: var(--v-turn);
-  color: var(--v-turn-ink);
 }
 
 /* ───────── Phone tab bar ───────── */

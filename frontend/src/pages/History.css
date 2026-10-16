@@ -205,7 +205,7 @@
 .hs-rating {
   display: inline-flex;
   gap: 2px;
-  color: #e2a000;
+  color: var(--v-star);
 }
 .hs-unrated {
   font-size: var(--v-text-sm);

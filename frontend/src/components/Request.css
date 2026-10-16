@@ -802,7 +802,7 @@ svg.pl-search-end {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #e08a00;
+  background: var(--v-wait);
 }
 .rp-room.is-removable svg {
   color: var(--v-ink-3);

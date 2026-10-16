@@ -24,13 +24,26 @@ Built for the Thai market, so the interface is in Thai. Full stack: React + Type
     <td align="center">How it works</td>
     <td align="center">Sign-up by role</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/05-customer-offers.png" alt="A customer comparing quotes before the hour runs out" width="200"></td>
+    <td><img src="docs/screenshots/09-booking-form.png" alt="The request form with the going rate" width="200"></td>
+    <td><img src="docs/screenshots/12-nearby-jobs.png" alt="A technician's nearby jobs" width="200"></td>
+    <td><img src="docs/screenshots/07-technician-schedule.png" alt="A technician's schedule by day" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">Choosing a quote</td>
+    <td align="center">Request form</td>
+    <td align="center">Nearby jobs</td>
+    <td align="center">Technician's schedule</td>
+  </tr>
 </table>
 
-These are the public pages, captured at phone width (390 px). The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data.
+Captured at phone width (390 px) with demo data. The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data. The design system is described in [DESIGN.md](DESIGN.md).
 
 ## What it does
 
 - **Four roles.** Customers, technicians, building managers (whole buildings, room by room) and administrators each get their own workspace.
+- **Prices people can follow.** The customer only describes what they can see (kind of unit, how many, symptoms). Each technician quotes from their own price list, the going rate across technicians is shown beside it, and the price is locked once a technician is chosen. A change on site is asked for in the app with a reason, and the customer approves it first.
 - **Quotes instead of a fixed price.** Nearby technicians see open jobs sorted by distance and send a quote. The customer has one hour from the first quote to choose; after that the offers lapse and the request can be reopened with one tap.
 - **A live job.** After confirmation the customer follows the technician on a map. The technician counts finished rooms, attaches before and after photos, and closes the job in one step.
 - **Cash on delivery.** The customer pays the technician directly. AirClean never holds money; both sides confirm, and a dispute goes to an admin queue.
@@ -156,7 +169,8 @@ frontend/src
   components/    Shared UI: booking form, map picker, job stepper, notification bell
   lib/           API client, PromptPay QR payload, Thai baht text, schedule-clash check
 tests/           End-to-end smoke test plus stand-ins for Google, push and Slip2Go
-docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), customer-ui.md, screenshots/
+DESIGN.md        Design system: tokens, ui-* components, colour rules
+docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), redesign/PLAN.md, screenshots/
 ```
 
 ## Run it locally

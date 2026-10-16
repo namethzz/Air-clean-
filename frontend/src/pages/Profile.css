@@ -884,19 +884,19 @@
   margin-top: 2px;
 }
 .pf-alert.ok {
-  border-color: #b9e4d4;
+  border-color: var(--v-done-line);
   background: var(--v-done-bg);
   color: var(--v-done);
 }
 .pf-alert.bad {
-  border-color: #f1c3be;
+  border-color: var(--v-problem-line);
   background: var(--v-problem-bg);
   color: var(--v-problem);
 }
 .pf-alert.warn {
-  border-color: #f0d7a6;
+  border-color: var(--v-wait-line);
   background: var(--v-wait-bg);
-  color: #7a4800;
+  color: var(--v-wait-ink);
 }
 .pf-alert.info {
   border-color: var(--v-line);

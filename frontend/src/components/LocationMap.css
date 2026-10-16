@@ -47,8 +47,8 @@
 .aircare-pin-technician {
   width: 34px;
   height: 34px;
-  background: var(--v-turn);
-  box-shadow: 0 5px 20px rgb(232 101 10 / 0.3);
+  background: var(--v-ink);
+  box-shadow: 0 5px 20px rgb(15 30 51 / 0.35);
 }
 .aircare-pin-technician i {
   background: white;
