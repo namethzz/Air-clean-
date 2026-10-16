@@ -1,0 +1,149 @@
+/*
+ * The technician's job feed (nj-): each job a plate with the technician's own price and the distance, readable
+ * at arm's length outdoors, then what the job is and one large button to send the offer.
+ */
+.nj {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-6);
+}
+.nj-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  scroll-margin-top: 96px;
+}
+.nj-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nj-head h1 {
+  margin: 0;
+  font: 600 var(--v-text-2xl) / 1.2 var(--v-font-head);
+  color: var(--v-ink);
+}
+.nj-head p {
+  margin: 2px 0 0;
+  color: var(--v-ink-3);
+}
+.nj-radius {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.nj-radius > span {
+  margin-right: 4px;
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-ink-2);
+}
+.nj-skel {
+  height: 260px;
+  border-radius: var(--v-radius-lg);
+}
+
+/* One job: the plate, then a white card hanging under it */
+.nj-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  align-items: start;
+  gap: var(--v-gap-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nj-job {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-card);
+}
+.nj-job > .ui-plate {
+  border-radius: var(--v-radius-lg) var(--v-radius-lg) 0 0;
+  box-shadow: none;
+}
+.nj-job > .ui-plate.is-quiet {
+  border: 0;
+  border-bottom: 1px solid var(--v-line);
+}
+.nj-job.is-applied > .ui-plate.is-quiet .ui-plate-num {
+  color: var(--v-ink-3);
+}
+.nj-km {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.nj-km b {
+  font: 600 var(--v-text-3xl) / 1 var(--v-font-head);
+}
+.nj-km small {
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+}
+.ui-plate:not(.is-quiet) .nj-km small {
+  color: var(--v-on-blue-2);
+}
+.ui-plate.is-quiet .nj-km {
+  color: var(--v-ink);
+}
+.ui-plate.is-quiet .nj-km small {
+  color: var(--v-ink-3);
+}
+.nj-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+}
+.nj-body h2 {
+  margin: 0;
+  font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
+  color: var(--v-ink);
+}
+.nj-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--v-text-sm);
+  line-height: 1.5;
+  color: var(--v-ink-2);
+}
+.nj-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.nj-facts svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--v-ink-3);
+}
+.nj-facts li:last-child {
+  color: var(--v-ink-3);
+}
+.nj-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+.nj-note svg {
+  flex: none;
+  margin-top: 2px;
+}

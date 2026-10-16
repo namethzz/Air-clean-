@@ -32,7 +32,7 @@ function TechnicianMembership({ onNotice }: { onNotice: (message: string) => voi
   const load = useCallback(() => { setError(''); fetchMyMembership().then(setData).catch(reason => setError(errorText(reason, 'โหลดข้อมูลสมาชิกไม่สำเร็จ'))); }, []);
   useEffect(load, [load]);
 
-  if (error) return <div className="ms-page"><div className="app-data-alert" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="outline-button" onClick={load}><RefreshCw size={15}/> ลองใหม่</button></div></div>;
+  if (error) return <div className="ms-page"><p className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" className="ui-btn is-sm" onClick={load}><RefreshCw size={16}/> ลองใหม่</button></p></div>;
   if (!data) return <div className="ms-page"><p className="td-loading"><Loader2 size={18} className="ui-spin"/> กำลังโหลด…</p></div>;
 
   const expired = data.state === 'Expired';
@@ -138,7 +138,7 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
               <div className="ms-qr" role="img" aria-label={`QR พร้อมเพย์ ${baht(amount)}`} dangerouslySetInnerHTML={{ __html: qr }}/>
               <dl>
                 <div><dt>ยอดโอน</dt><dd className="ms-amount">{baht(amount)}</dd></div>
-                <div><dt>พร้อมเพย์</dt><dd>{data.promptPayId.length === 10 ? formatPhone(data.promptPayId) : data.promptPayId} <button type="button" className="cj-link" onClick={() => void copy()}><Copy size={13}/> {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}</button></dd></div>
+                <div><dt>พร้อมเพย์</dt><dd>{data.promptPayId.length === 10 ? formatPhone(data.promptPayId) : data.promptPayId} <button type="button" className="ui-link ms-copy" onClick={() => void copy()}><Copy size={14}/> {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}</button></dd></div>
                 {data.payeeName && <div><dt>ชื่อบัญชี</dt><dd>{data.payeeName}</dd></div>}
               </dl>
             </div>
@@ -158,7 +158,7 @@ function Renew({ data, onSent }: { data: Membership; onSent: (payment: Membershi
       </ol>
       {turnedDown && <div className="ms-turned-down" role="alert"><XCircle size={18}/><div><strong>สลิปไม่ผ่านการตรวจ</strong><span>{turnedDown}</span></div></div>}
       {error && <div className="auth-error" role="alert">{error}</div>}
-      <button type="button" className="cj-primary full" disabled={!slip || busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="ui-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
+      <button type="button" className="ui-btn is-primary is-lg is-block" disabled={!slip || busy} aria-busy={busy} onClick={() => void send()}>{busy ? <><Loader2 size={17} className="ui-spin"/> {data.autoCheck ? 'กำลังตรวจกับธนาคาร…' : 'กำลังส่ง…'}</> : <><Send size={17}/> {data.autoCheck ? 'ตรวจสลิปและต่ออายุ' : 'ส่งสลิป'} {baht(amount)}</>}</button>
       <p className="ms-fine">{data.autoCheck ? <><ShieldCheck size={13}/> ระบบตรวจสลิปกับธนาคารทันที ถ้าเงินเข้าบัญชี AirClean ครบ ต่ออายุให้เลย สลิปปลอมหรือสลิปที่เคยใช้แล้วจะไม่ผ่าน</> : 'ผู้ดูแลตรวจยอดเงินเข้าแล้วต่ออายุให้ ส่วนใหญ่ภายในวันเดียวกัน'}</p>
     </>}
   </section>;
@@ -295,6 +295,6 @@ export function MembershipStrip({ data, onOpen, always = false }: { data: Member
     {expired ? <XCircle size={18}/> : data.pending ? <Clock3 size={18}/> : data.state === 'Trial' ? <Gift size={18}/> : <CheckCircle2 size={18}/>}
     <span>{expired ? (data.pending ? 'สมาชิกหมดอายุ · สลิปรอผู้ดูแลตรวจ' : 'สมาชิกหมดอายุ ส่งข้อเสนองานใหม่ไม่ได้')
       : data.state === 'Trial' ? `ทดลองใช้ฟรี เหลือ ${data.daysLeft} วัน` : soon ? `สมาชิกเหลือ ${data.daysLeft} วัน` : `สมาชิกใช้ได้ถึง ${thaiDate(data.memberUntil)}`}</span>
-    <button type="button" className="cj-link" onClick={onOpen}>{expired ? 'ต่ออายุ' : 'ดูรายละเอียด'}</button>
+    <button type="button" className="ui-link" onClick={onOpen}>{expired ? 'ต่ออายุ' : 'ดูรายละเอียด'}</button>
   </div>;
 }

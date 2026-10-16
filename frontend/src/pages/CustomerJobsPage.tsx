@@ -12,7 +12,7 @@ import StatusBadge from '../components/StatusBadge';
 import LocationMap from '../components/LocationMap';
 import { awaitingPriceAnswer, currentStep, guideFor, isClosedForCustomer, journeySteps, minutesToPick, needsAction, sortJobs } from '../lib/jobFlow';
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
-import { useIsWide } from '../components/JobStepper';
+import { Journey, useIsWide } from '../components/JobStepper';
 import Avatar from '../components/Avatar';
 import { Plate, PhotoCard, Steps } from '../components/kit';
 import { nextCleaning } from '../lib/cleaning';
@@ -194,7 +194,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       </div>
       <h2>{booking.service}{units(booking)}</h2>
       <p className="jb-when"><CalendarClock size={16} aria-hidden="true"/> {shortDate(booking.date)} · {timeLabel(booking)}</p>
-      {!cancelled && <Journey step={currentStep(booking)}/>}
+      {!cancelled && <Journey labels={journeySteps} step={currentStep(booking)}/>}
       <div className="jb-guide">
         <strong>{guide.title}</strong>
         <p>{guide.hint}</p>
@@ -240,19 +240,6 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       {moving && <RescheduleSheet booking={booking} side="customer" onSend={(at, window, reason) => onReschedule(booking.id, at, window, reason)} onClose={() => setMoving(false)}/>}
     </section>
   </article>;
-}
-
-/** The five stages, drawn as a line of stops on the blue band: done, now, and still to come. */
-function Journey({ step }: { step: number }) {
-  return <ol className="jb-journey" aria-label="ความคืบหน้า">
-    {journeySteps.map((label, index) => {
-      const state = step >= journeySteps.length || index < step ? 'done' : index === step ? 'now' : 'next';
-      return <li key={label} className={'is-' + state} aria-current={state === 'now' ? 'step' : undefined}>
-        <span className="jb-stop">{state === 'done' ? <Check size={14} strokeWidth={3}/> : index + 1}</span>
-        <span className="jb-stop-label">{label}</span>
-      </li>;
-    })}
-  </ol>;
 }
 
 /** Who is coming: the person first, then the one thing to do with them while the job is open — call. */

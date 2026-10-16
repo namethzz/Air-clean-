@@ -659,9 +659,15 @@
   background: #fdeceb;
   color: var(--ac-red);
 }
-.ms-strip .cj-link {
+.ms-strip .ui-link {
   flex-shrink: 0;
-  font-weight: 700;
+  min-height: 44px;
+}
+.ms-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
 }
 
 /* ── Time clashes ── */

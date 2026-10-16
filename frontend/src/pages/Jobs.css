@@ -236,7 +236,7 @@
 /* Stops on the route */
 .jb-journey {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--stops, 5), minmax(0, 1fr));
   margin: 4px 0 0;
   padding: 0;
   list-style: none;

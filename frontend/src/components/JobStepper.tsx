@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 
-/** Progress line shared by the customer and technician job pages. `step` is the stage happening now; 5 means all done. */
-export default function Stepper({ labels, step }: { labels: readonly string[]; step: number }) {
-  return <ol className="cj-steps" aria-label="ความคืบหน้า">
+/**
+ * The stops of a job, drawn as a line on the blue band: done, now, and still to come. `step` is the stop happening
+ * now; a step past the last means all done. Customers have five stops, technicians four.
+ */
+export function Journey({ labels, step }: { labels: readonly string[]; step: number }) {
+  return <ol className="jb-journey" aria-label="ความคืบหน้า" style={{ '--stops': labels.length } as CSSProperties}>
     {labels.map((label, index) => {
-      const state = step >= labels.length || index < step ? 'done' : index === step ? 'current' : 'next';
-      return <li key={label} className={'cj-step ' + state} aria-current={state === 'current' ? 'step' : undefined}>
-        <span className="cj-step-dot">{state === 'done' ? <Check size={15} strokeWidth={3}/> : index + 1}</span>
-        <span className="cj-step-label">{label}</span>
+      const state = step >= labels.length || index < step ? 'done' : index === step ? 'now' : 'next';
+      return <li key={label} className={'is-' + state} aria-current={state === 'now' ? 'step' : undefined}>
+        <span className="jb-stop">{state === 'done' ? <Check size={14} strokeWidth={3}/> : index + 1}</span>
+        <span className="jb-stop-label">{label}</span>
       </li>;
     })}
   </ol>;

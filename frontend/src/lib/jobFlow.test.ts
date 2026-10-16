@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentStep, guideFor, minutesToPick, needsAction, techGuide, techNeedsAction } from './jobFlow';
+import { currentStep, guideFor, minutesToPick, needsAction, techGuide, techNeedsAction, techTurn } from './jobFlow';
 import type { Booking } from '../types';
 
 const booking = (fields: Partial<Booking>) => ({ id: 1, technician: '-', applicants: [], ...fields }) as Booking;
@@ -28,5 +28,21 @@ describe('a job the technician closed', () => {
     expect(techNeedsAction(awaiting(false))).toBe(true);
     expect(techNeedsAction(awaiting(true))).toBe(false);
     expect(techGuide(awaiting(true)).short).toContain('รอลูกค้ายืนยัน');
+  });
+});
+
+describe('techTurn', () => {
+  const today = new Date('2026-10-17T09:00:00');
+  const job = (status: string, extra: Partial<Booking> = {}) => ({ id: 1, date: '2026-10-17', time: '13:00', status, ...extra }) as unknown as Booking;
+  it('asks for what only the technician can do now', () => {
+    expect(techTurn(job('รอยืนยัน'), today)).toContain('กดรับงาน');
+    expect(techTurn(job('ยืนยันแล้ว'), today)).toContain('ออกเดินทาง');
+    expect(techTurn(job('กำลังดำเนินการ'), today)).toContain('ปิดงาน');
+  });
+  it('stays quiet when it is not their turn yet', () => {
+    expect(techTurn(job('ยืนยันแล้ว', { date: '2026-10-20' }), today)).toBeNull();
+    expect(techTurn(job('กำลังเดินทาง'), today)).toBeNull();
+    expect(techTurn(job('รอชำระเงิน', { technicianConfirmedPayment: true }), today)).toBeNull();
+    expect(techTurn(job('กำลังดำเนินการ', { pendingChange: { status: 'Pending' } as Booking['pendingChange'] }), today)).toBeNull();
   });
 });
