@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
 import BrandMark from './components/BrandMark';
 import Sidebar from './components/Sidebar';
@@ -272,6 +272,11 @@ export default function App() {
     try{await approveServiceReport(id);await refreshData();showNotice('ยืนยันรายงานบริการแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'ยืนยันรายงานไม่สำเร็จ'));return false;}
   }
+
+  // A new screen starts at its top: signing out from the bottom of a long page used to leave the next screen
+  // scrolled to its end. "instant" skips the landing page's smooth scrolling.
+  const screen = user ? 'app:'+page : 'visitor:'+visitorScreen+(resetToken?':reset':'');
+  useLayoutEffect(()=>{window.scrollTo({top:0,left:0,behavior:'instant'});},[screen]);
 
   const content = useMemo(()=>{
     if(!user)return null;
