@@ -38,6 +38,16 @@ public class VisitTimeTests
     [InlineData("nine to noon", false)]
     public void Time_windows_are_checked(string? window, bool valid) => Assert.Equal(valid, ApiHelpers.ValidWindow(window, NineAm, out _));
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("https://example.com/a.jpg", true)]
+    [InlineData("http://example.com/a.jpg", true)]
+    [InlineData("javascript:alert(1)", false)]
+    [InlineData("data:text/html,<b>x</b>", false)]
+    [InlineData("example.com/a.jpg", false)]
+    public void Report_photo_links_must_be_web_links(string? url, bool ok) => Assert.Equal(ok, ApiHelpers.IsWebLink(url));
+
     [Fact]
     public void Offer_deadline_is_shown_in_thai_time() =>
         Assert.Equal("14:35 น.", OfferTimer.Clock(new DateTime(2026, 10, 20, 7, 35, 0, DateTimeKind.Utc)));

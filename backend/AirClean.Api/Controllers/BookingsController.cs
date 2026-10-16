@@ -83,7 +83,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
     [Authorize(Roles = "Customer,Manager,Admin"), HttpPost("bookings")]
     public async Task<IActionResult> CreateBooking(CreateBookingRequest request)
     {
-        if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "กรุณาเลือกวันนัดหมายตั้งแต่วันนี้เป็นต้นไป" });
+        if (request.ScheduledAt.Date < Membership.ThaiNow.Date) return BadRequest(new { message = "กรุณาเลือกวันนัดหมายตั้งแต่วันนี้เป็นต้นไป" });
         if (!ValidWindow(request.TimeWindow, request.ScheduledAt, out var window)) return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
         // Homes book up to 30 units at a time; building managers book whole buildings.
         if (CurrentRole == AppRoles.Customer && request.UnitCount > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
@@ -149,7 +149,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
         } else if (booking.CustomerId != CurrentUserId) return Forbid();
         // Times are the customer's local time (the app keeps them at least an hour ahead); the server only checks the day.
-        if (request.ScheduledAt.Date < DateTime.Today) return BadRequest(new { message = "เลือกวันตั้งแต่วันนี้เป็นต้นไป" });
+        if (request.ScheduledAt.Date < Membership.ThaiNow.Date) return BadRequest(new { message = "เลือกวันตั้งแต่วันนี้เป็นต้นไป" });
         if (!ValidWindow(request.TimeWindow, request.ScheduledAt, out var window)) return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
         var open = booking.Status is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection or BookingStates.OffersExpired;
         if (!open && booking.Status is not (BookingStates.Pending or BookingStates.Confirmed))
@@ -159,10 +159,12 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         var before = VisitText(booking.ScheduledAt, booking.TimeWindow);
         var when = VisitText(request.ScheduledAt, window);
         var who = technician ? "ช่าง" : "ลูกค้า";
-        await store.Bookings.UpdateOneAsync(x => x.Id == id, Builders<Booking>.Update
+        var status = booking.Status;
+        var moved = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.Status == status, Builders<Booking>.Update
             .Set(x => x.ScheduledAt, request.ScheduledAt).Set(x => x.TimeWindow, window).Set(x => x.UpdatedAt, DateTime.UtcNow).Set(x => x.VisitReminded, false)
             .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = booking.Status, ToStatus = booking.Status,
                 Notes = $"{who}เปลี่ยนนัดจาก {before} เป็น {when}{(reason is null ? "" : " เหตุผล: " + reason)}", CreatedAt = DateTime.UtcNow }));
+        if (moved.MatchedCount == 0) return Conflict(new { message = "งานนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
         var detail = $"นัดใหม่ {when} (เดิม {before}){(reason is null ? "" : "\nเหตุผล: " + reason)}";
         if (open)
             foreach (var applicant in booking.Applicants)

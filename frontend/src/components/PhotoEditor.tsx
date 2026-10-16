@@ -34,15 +34,18 @@ export default function PhotoEditor({ user, onClose, onSaved }: { user: UserProf
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
 
   const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
+  // The key handler reads the latest close; the effect runs once, so focus is not pulled back on every render.
+  const closeRef = useRef(close);
+  closeRef.current = close;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
-    const key = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    const key = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') closeRef.current(); };
     document.addEventListener('keydown', key);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', key); document.body.style.overflow = overflow; previous?.focus?.(); };
-  }, [close]);
+  }, []);
   useEffect(() => () => { if (loaded && 'close' in loaded.image) loaded.image.close(); }, [loaded]);
 
   // The framing square follows the sheet's width (phones) up to 320px.

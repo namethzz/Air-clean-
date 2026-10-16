@@ -34,6 +34,10 @@ internal static class ApiHelpers
         return contentType == "" ? "รองรับเฉพาะรูป JPEG, PNG หรือ WebP" : null;
     }
 
+    /// <summary>Empty, or an absolute http(s) link: anything else (javascript:, data:) would run in the customer's browser.</summary>
+    internal static bool IsWebLink(string? url) => string.IsNullOrWhiteSpace(url)
+        || (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp));
+
     /// <summary>"HH:mm-HH:mm" starting at the scheduled time and ending later the same day; empty means one exact time.</summary>
     internal static bool ValidWindow(string? value, DateTime scheduledAt, out string? window)
     {

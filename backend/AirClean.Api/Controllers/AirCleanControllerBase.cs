@@ -92,20 +92,7 @@ public abstract class AirCleanControllerBase : ControllerBase
     });
 
     /// <summary>Adds the finished job to the linked Aircon Passport unit once, and sets the next service in 6 months.</summary>
-    protected async Task RecordPassportServiceAsync(Booking booking, string summary)
-    {
-        if (!booking.AirConditionerId.HasValue) return;
-        var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
-        if (unit is null || unit.Services.Any(x => x.BookingId == booking.Id)) return;
-        unit.LastServiceDate = DateTime.UtcNow.Date;
-        unit.NextServiceDate = DateTime.UtcNow.Date.AddMonths(6);
-        unit.Health = "good";
-        unit.Services.Add(new ServiceRecord {
-            Id = await store.NextIdAsync("serviceRecords"), BookingId = booking.Id, Date = DateTime.UtcNow.Date,
-            TechnicianName = booking.TechnicianName, Service = booking.Service, Price = booking.Price, Summary = summary, Status = BookingStates.Completed
-        });
-        await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);
-    }
+    protected Task RecordPassportServiceAsync(Booking booking, string summary) => JobClosing.RecordPassportServiceAsync(store, booking, summary);
 
     /// <summary>One place for the emails that follow a job's status, whichever endpoint moved it.</summary>
     protected void NotifyStatusChange(Booking booking, string? previous)

@@ -38,7 +38,11 @@ public class NotificationsController(MongoStore db, Notifier notifier, WebPushSe
     public async Task<IActionResult> MarkNotificationsRead(MarkNotificationsReadRequest request)
     {
         var filter = Builders<AppNotification>.Filter.Eq(x => x.UserId, CurrentUserId) & Builders<AppNotification>.Filter.Eq(x => x.ReadAt, null);
-        if (request.Ids is { Length: > 0 }) filter &= Builders<AppNotification>.Filter.In(x => x.Id, request.Ids.Take(100));
+        if (request.Ids is { Length: > 0 }) {
+            var ids = request.Ids.Take(100).Where(x => MongoDB.Bson.ObjectId.TryParse(x, out _)).ToList();
+            if (ids.Count == 0) return NoContent();
+            filter &= Builders<AppNotification>.Filter.In(x => x.Id, ids);
+        }
         await store.Notifications.UpdateManyAsync(filter, Builders<AppNotification>.Update.Set(x => x.ReadAt, DateTime.UtcNow));
         return NoContent();
     }

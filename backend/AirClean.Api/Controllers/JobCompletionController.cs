@@ -45,8 +45,10 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         }
         // Counting finished units means the work has started.
         if (booking.Status is BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived && done > 0)
-            update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived").Set(x => x.UpdatedAt, DateTime.UtcNow);
-        await store.Bookings.UpdateOneAsync(x => x.Id == id, update);
+            update = update.Set(x => x.Status, BookingStates.InProgress).Set(x => x.TravelStatus, "Arrived");
+        var status = booking.Status;
+        var written = await store.Bookings.UpdateOneAsync(x => x.Id == id && x.Status == status, update.Set(x => x.UpdatedAt, DateTime.UtcNow));
+        if (written.MatchedCount == 0) return Conflict(new { message = "งานนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
         var saved = await store.Bookings.Find(x => x.Id == id).FirstAsync();
         return Ok(DtoMapper.ToDto(saved));
     }
@@ -150,19 +152,27 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         if (booking.Status is not (BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived or BookingStates.InProgress or BookingStates.AwaitingPayment))
             return Conflict(new { message = booking.Status == BookingStates.Completed ? "งานนี้ปิดไปแล้ว" : "ปิดงานนี้ไม่ได้จากสถานะปัจจุบัน" });
 
+        if (booking.TechnicianConfirmedPayment && booking.Status == BookingStates.AwaitingPayment)
+            return Conflict(new { message = "ปิดงานนี้แล้ว รอลูกค้ายืนยันการชำระเงิน" });
+        if (!string.IsNullOrWhiteSpace(booking.PaymentMethod) && booking.CustomerConfirmedPayment && booking.PaymentMethod != method)
+            return Conflict(new { message = "วิธีชำระเงินไม่ตรงกับที่ลูกค้ายืนยันไว้" });
+
         var summary = string.IsNullOrWhiteSpace(request.Summary) ? $"{booking.Service} {booking.UnitCount} เครื่อง เรียบร้อย" : request.Summary.Trim();
         var report = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
         var previous = booking.Status;
-        booking.Status = BookingStates.Completed;
-        booking.TravelStatus = "Completed";
+        // The technician's word alone does not settle the money: the job waits for the customer to confirm or dispute,
+        // and closes by itself after JobClosing.AutoCloseDays. If the customer already confirmed, it is done now.
+        var paid = booking.CustomerConfirmedPayment;
+        booking.Status = paid ? BookingStates.Completed : BookingStates.AwaitingPayment;
+        booking.TravelStatus = paid ? "Completed" : "Arrived";
         booking.PaymentMethod = method;
-        booking.PaymentStatus = "Paid";
+        booking.PaymentStatus = paid ? "Paid" : "ConfirmationPending";
         booking.TechnicianConfirmedPayment = true;
         booking.UnitsDone = booking.UnitCount;
         foreach (var room in booking.Rooms.Where(x => !x.Done)) { room.Done = true; room.DoneAt = DateTime.UtcNow; }
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status,
-            Notes = $"ช่างปิดงานและได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0}", CreatedAt = DateTime.UtcNow });
+            Notes = $"ช่างปิดงานและแจ้งว่าได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0}{(paid ? "" : " รอลูกค้ายืนยัน")}", CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
 
@@ -173,10 +183,15 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
                 CreatedAt = DateTime.UtcNow };
             await store.ServiceReports.InsertOneAsync(report);
         }
-        await RecordPassportServiceAsync(booking, report.Summary);
-        await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
-        notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว {booking.Code}",
-            $"{booking.TechnicianName} ปิดงาน{booking.Service} {booking.UnitCount} เครื่อง และได้รับเงิน ฿{booking.Price:N0} แล้ว\nให้คะแนนช่างได้ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));
+        if (paid) {
+            await RecordPassportServiceAsync(booking, report.Summary);
+            await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
+            notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว {booking.Code}",
+                $"{booking.TechnicianName} ปิดงาน{booking.Service} {booking.UnitCount} เครื่อง และได้รับเงิน ฿{booking.Price:N0} แล้ว\nให้คะแนนช่างได้ที่ “งานของฉัน”", NotificationLink.Job(booking.Id));
+        } else {
+            notify.ToUser(booking.CustomerId, $"ล้างแอร์เสร็จแล้ว ยืนยันการจ่ายเงิน {booking.Code}",
+                $"{booking.TechnicianName} แจ้งว่าล้าง{booking.Service} {booking.UnitCount} เครื่องเสร็จ และได้รับเงิน{(method == "Cash" ? "สด" : "โอน")} ฿{booking.Price:N0} แล้ว\nกดยืนยันที่ “งานของฉัน” ถ้ายอดไม่ตรงหรือยังไม่ได้จ่าย แจ้งปัญหาได้ที่หน้าเดียวกัน (ระบบปิดงานให้เองใน {JobClosing.AutoCloseDays} วันถ้าไม่มีการแจ้ง)", NotificationLink.Job(booking.Id));
+        }
         return Ok(DtoMapper.ToDto(booking));
     }
 }

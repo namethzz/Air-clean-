@@ -69,7 +69,20 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
             var existing = await store.Users.Find(x => x.Email == identity.Email).FirstOrDefaultAsync();
             if (existing is not null) {
                 if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
+                // Whether Google or Apple already proved this address for the account, before this link.
+                var proven = (existing.ExternalLogins ?? []).Any(l => string.Equals(l.Email, identity.Email, StringComparison.OrdinalIgnoreCase));
                 await LinkExternalLoginAsync(existing, identity);
+                // Sign-up never proved this email belonged to whoever set the password; Google or Apple just proved it is this
+                // person's. So a password set before is dropped and every other session signed out: someone who registered the
+                // address first cannot keep a way into the owner's account. The owner can set a new one with "forgot password".
+                if (!proven && !string.IsNullOrEmpty(existing.PasswordHash)) {
+                    existing.PasswordHash = "";
+                    existing.SessionVersion += 1;
+                    await store.Users.UpdateOneAsync(x => x.Id == existing.Id, Builders<AppUser>.Update
+                        .Set(x => x.PasswordHash, "").Inc(x => x.SessionVersion, 1));
+                    notify.ToUser(existing.Id, "บัญชีของคุณเชื่อมกับ " + label + " แล้ว",
+                        $"ตั้งแต่นี้เข้าสู่ระบบด้วย {label} ได้เลย เพื่อความปลอดภัย รหัสผ่านเดิมของบัญชีนี้ถูกยกเลิกและทุกเครื่องถูกออกจากระบบ\nถ้าต้องการใช้รหัสผ่าน ตั้งใหม่ได้จาก “ลืมรหัสผ่าน” ที่หน้าเข้าสู่ระบบ", NotificationLink.Profile);
+                }
                 return Ok(CreateLoginResponse(existing));
             }
         }

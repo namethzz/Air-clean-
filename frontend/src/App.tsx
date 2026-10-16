@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
 import BrandMark from './components/BrandMark';
 import Sidebar from './components/Sidebar';
@@ -46,6 +46,12 @@ const technicianTitles:Partial<Record<PageKey,string>> = { nearbyJobs:'งาน
 const managerTitles:Partial<Record<PageKey,string>> = { overview:'หน้าแรก', bookings:'งานของอาคาร', buildings:'อาคารของฉัน', history:'ประวัติการล้างแอร์', profile:'บัญชีของฉัน' };
 function titleFor(role:UserRole,page:PageKey):string { if(role==='admin'&&page==='technicians')return 'ช่างทั้งหมด'; return (role==='manager'&&managerTitles[page])||(role==='customer'&&customerTitles[page])||(role==='technician'&&technicianTitles[page])||pageTitles[page]; }
 /** Where each role starts. Technicians go straight to jobs near them. */
+/** Follows a media query, so a part can live in whichever bar the layout shows. */
+function useMedia(query:string){
+  const [match,setMatch]=useState(()=>window.matchMedia(query).matches);
+  useEffect(()=>{const media=window.matchMedia(query);const change=()=>setMatch(media.matches);media.addEventListener('change',change);return ()=>media.removeEventListener('change',change);},[query]);
+  return match;
+}
 function homePage(role:UserRole):PageKey { return role==='technician'?'nearbyJobs':'overview'; }
 const activeStatuses:BookingStatus[] = ['เปิดรับช่าง','รอเลือกช่าง','รอยืนยัน','ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'];
 function emptyState():AppState {
@@ -88,7 +94,12 @@ export default function App() {
   // A password reset link opens the app with ?reset=<token>.
   const [resetToken,setResetToken] = useState(()=>new URLSearchParams(window.location.search).get('reset')??'');
   const [authInfo,setAuthInfo] = useState('');
-  const showNotice = useCallback((message:string) => { setNotice(message); window.setTimeout(()=>setNotice(''),3600); },[]);
+  // One timer for the toast: a second message replaces the first and gets its full time on screen.
+  const noticeTimer = useRef<number>();
+  const showNotice = useCallback((message:string) => { window.clearTimeout(noticeTimer.current); setNotice(message); noticeTimer.current = window.setTimeout(()=>setNotice(''),3600); },[]);
+  // Each saved change bumps this; a list fetch that started before it is older than what is on screen and is dropped.
+  const writes = useRef(0);
+  const desktop = useMedia('(min-width: 1024px)');
 
   useEffect(()=>{
     let active = true;
@@ -102,6 +113,7 @@ export default function App() {
   const refreshData = useCallback(async()=>{
     if(!user)return;
     setIsLoading(true);setDataError('');
+    const at = writes.current;
     const needsUnits = user.role!=='technician';
     const [t,b,u,r] = await Promise.allSettled([
       fetchTechnicians(),fetchBookings(),needsUnits?fetchAirConditioners():Promise.resolve([]),fetchServiceReports(),
@@ -110,7 +122,9 @@ export default function App() {
     const bookings = b.status==='fulfilled'?b.value:[];
     const units = u.status==='fulfilled'?u.value:[];
     const reports = r.status==='fulfilled'?r.value:[];
-    setState({technicians,bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,bookings)});
+    // A change saved while this was loading is newer than these bookings: keep it.
+    if(writes.current!==at)setState(previous=>({technicians,bookings:previous.bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,previous.bookings)}));
+    else setState({technicians,bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,bookings)});
     setApiConnected(t.status==='fulfilled'&&b.status==='fulfilled');
     const failed:string[]=[];
     if(b.status==='rejected')failed.push('รายการจอง');
@@ -123,13 +137,15 @@ export default function App() {
   useEffect(()=>{if(user)void refreshData();},[user,refreshData]);
   useEffect(()=>{void registerServiceWorker();},[]);
 
+  // Notification links use the same role rules as the menus (navigate is redefined each render).
+  const navigateRef = useRef<(next:PageKey)=>void>(()=>undefined);
   /** Links from notifications: ?job=ID opens that job, ?page=NAME opens a page. */
   const openLink=useCallback((url:string)=>{
     const params=new URL(url,window.location.origin).searchParams;
     const job=Number(params.get('job'));
     const target=params.get('page') as PageKey|null;
     if(job>0){setPage('bookings');setMobileNavOpen(false);setJobFocus({id:job,token:Date.now()});}
-    else if(target&&target in pageTitles)setPage(target);
+    else if(target&&target in pageTitles)navigateRef.current(target);
   },[]);
   useEffect(()=>{
     if(!user)return;
@@ -150,6 +166,7 @@ export default function App() {
   /** The profile page listens for this, opens its account tab and scrolls to the notification switch. */
   function setupPush(){navigate('profile');window.setTimeout(()=>window.dispatchEvent(new Event('airclean:show-push')),150);}
 
+  navigateRef.current = navigate;
   function navigate(next:PageKey){
     // Customers and technicians track, pay and report inside "my jobs", so those pages open there.
     const role = user?.role;
@@ -211,7 +228,7 @@ export default function App() {
   const locationUpdate=useCallback(async(id:number,latitude:number,longitude:number,accuracy?:number)=>{
     try{
       await updateTechnicianLocation(id,{latitude,longitude,accuracy});
-      setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?{...item,technicianLatitude:latitude,technicianLongitude:longitude,locationAccuracy:accuracy,locationUpdatedAt:new Date().toISOString()}:item)}));
+      writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?{...item,technicianLatitude:latitude,technicianLongitude:longitude,locationAccuracy:accuracy,locationUpdatedAt:new Date().toISOString()}:item)}));
       setApiConnected(true);
       return true;
     }catch{ return false; }
@@ -224,38 +241,39 @@ export default function App() {
     }catch(error){showNotice(errorMessage(error,'บันทึกการยืนยันไม่สำเร็จ'));}
   },[showNotice]);
   const paymentIssue=useCallback(async(id:number,reason:string)=>{
-    try{const saved=await reportPaymentIssue(id,reason);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));showNotice('ส่งเรื่องให้ผู้ดูแลตรวจสอบแล้ว');}
+    try{const saved=await reportPaymentIssue(id,reason);writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));showNotice('ส่งเรื่องให้ผู้ดูแลตรวจสอบแล้ว');}
     catch(error){showNotice(errorMessage(error,'ส่งเรื่องไม่สำเร็จ กรุณาลองใหม่'));}
   },[showNotice]);
   const refreshBookings=useCallback(async()=>{
-    try{const bookings=await fetchBookings();setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));}
+    const at=writes.current;
+    try{const bookings=await fetchBookings();if(writes.current!==at)return;setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));}
     catch(error){showNotice(errorMessage(error,'โหลดรายการจองไม่สำเร็จ'));}
   },[showNotice]);
   async function reviewJob(bookingId:number,rating:number,comment:string):Promise<boolean>{
     try{
       await createReview(bookingId,rating,comment);
-      setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===bookingId?{...item,customerRating:rating}:item)}));
+      writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===bookingId?{...item,customerRating:rating}:item)}));
       showNotice('ขอบคุณสำหรับคะแนน');return true;
     }catch(error){showNotice(errorMessage(error,'ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
   async function rescheduleJob(id:number,scheduledAt:string,timeWindow?:string,reason?:string):Promise<boolean>{
-    try{const saved=await requestReschedule(id,scheduledAt,timeWindow,reason);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
+    try{const saved=await requestReschedule(id,scheduledAt,timeWindow,reason);writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
       showNotice('เปลี่ยนวันนัดแล้ว อีกฝ่ายได้รับแจ้งแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'เลื่อนนัดไม่สำเร็จ'));return false;}
   }
   async function reopenJob(id:number):Promise<boolean>{
-    try{const saved=await reopenBooking(id);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
+    try{const saved=await reopenBooking(id);writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
       showNotice('เปิดรับข้อเสนออีกครั้งแล้ว ช่างใกล้บ้านจะเห็นงานนี้');return true;}
     catch(error){showNotice(errorMessage(error,'เปิดรับข้อเสนอไม่สำเร็จ'));void refreshBookings();return false;}
   }
   async function saveProgress(id:number,unitsDone:number,roomsDone?:string[]):Promise<boolean>{
-    try{const saved=await updateJobProgress(id,unitsDone,roomsDone);setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));return true;}
+    try{const saved=await updateJobProgress(id,unitsDone,roomsDone);writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));return true;}
     catch(error){showNotice(errorMessage(error,'บันทึกความคืบหน้าไม่สำเร็จ'));return false;}
   }
   async function finishJob(id:number,payload:CompleteJobPayload):Promise<boolean>{
     try{
       const saved=await completeJob(id,payload);
-      setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
+      writes.current++;setState(previous=>({...previous,bookings:previous.bookings.map(item=>item.id===id?saved:item)}));
       void refreshData();
       return true;
     }catch(error){showNotice(errorMessage(error,'ปิดงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
@@ -313,19 +331,20 @@ export default function App() {
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
   }
 
+  // One bell, in whichever bar is showing: two copies polled twice and drifted apart.
   const bell = <NotificationBell onOpen={openNotification} onSetupPush={setupPush}/>;
   const tabbed = books(user.role)||user.role==='technician'; // they get the phone bottom bar
   return <div className={'sh ac-shell'+(tabbed?' has-tabbar':'')} data-role={user.role}>
     <div className={'sh-scrim'+(mobileNavOpen?' is-open':'')} onClick={()=>setMobileNavOpen(false)} aria-hidden="true"/>
     <div className={'sh-rail-wrap'+(mobileNavOpen?' is-open':'')}><Sidebar page={page} onNavigate={navigate} role={user.role} user={user} onLogout={logout} onNewBooking={books(user.role)?()=>openBooking():undefined} actionCount={actionCount}/></div>
     <main className="sh-main">
-      <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={bell}/>
+      <Topbar role={user.role} page={page} title={titleFor(user.role,page)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onNewBooking={()=>openBooking()} bell={desktop?bell:null}/>
       <header className="sh-band">
         {tabbed
           ?<span className="sh-band-mark" aria-hidden="true"><BrandMark className="w-[80%] h-auto"/></span>
           :<button type="button" className="sh-band-btn" onClick={()=>setMobileNavOpen(true)} aria-label="เปิดเมนู"><Menu size={22}/></button>}
         <div className="sh-band-text"><h1>{titleFor(user.role,page)}</h1><span>{todayLabel()}</span></div>
-        {bell}
+        {!desktop&&bell}
       </header>
       {dataError&&<div className="ui-alert is-problem sh-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button type="button" className="ui-btn is-sm" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
       {isLoading&&<div className="sh-progress" role="status"><span className="sr-only">กำลังโหลดข้อมูล</span></div>}

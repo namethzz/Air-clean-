@@ -45,7 +45,7 @@ public class AirConditionersController(MongoStore db, Notifier notifier) : AirCl
     {
         if (string.IsNullOrWhiteSpace(request.Label)) return BadRequest(new { message = "กรุณาตั้งชื่อเครื่อง เช่น แอร์ห้องนอน" });
         var last = request.LastServiceDate?.Date;
-        if (last > DateTime.UtcNow.Date) return BadRequest(new { message = "วันที่ล้างล่าสุดต้องไม่เป็นวันในอนาคต" });
+        if (last > Membership.ThaiNow.Date) return BadRequest(new { message = "วันที่ล้างล่าสุดต้องไม่เป็นวันในอนาคต" });
         var next = last?.AddMonths(6);
         var unit = new AirConditioner {
             Id = await store.NextIdAsync("airConditioners"), OwnerId = CurrentUserId, Label = request.Label.Trim(),

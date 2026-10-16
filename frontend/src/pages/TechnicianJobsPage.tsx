@@ -8,7 +8,7 @@ import LocationMap from '../components/LocationMap';
 import Stepper, { useIsWide } from '../components/JobStepper';
 import { JobPhotoGallery, JobPhotoPicker } from '../components/JobPhotos';
 import { RoomBoard } from '../components/Rooms';
-import { isClosed, isOffer, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
+import { isClosed, isOffer, techClosed, techGuide, techNeedsAction, techStep, techSteps } from '../lib/jobFlow';
 import { clashesWith } from '../lib/clash';
 import './Membership.css';
 import type { CompleteJobPayload } from '../lib/api';
@@ -234,7 +234,7 @@ export default function TechnicianJobsPage(props: Props) {
   const shown = tab === 'open' ? open : closed;
   const selected = bookings.find(item => item.id === selectedId) ?? (wide ? shown[0] : undefined);
   const toGo = open.filter(item => active.includes(item.status)).length;
-  const finished = finishedId != null ? bookings.find(item => item.id === finishedId && item.status === 'เสร็จสิ้น') : undefined;
+  const finished = finishedId != null ? bookings.find(item => item.id === finishedId && (item.status === 'เสร็จสิ้น' || techClosed(item))) : undefined;
   const nextJob = open.find(item => active.includes(item.status) || item.status === 'รอยืนยัน');
   async function complete(id: number, payload: CompleteJobPayload) {
     const ok = await props.onComplete(id, payload);
@@ -374,7 +374,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
     {going && booking.notes && <section className="cj-block tj-notes"><h3>ข้อมูลจากลูกค้า</h3><p>{booking.notes}</p></section>}
     {going && booking.rooms?.length ? <RoomChecklist booking={booking} onProgress={onProgress}/> : going && (booking.unitCount || 1) >= 3 && <UnitProgress booking={booking} onProgress={onProgress}/>}
 
-    {going && <FinishJob booking={booking} onComplete={onComplete}/>}
+    {going && !techClosed(booking) && <FinishJob booking={booking} onComplete={onComplete}/>}
 
     {booking.status === 'เสร็จสิ้น' && <section className="cj-block"><JobPhotoGallery bookingId={booking.id}/></section>}
     {booking.status === 'เสร็จสิ้น' && booking.paymentStatus === 'Paid' && <button type="button" className="cj-ghost tj-receipt" onClick={() => setReceipt(true)}><FileText size={16}/> ใบเสร็จของงานนี้</button>}
@@ -426,8 +426,9 @@ function JobFinished({ booking, bookings, next, onOpen, onFindJobs }: { booking:
     </div>
     <ul className="tj-done-saved">
       <li><Check size={16} strokeWidth={3}/> บันทึกการรับเงินแล้ว</li>
-      <li><Check size={16} strokeWidth={3}/> บันทึกประวัติการล้างแอร์ให้ลูกค้าแล้ว</li>
-      <li><Check size={16} strokeWidth={3}/> แจ้งลูกค้าให้ให้คะแนนคุณแล้ว</li>
+      {booking.status === 'เสร็จสิ้น'
+        ? <><li><Check size={16} strokeWidth={3}/> บันทึกประวัติการล้างแอร์ให้ลูกค้าแล้ว</li><li><Check size={16} strokeWidth={3}/> แจ้งลูกค้าให้ให้คะแนนคุณแล้ว</li></>
+        : <li><Clock3 size={16} strokeWidth={2.6}/> แจ้งลูกค้าให้ยืนยันการจ่ายเงินแล้ว ถ้าไม่มีการแจ้งปัญหา ระบบปิดงานให้เองใน 3 วัน</li>}
     </ul>
     <dl className="tj-done-stats">
       <div><dt>วันนี้</dt><dd>{doneToday.length} งาน · ฿{sum(doneToday).toLocaleString()}</dd></div>
@@ -466,19 +467,23 @@ function RoomChecklist({ booking, onProgress }: { booking: Booking; onProgress: 
   const [rooms, setRooms] = useState(booking.rooms ?? []);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Taps made while a save is on its way stay unsaved, so they are not dropped when that save returns.
+  const taps = useRef(0);
   useEffect(() => { if (!dirty) setRooms(booking.rooms ?? []); }, [booking.rooms]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!dirty) return;
     const timer = window.setTimeout(async () => {
+      const at = taps.current;
       setSaving(true);
       await onProgress(booking.id, 0, rooms.filter(room => room.done).map(room => room.name));
-      setSaving(false); setDirty(false);
+      setSaving(false);
+      if (taps.current === at) setDirty(false);
     }, 800);
     return () => window.clearTimeout(timer);
   }, [rooms, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
   return <section className="cj-block tj-progress">
     <h3>ห้องที่ล้างแล้ว</h3>
-    <RoomBoard rooms={rooms} onToggle={name => { setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
+    <RoomBoard rooms={rooms} onToggle={name => { taps.current++; setRooms(list => list.map(room => room.name === name ? { ...room, done: !room.done } : room)); setDirty(true); }}/>
     <p className="cj-note">{saving ? 'กำลังบันทึก…' : 'แตะห้องเมื่อล้างเสร็จ ลูกค้าเห็นทันทีว่าห้องไหนเสร็จแล้ว'}</p>
   </section>;
 }
@@ -525,7 +530,7 @@ function FinishJob({ booking, onComplete }: { booking: Booking; onComplete: Prop
   }
   return <section className="cj-block tj-finish">
     <h3>ล้างเสร็จแล้ว? ปิดงานที่นี่</h3>
-    <p className="cj-note">กดครั้งเดียวหลังล้างเสร็จและได้รับเงินจากลูกค้าแล้ว ระบบจะบันทึกประวัติการล้างแอร์ให้ลูกค้าอัตโนมัติ</p>
+    <p className="cj-note">กดครั้งเดียวหลังล้างเสร็จและได้รับเงินจากลูกค้าแล้ว ลูกค้าจะได้รับแจ้งให้ยืนยันการจ่ายเงิน แล้วระบบบันทึกประวัติการล้างแอร์ให้อัตโนมัติ</p>
     <div className="tj-photos">
       <h4>รูปงาน</h4>
       <p className="cj-note">ถ่ายรูปแอร์หลังล้างอย่างน้อย 1 รูป ลูกค้าจะเห็นรูปในงานของเขา</p>

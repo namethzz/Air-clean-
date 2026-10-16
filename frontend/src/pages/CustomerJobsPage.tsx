@@ -2,7 +2,7 @@ import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History, Phone,
-  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wrench,
+  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wrench, X,
 } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
@@ -16,6 +16,7 @@ import { useIsWide } from '../components/JobStepper';
 import Avatar from '../components/Avatar';
 import { Plate, PhotoCard, Steps } from '../components/kit';
 import { nextCleaning } from '../lib/cleaning';
+import { webLink } from '../lib/links';
 import filterPhoto from '../assets/hero/photo-filter.webp';
 import inspectPhoto from '../assets/hero/photo-inspect.webp';
 import './CustomerJobs.css';
@@ -161,7 +162,8 @@ export default function CustomerJobsPage(props: Props) {
 /** What the customer has to do now, said on the reflective strip; null when nothing is theirs to do. */
 function turnFor(booking: Booking): string | null {
   if (booking.status === 'หมดเวลาเลือกช่าง') return 'เปิดรับข้อเสนออีกครั้ง หรือเลือกวันนัดใหม่ ด้านล่าง';
-  if (booking.status === 'รอชำระเงิน' && !booking.customerConfirmedPayment) return 'จ่ายเงินให้ช่าง แล้วกดยืนยันด้านล่าง';
+  if (booking.status === 'รอชำระเงิน' && !booking.customerConfirmedPayment)
+    return booking.technicianConfirmedPayment ? 'ช่างแจ้งว่าได้รับเงินแล้ว ยืนยันหรือแจ้งปัญหาด้านล่าง' : 'จ่ายเงินให้ช่าง แล้วกดยืนยันด้านล่าง';
   if (booking.status === 'เสร็จสิ้น' && !booking.customerRating && !isClosedForCustomer(booking)) return 'ให้คะแนนช่างด้านล่าง';
   return null;
 }
@@ -398,7 +400,8 @@ function Payment({ booking, onConfirm, onIssue }: { booking: Booking; onConfirm:
   const techGotIt = Boolean(booking.technicianConfirmedPayment);
   return <section className="ui-card jb-pay" aria-label="ชำระเงิน">
     <Plate num={baht(booking.price)} unit="เก็บเงินปลายทาง" meta={<span>จ่ายให้ <strong>{booking.technician}</strong> โดยตรงเมื่อล้างเสร็จ</span>}/>
-    {!underReview && !youPaid && <div className="ui-field">
+    {!underReview && !youPaid && techGotIt && <p className="ui-alert is-info jb-tech-paid">ช่างแจ้งว่าได้รับเงิน{booking.paymentMethod === 'PromptPay' ? 'โอน' : 'สด'} {baht(booking.price)} แล้ว ถ้าถูกต้อง กดยืนยันด้านล่าง ถ้ายังไม่ได้จ่ายหรือยอดไม่ตรง กดแจ้งปัญหา ถ้าไม่มีการแจ้งภายใน 3 วัน ระบบปิดงานให้อัตโนมัติ</p>}
+    {!underReview && !youPaid && !techGotIt && <div className="ui-field">
       <span className="ui-label" id={`pay-how-${booking.id}`}>จ่ายด้วย</span>
       <div className="ui-tabs" role="group" aria-labelledby={`pay-how-${booking.id}`}>
         <button type="button" aria-pressed={method === 'Cash'} onClick={() => setMethod('Cash')}><Banknote size={18}/> เงินสด</button>
@@ -425,8 +428,9 @@ function ReportBlock({ report }: { report: ServiceReportRecord }) {
   return <section className="ui-card">
     <h2>สรุปงานจากช่าง</h2>
     <p className="jb-report">{report.summary}</p>
-    <ul className="jb-checks is-grid">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'is-ok' : ''}><Check size={17} strokeWidth={3}/> {item.label}</li>)}</ul>
-    {(report.beforePhotoUrl || report.afterPhotoUrl) && <p className="jb-photo-links">{report.beforePhotoUrl && <a className="ui-link" href={report.beforePhotoUrl} target="_blank" rel="noreferrer">ดูภาพก่อนทำ</a>}{report.afterPhotoUrl && <a className="ui-link" href={report.afterPhotoUrl} target="_blank" rel="noreferrer">ดูภาพหลังทำ</a>}</p>}
+    {/* Done or not is said in words and by the icon, not only by colour */}
+    <ul className="jb-checks is-grid">{checklist.map(item => <li key={item.key} className={report[item.key] ? 'is-ok' : ''}>{report[item.key] ? <Check size={17} strokeWidth={3} aria-hidden="true"/> : <X size={17} strokeWidth={3} aria-hidden="true"/>} {item.label}<span className="sr-only">{report[item.key] ? ' (ทำแล้ว)' : ' (ไม่ได้ทำ)'}</span></li>)}</ul>
+    {(webLink(report.beforePhotoUrl) || webLink(report.afterPhotoUrl)) && <p className="jb-photo-links">{webLink(report.beforePhotoUrl) && <a className="ui-link" href={webLink(report.beforePhotoUrl)!} target="_blank" rel="noopener noreferrer">ดูภาพก่อนทำ</a>}{webLink(report.afterPhotoUrl) && <a className="ui-link" href={webLink(report.afterPhotoUrl)!} target="_blank" rel="noopener noreferrer">ดูภาพหลังทำ</a>}</p>}
   </section>;
 }
 

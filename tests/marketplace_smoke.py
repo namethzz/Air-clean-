@@ -261,6 +261,16 @@ if idp_port:
     apple_token = idp.token('apple', apple_aud, 'a-' + suffix, email=social_email)
     linked = call('/auth/external', 'POST', {'provider': 'apple', 'idToken': apple_token})
     assert linked['user']['id'] == created['user']['id'] and sorted(linked['user']['providers']) == ['apple', 'google']
+    # The address was already proven by Google, so the password set since then keeps working.
+    call('/auth/login', 'POST', {'email': social_email, 'password': 'SocialPass123!'})
+    # Someone registered an address that is not theirs: when its owner signs in with Google, the account becomes the
+    # owner's alone. The squatter's password stops working and their session ends.
+    squatter, squatted_email = register('Customer')
+    owner = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-owner-' + suffix, email=squatted_email)})
+    assert not owner['user']['hasPassword'] and owner['user']['providers'] == ['google']
+    call('/auth/login', 'POST', {'email': squatted_email, 'password': 'CiTestPass123!'}, expected=401)
+    call('/auth/me', token=squatter, expected=401)
+    call('/auth/me', token=owner['token'])
     # An unverified email never links to an existing password account.
     _, victim_email = register('Customer')
     sneaky = idp.token('apple', apple_aud, 'a-sneaky-' + suffix, email=victim_email, email_verified=False)
@@ -352,18 +362,26 @@ if brevo_port:
     call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Bitcoin'}, n_tech, 400)
     call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_customer, 403)
     call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_other, 403)
+    # The technician's "done and paid" waits for the customer: confirm, dispute, or it closes by itself after 3 days.
     closed = call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'PromptPay', 'summary': 'ล้างครบ 2 เครื่อง'}, n_tech)
-    assert closed['status'] == 'เสร็จสิ้น' and closed['paymentMethod'] == 'PromptPay' and closed['paymentStatus'] == 'Paid'
+    assert closed['status'] == 'รอชำระเงิน' and closed['paymentMethod'] == 'PromptPay' and closed['technicianConfirmedPayment'] and not closed['customerConfirmedPayment']
+    assert 'ยืนยัน' in notice(n_customer, 'ยืนยันการจ่ายเงิน')['body']
     call(f"/bookings/{job['id']}/complete", 'POST', {'method': 'Cash'}, n_tech, 409)
+    assert call('/technicians/me', token=n_tech)['jobsCompleted'] == jobs_before
+    closed = call(f"/bookings/{job['id']}/payment-confirmation", 'PATCH', {'method': 'PromptPay', 'confirmed': True}, n_customer)
+    assert closed['status'] == 'เสร็จสิ้น' and closed['paymentStatus'] == 'Paid'
     assert call('/technicians/me', token=n_tech)['jobsCompleted'] == jobs_before + 1
     report_row = next(r for r in call('/service-reports', token=n_customer) if r['bookingId'] == job['id'])
     assert report_row['summary'] == 'ล้างครบ 2 เครื่อง' and report_row['cleanedFilter']
-    assert 'ให้คะแนน' in notice(n_customer, 'ล้างแอร์เสร็จแล้ว')['body']
     # Straight from "confirmed" works too (the technician never pressed travelling or arrived).
     direct = call('/bookings', 'POST', payload, n_customer, 201)
     call(f"/bookings/{direct['id']}/applications", 'POST', {}, n_tech)
     call(f"/bookings/{direct['id']}/confirm-technician", 'POST', {'technicianId': n_profile['id']}, n_customer)
-    assert call(f"/bookings/{direct['id']}/complete", 'POST', {'method': 'Cash'}, n_tech)['status'] == 'เสร็จสิ้น'
+    assert call(f"/bookings/{direct['id']}/complete", 'POST', {'method': 'Cash'}, n_tech)['status'] == 'รอชำระเงิน'
+    # The customer disputes instead: the technician's earlier "paid" no longer counts and an admin decides.
+    disputed = call(f"/bookings/{direct['id']}/payment-issue", 'POST', {'reason': 'ยังไม่ได้จ่ายเงิน ช่างกดปิดงานก่อน'}, n_customer)
+    assert disputed['status'] == 'มีปัญหาการชำระเงิน' and not disputed['technicianConfirmedPayment']
+    assert call(f"/bookings/{direct['id']}/payment-confirmation", 'PATCH', {'method': 'Cash', 'confirmed': True}, n_tech)['status'] == 'มีปัญหาการชำระเงิน'
     assert next(r for r in call('/service-reports', token=n_customer) if r['bookingId'] == direct['id'])['summary']
     # After the job the customer can rate, and flag a problem for the admin.
     call(f"/bookings/{job['id']}/reviews", 'POST', {'rating': 5, 'comment': 'ดีมาก'}, n_customer, 201)
@@ -555,7 +573,9 @@ assert progressed['unitsDone'] == 20 and progressed['status'] == 'กำลั�
 assert call(f"/bookings/{whole['id']}", token=manager)['unitsDone'] == 20
 assert call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 300}, tech)['unitsDone'] == 48
 finished_whole = call(f"/bookings/{whole['id']}/complete", 'POST', {'method': 'PromptPay'}, tech)
-assert finished_whole['unitsDone'] == 48 and finished_whole['status'] == 'เสร็จสิ้น'
+assert finished_whole['unitsDone'] == 48 and finished_whole['status'] == 'รอชำระเงิน'
+finished_whole = call(f"/bookings/{whole['id']}/payment-confirmation", 'PATCH', {'method': 'PromptPay', 'confirmed': True}, manager)
+assert finished_whole['status'] == 'เสร็จสิ้น'
 call(f"/bookings/{whole['id']}/progress", 'POST', {'unitsDone': 1}, tech, 409)
 call(f"/bookings/{whole['id']}/reviews", 'POST', {'rating': 5, 'comment': 'ทีมงานดี'}, manager, 201)
 # Buildings with a room list: rooms are picked when booking, decide the unit count, and are ticked off one by one.
@@ -576,6 +596,7 @@ assert ticked['unitsDone'] == 3 and [r['done'] for r in ticked['rooms']] == [Fal
 assert call(f"/bookings/{by_room['id']}/progress", 'POST', {'roomsDone': []}, tech)['unitsDone'] == 0
 closed_rooms = call(f"/bookings/{by_room['id']}/complete", 'POST', {'method': 'Cash'}, tech)
 assert all(r['done'] for r in closed_rooms['rooms']) and closed_rooms['unitsDone'] == 5
+assert call(f"/bookings/{by_room['id']}/payment-confirmation", 'PATCH', {'method': 'Cash', 'confirmed': True}, manager)['status'] == 'เสร็จสิ้น'
 # Receipts: issued once by the customer for a paid job, in their name or a company's, with a running number.
 call(f"/bookings/{whole['id']}/receipt", token=other_customer, expected=403)
 draft = call(f"/bookings/{whole['id']}/receipt", token=manager)
@@ -813,6 +834,15 @@ if os.environ.get('MONGODB_URI'):
         time.sleep(0.5)
         assert sum('พรุ่งนี้ช่างจะมาล้างแอร์' in t for t in titles(r_customer)) == 1
         assert cron(eve + 'T23:00:00')['quiet']
+        # A job the technician closed as paid, with no confirmation or dispute from the customer, closes after 3 days.
+        auto_job = call('/bookings', 'POST', payload, r_customer, 201)
+        call(f"/bookings/{auto_job['id']}/applications", 'POST', {}, tech)
+        call(f"/bookings/{auto_job['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, r_customer)
+        assert call(f"/bookings/{auto_job['id']}/complete", 'POST', {'method': 'Cash'}, tech)['status'] == 'รอชำระเงิน'
+        cron((datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d') + 'T10:00:00')
+        assert call(f"/bookings/{auto_job['id']}", token=r_customer)['status'] == 'รอชำระเงิน'
+        cron((datetime.now() + timedelta(days=4)).strftime('%Y-%m-%d') + 'T10:00:00')
+        assert call(f"/bookings/{auto_job['id']}", token=r_customer)['status'] == 'เสร็จสิ้น'
         # Six months after the last cleaning at a place, with nothing booked there.
         me = call('/auth/me', token=r_customer)
         db.bookings.insert_one({'_id': 990000 + int(time.time()) % 9999, 'Code': 'OLD-1', 'CustomerId': me['id'], 'Status': 'Completed', 'Address': 'OLD-HOUSE-1',

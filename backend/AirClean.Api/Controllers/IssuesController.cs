@@ -54,6 +54,9 @@ public class IssuesController(MongoStore db, Notifier notifier) : AirCleanContro
         var previous = booking.Status;
         booking.Status = BookingStates.PaymentIssue;
         booking.PaymentStatus = "Issue";
+        // A dispute starts the confirmation over, so an earlier tap of "paid" cannot close it from the other side.
+        booking.CustomerConfirmedPayment = false;
+        booking.TechnicianConfirmedPayment = false;
         booking.Issue = new BookingIssue { Kind = IssueKinds.Payment, Reason = request.Reason.Trim(), ReportedByUserId = CurrentUserId, ReportedByRole = CurrentRole, ReportedAt = DateTime.UtcNow };
         booking.UpdatedAt = DateTime.UtcNow;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = previous, ToStatus = booking.Status, Notes = request.Reason.Trim(), CreatedAt = DateTime.UtcNow });

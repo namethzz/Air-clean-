@@ -15,6 +15,7 @@ function useAuthImage(id: string | null) {
   useEffect(() => {
     if (!id) return;
     let alive = true, made = '';
+    setUrl(''); setFailed(false);
     jobPhotoUrl(id).then(value => { made = value; if (alive) setUrl(value); else URL.revokeObjectURL(value); }).catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; if (made) URL.revokeObjectURL(made); };
   }, [id]);

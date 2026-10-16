@@ -1193,16 +1193,6 @@
   color: var(--ac-ink-3, #5d7089);
 }
 
-/* ── Receipt ── */
-@media print {
-  @page {
-    size: A4;
-    margin: 14mm;
-  }
-  body.receipt-open > *:not(.rc-backdrop) {
-    display: none !important;
-  }
-}
 .tj-receipt {
   width: 100%;
 }
