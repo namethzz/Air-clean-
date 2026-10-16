@@ -710,3 +710,127 @@
     transition: none;
   }
 }
+
+/* ───────── The list's company: a summary plate, the next cleaning, an invitation ───────── */
+.jb-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--v-radius-lg);
+  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
+  color: var(--v-on-blue);
+  box-shadow: var(--v-shadow-plate);
+}
+.jb-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 14px 16px;
+}
+.jb-summary div + div {
+  border-left: 1px solid rgb(255 255 255 / 0.16);
+}
+.jb-summary dt {
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-on-blue-2);
+}
+.jb-summary dd {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  color: var(--v-on-blue-2);
+}
+.jb-summary dd.ui-num,
+.jb-summary dd .ui-num {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--v-on-blue);
+}
+.jb-summary .is-turn {
+  background: var(--v-turn);
+}
+.jb-summary .is-turn dt,
+.jb-summary .is-turn dd.ui-num {
+  color: var(--v-turn-ink);
+}
+
+.jb-due {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--v-shadow-card);
+}
+.jb-due:hover {
+  border-color: var(--v-blue-400);
+}
+.jb-due-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--v-radius);
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.jb-due-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.jb-due-text small {
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-blue-700);
+}
+.jb-due-text strong {
+  font: 600 var(--v-text-lg) / 1.3 var(--v-font-head);
+}
+.jb-due-text span {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.jb-due.is-due {
+  border-color: var(--v-turn-deep);
+  background: #fff3e8;
+}
+.jb-due.is-due .jb-due-icon {
+  background: var(--v-turn);
+  color: var(--v-turn-ink);
+}
+.jb-due.is-due .jb-due-text small {
+  color: #9a4a00;
+}
+
+.jb-invite {
+  min-height: 250px;
+}
+.jb-invite h2 {
+  font-size: var(--v-text-xl);
+}
+
+/* No jobs yet */
+.jb-first {
+  gap: var(--v-gap-5);
+}
+.jb-first-photo {
+  min-height: min(56vh, 420px);
+}
+.tj-first {
+  gap: var(--v-gap-5);
+}
+.tj-first-photo {
+  min-height: min(52vh, 400px);
+}

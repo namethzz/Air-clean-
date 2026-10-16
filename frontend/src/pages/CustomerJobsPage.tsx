@@ -2,7 +2,7 @@ import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, History, Phone,
-  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wind, Wrench,
+  MapPin, Plus, RotateCcw, ShieldCheck, Smartphone, Star, Timer, Wrench,
 } from 'lucide-react';
 import { RescheduleSheet, canReschedule, formatPhone, telLink } from '../components/Reschedule';
 import ReceiptSheet from '../components/ReceiptSheet';
@@ -14,7 +14,10 @@ import { currentStep, guideFor, isClosedForCustomer, journeySteps, minutesToPick
 import type { Booking, BookingApplicant, BookingStatus, PaymentMethod, ServiceReportRecord } from '../types';
 import { useIsWide } from '../components/JobStepper';
 import Avatar from '../components/Avatar';
-import { EmptyState, Plate } from '../components/kit';
+import { Plate, PhotoCard, Steps } from '../components/kit';
+import { nextCleaning } from '../lib/cleaning';
+import filterPhoto from '../assets/hero/photo-filter.webp';
+import inspectPhoto from '../assets/hero/photo-inspect.webp';
 import './CustomerJobs.css';
 import './Jobs.css';
 
@@ -79,18 +82,35 @@ export default function CustomerJobsPage(props: Props) {
   // Minutes left to pick a technician tick down on the list too.
   const now = useNow(open.some(item => item.offerDeadline && item.status === 'รอเลือกช่าง') ? 30000 : 0);
 
+  const due = nextCleaning(bookings);
+  const doneCount = bookings.filter(item => item.status === 'เสร็จสิ้น').length;
+
   if (!bookings.length) {
-    return <div className="ui-page is-narrow">
-      <EmptyState icon={Wind} title="ยังไม่มีงานล้างแอร์"
-        action={<button type="button" className="ui-btn is-primary is-lg" onClick={onNewBooking}><Plus size={20}/> ขอช่างล้างแอร์</button>}>
+    return <div className="ui-page is-narrow jb-first">
+      <PhotoCard src={inspectPhoto} alt="ช่างแอร์ถือแฟ้มตรวจเช็กแอร์ติดผนัง" position="62% 35%" className="jb-first-photo"
+        title="ยังไม่มีงานล้างแอร์"
+        action={<button type="button" className="ui-btn is-light is-lg" onClick={onNewBooking}><Plus size={20}/> ขอช่างล้างแอร์</button>}>
         ส่งคำขอครั้งเดียว ช่างในพื้นที่ที่สนใจจะเสนอราคาให้คุณเลือก
-      </EmptyState>
+      </PhotoCard>
+      <section className="ui-card" aria-labelledby="jb-first-how">
+        <div className="ui-card-head"><div><h2 id="jb-first-how">งานของคุณจะมาอยู่ที่นี่</h2><p>ติดตามได้ทุกขั้น ตั้งแต่ส่งคำขอจนล้างเสร็จ</p></div></div>
+        <Steps items={[
+          { title: 'ส่งคำขอ', text: 'บอกที่อยู่ จำนวนแอร์ และวันที่สะดวก ใช้เวลาไม่ถึงนาที' },
+          { title: 'เลือกช่างจากข้อเสนอ', text: 'เทียบราคา คะแนน และโปรไฟล์ของช่างใกล้บ้าน' },
+          { title: 'ช่างมาล้าง แล้วจ่ายเมื่อเสร็จ', text: 'ดูตำแหน่งช่างระหว่างเดินทาง เงินสดหรือโอนก็ได้' },
+        ]}/>
+      </section>
     </div>;
   }
 
   return <div className={'jb' + (selected && !wide ? ' is-detail' : '')}>
     <section className="jb-list" aria-label="รายการงาน">
-      {actionCount > 0 && <p className="jb-list-turn"><span className="ui-badge is-turn">{actionCount} งานรอคุณ</span> งานที่มีป้ายนี้ต้องให้คุณทำต่อ</p>}
+      <dl className="jb-summary">
+        <div><dt>กำลังดำเนินการ</dt><dd className="ui-num">{open.length}</dd></div>
+        <div className={actionCount ? 'is-turn' : ''}><dt>รอคุณทำต่อ</dt><dd className="ui-num">{actionCount}</dd></div>
+        <div><dt>ล้างแล้ว</dt><dd><span className="ui-num">{doneCount}</span> ครั้ง</dd></div>
+      </dl>
+      {actionCount > 0 && <p className="jb-list-turn"><span className="ui-badge is-turn">ถึงตาคุณ</span> งานที่มีป้ายนี้ต้องให้คุณทำต่อ</p>}
       <div className="ui-tabs" role="tablist" aria-label="กลุ่มงาน">
         <button type="button" role="tab" aria-selected={tab === 'open'} onClick={() => setTab('open')}>กำลังดำเนินการ <span className="ui-num">{open.length}</span></button>
         <button type="button" role="tab" aria-selected={tab === 'closed'} onClick={() => setTab('closed')}>เสร็จสิ้นและยกเลิก <span className="ui-num">{closed.length}</span></button>
@@ -116,7 +136,20 @@ export default function CustomerJobsPage(props: Props) {
             </button>
           </li>;
         })}</ul>}
-      <button type="button" className="ui-btn is-ghost jb-add" onClick={onNewBooking}><Plus size={18}/> ขอช่างล้างแอร์</button>
+      {due && <button type="button" className={'jb-due' + (due.overdue ? ' is-due' : '')} onClick={props.onOpenPassport}>
+        <span className="jb-due-icon" aria-hidden="true"><CalendarClock size={22}/></span>
+        <span className="jb-due-text">
+          <small>{due.overdue ? 'รอบล้างแอร์' : 'ล้างครั้งถัดไป'}</small>
+          <strong>{due.overdue ? 'ถึงรอบล้างแอร์แล้ว' : due.next.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</strong>
+          <span>ล้างล่าสุด {shortDate(due.last.date)} · แนะนำทุก 6 เดือน</span>
+        </span>
+        <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
+      </button>}
+      <PhotoCard src={filterPhoto} alt="ช่างแอร์ใส่หมวกสีฟ้าถอดแผ่นกรองแอร์ออกมาล้าง" position="35% 40%" className="jb-invite"
+        title="มีแอร์เครื่องอื่นต้องล้างไหม"
+        action={<button type="button" className="ui-btn is-light" onClick={onNewBooking}><Plus size={18}/> ขอช่างล้างแอร์</button>}>
+        ส่งคำขอใหม่ได้ทุกเมื่อ ช่างใกล้บ้านเสนอราคาให้คุณเลือก
+      </PhotoCard>
     </section>
 
     <section className="jb-detail" aria-label="รายละเอียดงาน">

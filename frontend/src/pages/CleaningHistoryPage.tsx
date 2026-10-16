@@ -3,6 +3,7 @@ import { CalendarClock, Check, ChevronRight, FileText, History, Plus, Star } fro
 import ReceiptSheet from '../components/ReceiptSheet';
 import { EmptyState } from '../components/kit';
 import type { Booking, ServiceReportRecord } from '../types';
+import { nextCleaning } from '../lib/cleaning';
 import './Jobs.css';
 import './History.css';
 
@@ -26,10 +27,10 @@ const longDate = (date: string) => day(date).toLocaleDateString('th-TH', { day: 
 /** Every finished cleaning, newest first, with when the next one is due. Built from the customer's own jobs. */
 export default function CleaningHistoryPage({ bookings, reports, onOpenJob, onNewBooking }: Props) {
   const done = bookings.filter(item => item.status === 'เสร็จสิ้น').sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  const due = nextCleaning(bookings);
   const last = done[0];
-  const next = last ? day(last.date) : null;
-  next?.setMonth(next.getMonth() + 6);
-  const overdue = next ? next.getTime() < Date.now() : false;
+  const next = due?.next ?? null;
+  const overdue = due?.overdue ?? false;
   const units = done.reduce((total, item) => total + (item.unitCount || 1), 0);
   const spent = done.reduce((total, item) => total + item.price, 0);
   const years = [...new Set(done.map(item => item.date.slice(0, 4)))];
