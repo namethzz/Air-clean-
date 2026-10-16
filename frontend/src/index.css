@@ -1,5 +1,126 @@
+/*
+ * Tailwind 4 without its preflight: the app's own stylesheets were written without Tailwind's reset, so loading
+ * the full "tailwindcss" bundle would restyle every page. tw-animate-css adds the animate-in / fade-in utilities.
+ */
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
+@import "tw-animate-css";
+
+/* shadcn-style colour tokens (bg-background, text-primary, border-border, …) mapped to the AirClean palette. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --font-display: "Anuphan", "IBM Plex Sans Thai", "Noto Sans Thai", sans-serif;
+  --font-body: "IBM Plex Sans Thai", "Noto Sans Thai", "DM Sans", sans-serif;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #13253b;
+  --card: #ffffff;
+  --primary: #2468d8;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f6f9;
+  --muted-foreground: #5d7089;
+  --border: #d3dde8;
+  --ring: #2468d8;
+  --destructive: #b3392f;
+}
+
+/* Entrance used by components/ui/sign-in.tsx: each element fades up from a slight blur, one after another. */
+@keyframes fadeSlideIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+  }
+}
+@keyframes slideRightIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+  }
+}
+@keyframes testimonialIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-element {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(12px);
+    animation: fadeSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-slide-right {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateX(24px);
+    animation: slideRightIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-testimonial {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(16px) scale(0.97);
+    animation: testimonialIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  /* Once the entrance has played, anything that appears later (e.g. sign-up fields) shows at once. */
+  [data-entered] .animate-element {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none;
+  }
+}
+.animate-delay-100 {
+  animation-delay: 0.05s;
+}
+.animate-delay-200 {
+  animation-delay: 0.1s;
+}
+.animate-delay-300 {
+  animation-delay: 0.15s;
+}
+.animate-delay-400 {
+  animation-delay: 0.2s;
+}
+.animate-delay-500 {
+  animation-delay: 0.25s;
+}
+.animate-delay-600 {
+  animation-delay: 0.3s;
+}
+.animate-delay-700 {
+  animation-delay: 0.35s;
+}
+.animate-delay-800 {
+  animation-delay: 0.4s;
+}
+.animate-delay-900 {
+  animation-delay: 0.45s;
+}
+.animate-delay-1000 {
+  animation-delay: 0.6s;
+}
+.animate-delay-1200 {
+  animation-delay: 0.72s;
+}
+.animate-delay-1400 {
+  animation-delay: 0.84s;
+}
+
 :root {
   font-family: "DM Sans", "Noto Sans Thai", sans-serif;
   color: #183b3b;
@@ -1479,51 +1600,6 @@ button:disabled {
   background: #fff;
   white-space: nowrap;
 }
-.auth-screen {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(330px, 0.92fr) minmax(420px, 1.08fr);
-  background: #f7faf8;
-  color: #173d3a;
-}
-.auth-visual {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 100vh;
-  padding: 42px clamp(28px, 5vw, 76px);
-  color: #f0f8f4;
-  background: radial-gradient(circle at 83% 18%, #36776e 0, transparent 31%), linear-gradient(145deg, #103e3d, #0b302f 72%, #164844);
-}
-.auth-visual:after {
-  content: "";
-  position: absolute;
-  width: 440px;
-  height: 440px;
-  border: 1px solid #ffffff22;
-  border-radius: 50%;
-  right: -120px;
-  bottom: 70px;
-  box-shadow:
-    0 0 0 45px #ffffff08,
-    0 0 0 95px #ffffff05;
-  pointer-events: none;
-}
-.auth-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 21px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  position: relative;
-  z-index: 1;
-}
-.auth-brand b {
-  color: #a7d9c4;
-}
 .auth-brand-icon {
   display: inline-grid;
   place-items: center;
@@ -1534,233 +1610,14 @@ button:disabled {
   color: #15544f;
   flex-shrink: 0;
 }
-.auth-visual-copy {
-  position: relative;
-  z-index: 1;
-  max-width: 520px;
-  margin: 42px 0 60px;
-}
-.auth-visual-copy h1 {
-  margin: 23px 0 17px;
-  color: #fff;
-  font-size: clamp(32px, 4vw, 52px);
-  line-height: 1.3;
-  letter-spacing: -1.5px;
-}
-.auth-visual-copy p {
-  max-width: 440px;
-  margin: 0;
-  color: #c0d9d0;
-  font-size: 15px;
-  line-height: 1.9;
-}
-.auth-benefit {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 18px;
-  color: #e1f0e9;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.auth-benefit svg {
-  color: #92d3b4;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.auth-panel-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 38px 24px;
-}
-.auth-panel {
-  width: min(100%, 430px);
-}
-.auth-mobile-brand {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 30px;
-}
-.auth-mobile-brand b {
-  color: #287b6a;
-}
-.auth-mobile-brand .auth-brand-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-}
-.auth-heading {
-  margin-bottom: 25px;
-}
-.auth-heading h2 {
-  margin: 8px 0;
-  font-size: 30px;
-  letter-spacing: -0.8px;
-  color: #163e3b;
-  line-height: 1.35;
-}
-.auth-heading p {
-  margin: 0;
-  color: #7c9189;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.auth-mode-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
-  background: #eaf1ed;
-  border-radius: 11px;
-  margin-bottom: 24px;
-}
-.auth-mode-switch button {
-  min-height: 42px;
-  border: 0;
-  border-radius: 8px;
-  color: #6d8278;
-  background: transparent;
-  font-size: 13px;
-  font-weight: 600;
-}
-.auth-mode-switch button.active {
-  color: #174d46;
-  background: #fff;
-  box-shadow: 0 2px 7px #123d3d0e;
-}
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  color: #335750;
-  font-size: 12px;
-  font-weight: 600;
-}
-.auth-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 13px;
-  border: 1px solid #dce7e0;
-  background: #fff;
-  border-radius: 10px;
-  color: #87a095;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-}
-.auth-input-wrap:focus-within {
-  border-color: #66a999;
-  box-shadow: 0 0 0 3px #72b9a21b;
-}
-.auth-input-wrap input {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #173d3a;
-  font-size: 14px;
-}
-.auth-input-wrap input:focus-visible {
-  outline: 0;
-}
-.auth-input-wrap input::placeholder {
-  color: #a8b7af;
-}
-.auth-password-toggle {
-  display: grid;
-  place-items: center;
-  min-width: 30px;
-  min-height: 34px;
-  border: 0;
-  background: transparent;
-  color: #80948a;
-}
-.auth-submit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 11px;
-  width: 100%;
-  min-height: 48px;
-  margin-top: 4px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 10px;
-  background: #176c61;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 8px 18px #176c6121;
-  transition:
-    transform 0.15s,
-    background 0.15s;
-}
-.auth-submit:hover:not(:disabled) {
-  background: #0f594f;
-  transform: translateY(-1px);
-}
-.auth-submit:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-.auth-error,
-.auth-config-notice {
+.auth-error {
   padding: 11px 12px;
   border-radius: 9px;
   font-size: 12px;
   line-height: 1.65;
-}
-.auth-error {
   border: 1px solid #f0caca;
   background: #fff5f5;
   color: #a53c3c;
-}
-.auth-config-notice {
-  border: 1px solid #f0d9a4;
-  background: #fff9ed;
-  color: #87601d;
-}
-.auth-registration-note {
-  margin: 16px 0 0;
-  color: #819289;
-  font-size: 11px;
-  line-height: 1.7;
-}
-.auth-security-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 24px;
-  padding-top: 17px;
-  border-top: 1px solid #e7eee9;
-  color: #86968d;
-  font-size: 11px;
-  line-height: 1.65;
-}
-.auth-security-note svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: #619487;
-}
-.auth-copyright {
-  margin-top: 30px;
-  text-align: center;
-  color: #a1aea6;
-  font-size: 10px;
 }
 .auth-loading {
   min-height: 100vh;
@@ -2023,15 +1880,6 @@ button:disabled {
   margin-top: 1px;
 }
 @media (max-width: 1050px) {
-  .auth-screen {
-    grid-template-columns: minmax(280px, 0.8fr) minmax(390px, 1.2fr);
-  }
-  .auth-visual {
-    padding: 34px;
-  }
-  .auth-visual-copy h1 {
-    font-size: 36px;
-  }
   .report-live-layout {
     grid-template-columns: 1fr;
   }
@@ -2043,25 +1891,6 @@ button:disabled {
   }
 }
 @media (max-width: 850px) {
-  .auth-screen {
-    display: block;
-  }
-  .auth-visual {
-    display: none;
-  }
-  .auth-panel-wrap {
-    min-height: 100vh;
-    padding: 28px 20px;
-  }
-  .auth-panel {
-    max-width: 460px;
-  }
-  .auth-mobile-brand {
-    display: flex;
-  }
-  .auth-heading h2 {
-    font-size: 27px;
-  }
   .app-data-alert {
     margin: 12px 18px 0;
   }
@@ -2073,24 +1902,6 @@ button:disabled {
   }
 }
 @media (max-width: 560px) {
-  .auth-panel-wrap {
-    padding: 20px 17px;
-  }
-  .auth-mobile-brand {
-    margin-bottom: 23px;
-  }
-  .auth-heading {
-    margin-bottom: 20px;
-  }
-  .auth-heading h2 {
-    font-size: 25px;
-  }
-  .auth-form {
-    gap: 14px;
-  }
-  .auth-input-wrap {
-    min-height: 47px;
-  }
   .page-heading-row h1 {
     font-size: 23px;
   }
@@ -2297,14 +2108,6 @@ button:disabled {
     width: calc(100% - 135px);
     max-width: 310px;
   }
-}
-
-.auth-role-lock-note {
-  display: block;
-  margin-top: 7px;
-  color: #7b9286;
-  font-size: 11px;
-  line-height: 1.55;
 }
 
 /* Nearby technician marketplace and customer candidate review */
@@ -2739,13 +2542,4 @@ button:disabled {
 .landing button,
 .landing a {
   font: inherit;
-}
-.auth-back-button {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: #698476;
-  font-size: 12px;
-  margin-bottom: 25px;
-  cursor: pointer;
 }

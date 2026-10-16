@@ -473,15 +473,13 @@
 /* Browser surfaces on customer-facing screens: selection, caret, form accents, scrollbars */
 .acx-hero,
 .acl,
-.ac-shell,
-.auth-screen {
+.ac-shell {
   accent-color: var(--ac-blue);
   caret-color: var(--ac-blue);
 }
 .acx-hero ::selection,
 .acl ::selection,
-.ac-shell ::selection,
-.auth-screen ::selection {
+.ac-shell ::selection {
   background: #bcd4fa;
   color: var(--ac-ink);
 }
