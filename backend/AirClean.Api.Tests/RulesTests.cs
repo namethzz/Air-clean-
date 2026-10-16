@@ -106,14 +106,6 @@ public class MembershipRulesTests
         Assert.Equal("Expired", Membership.StateOf(Tech(DateTime.UtcNow.AddMinutes(-1)), hasPaid: true));
     }
 
-    [Fact]
-    public void Quotes_add_extras_per_unit()
-    {
-        var tech = new TechnicianProfile { BasePrice = 500 };
-        Assert.Equal(1000m, ApiHelpers.CalculateQuote(tech, "ล้างแอร์มาตรฐาน", 2));
-        Assert.Equal(1600m, ApiHelpers.CalculateQuote(tech, "ล้างแอร์ + ตรวจเช็ก", 2));
-    }
-
     [Theory]
     [InlineData("081-234-5678", true)]
     [InlineData("+66 81 234 5678", true)]
@@ -188,5 +180,98 @@ public class ProviderPictureTests
         Assert.Equal("image/png", ApiHelpers.ImageType([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0]));
         Assert.Equal("image/jpeg", ApiHelpers.ImageType([0xFF, 0xD8, 0xFF, 0xE0]));
         Assert.Equal("", ApiHelpers.ImageType("<html></html>"u8.ToArray()));
+    }
+}
+
+public class PricingTests
+{
+    private static JobSpec Job(bool deep = false, int hard = 0, params JobItem[] items) => new(items, deep, hard);
+    private static JobItem Units(string kind, int count, int large = 0) => new() { Kind = kind, Count = count, Large = large };
+
+    [Fact]
+    public void A_quote_reads_line_by_line_from_the_price_list()
+    {
+        var sheet = Pricing.Reference;
+        var lines = Pricing.Lines(sheet, Job(false, 1, Units(AcKinds.Wall, 2, large: 1), Units(AcKinds.Cassette, 1)));
+        Assert.Collection(lines,
+            x => { Assert.Equal("ล้างธรรมดา · แอร์ติดผนัง", x.Label); Assert.Equal(2, x.Quantity); Assert.Equal(1200m, x.Amount); },
+            x => { Assert.Equal("ล้างธรรมดา · แอร์ฝังฝ้า", x.Label); Assert.Equal(1200m, x.Amount); },
+            x => { Assert.Equal("large", x.Kind); Assert.Equal(200m, x.Amount); },
+            x => { Assert.Equal("access", x.Kind); Assert.Equal(300m, x.Amount); });
+        Assert.Equal(2900m, Pricing.Total(lines));
+        Assert.Equal(2400m + 2200m, Pricing.Total(Pricing.Lines(sheet, Job(true, 0, Units(AcKinds.Wall, 2), Units(AcKinds.Cassette, 1)))));
+    }
+
+    [Fact]
+    public void Older_profiles_get_a_list_scaled_from_their_base_price()
+    {
+        var sheet = Pricing.FromBase(500);
+        Assert.Equal(500m, sheet.Wall);
+        Assert.Equal(1000m, sheet.WallDeep);
+        Assert.True(sheet.Hanging % 50 == 0 && sheet.Hanging > sheet.Wall);
+        Assert.Equal(Pricing.Reference.Wall, Pricing.SheetOf(new TechnicianProfile { BasePrice = 0 }).Wall);
+    }
+
+    [Fact]
+    public void The_going_rate_uses_the_reference_until_there_are_three_technicians()
+    {
+        var job = Job(false, 0, Units(AcKinds.Wall, 2));
+        var range = Pricing.Range([Pricing.FromBase(400)], job);
+        Assert.True(range.Reference);
+        Assert.Equal(1200m, range.Mid);
+        Assert.True(range.Low < range.Mid && range.High > range.Mid);
+    }
+
+    [Fact]
+    public void The_going_rate_is_the_middle_of_what_technicians_charge()
+    {
+        var sheets = new[] { 400m, 500m, 600m, 700m, 1500m }.Select(Pricing.FromBase).ToList();
+        var range = Pricing.Range(sheets, Job(false, 0, Units(AcKinds.Wall, 1)));
+        Assert.False(range.Reference);
+        Assert.Equal(5, range.Technicians);
+        Assert.Equal(600m, range.Mid);
+        Assert.Equal(480m, range.Low);
+        Assert.Equal(860m, range.High);
+        Assert.Equal("low", Pricing.Position(400, range));
+        Assert.Equal("typical", Pricing.Position(600, range));
+        Assert.Equal("high", Pricing.Position(1500, range));
+    }
+
+    [Fact]
+    public void Jobs_posted_before_units_were_described_read_back_from_the_service()
+    {
+        var job = Pricing.JobOf(new Booking { Service = "ล้างแอร์แบบแขวน (ฝังฝ้า)", UnitCount = 3 });
+        Assert.Equal(AcKinds.Cassette, Assert.Single(job.Items).Kind);
+        Assert.Equal(3, job.Units);
+        Assert.Equal(AcKinds.Hanging, Pricing.JobOf(new Booking { Service = "ล้างแอร์แบบแขวน", UnitCount = 1 }).Items[0].Kind);
+        Assert.Equal(AcKinds.Wall, Pricing.JobOf(new Booking { Service = "ล้างแอร์มาตรฐาน + ตรวจเช็ก", UnitCount = 1 }).Items[0].Kind);
+    }
+
+    [Fact]
+    public void Older_agreed_jobs_and_approved_extras_both_appear_on_the_receipt()
+    {
+        var booking = new Booking { Service = "ล้างแอร์มาตรฐาน", UnitCount = 2, Price = 1500, Extras = [new PriceLine { Kind = "extra", Label = "เติมน้ำยา", Amount = 500, UnitPrice = 500 }] };
+        var lines = Pricing.AgreedLines(booking);
+        Assert.Equal(2, lines.Count);
+        Assert.Equal(1000m, lines[0].Amount);
+        Assert.Equal(1500m, Pricing.Total(lines));
+    }
+
+    [Theory]
+    [InlineData("wall", 1, 0, 0, true)]
+    [InlineData("roof", 1, 0, 0, false)]
+    [InlineData("wall", 0, 0, 0, false)]
+    [InlineData("wall", 2, 3, 0, false)]
+    [InlineData("wall", 2, 0, 3, false)]
+    public void Described_units_are_checked(string kind, int count, int large, int hard, bool ok) =>
+        Assert.Equal(ok, Pricing.Invalid([Units(kind, count, large)], hard) is null);
+
+    [Fact]
+    public void Units_of_the_same_kind_are_merged_and_named()
+    {
+        var items = Pricing.Tidy([Units(AcKinds.Wall, 1), Units(AcKinds.Cassette, 1), Units(AcKinds.Wall, 2, 1)]);
+        Assert.Equal(2, items.Count);
+        Assert.Equal((3, 1), (items[0].Count, items[0].Large));
+        Assert.Equal("ล้างใหญ่ แอร์ติดผนัง + ฝังฝ้า", Pricing.ServiceName(new JobSpec(items, true, 0)));
     }
 }

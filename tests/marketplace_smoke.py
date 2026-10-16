@@ -182,6 +182,67 @@ call(f'/bookings/{id}/reviews', 'POST', {'rating': 5, 'comment': 'ซ้ำ'}, c
 assert call(f'/bookings/{id}', token=customer)['customerRating'] == 4
 rated = call('/technicians/me', token=tech)
 assert rated['rating'] == 4 and rated['reviewCount'] == 1
+# Customers describe what they can see; every quote comes from the technician's own price list, line by line.
+price_list = {'wall': 650, 'wallDeep': 1300, 'hanging': 1000, 'hangingDeep': 1900, 'cassette': 1200, 'cassetteDeep': 2300, 'large': 250, 'hardAccess': 300}
+tech_fields = {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 650, 'availableText': 'ทุกวัน', 'skills': 'ล้างแอร์'}
+call('/technicians/me', 'PATCH', {**tech_fields, 'prices': {**price_list, 'wallDeep': 500}}, tech, 400)
+saved_list = call('/technicians/me', 'PATCH', {**tech_fields, 'prices': price_list}, tech)
+assert saved_list['prices']['wallDeep'] == 1300 and saved_list['basePrice'] == 650
+# Fewer than three approved technicians: the going rate is AirClean's reference.
+guide = call('/price-guide', token=tech)
+assert guide['reference'] and guide['typical']['wall'] == 600
+described = {'items': [{'kind': 'wall', 'count': 2, 'large': 1}, {'kind': 'cassette', 'count': 1}], 'deep': False, 'hardAccessUnits': 1}
+estimate = call('/price-estimate', 'POST', described, customer)
+assert estimate['range']['reference'] and estimate['range']['low'] < estimate['range']['mid'] < estimate['range']['high']
+assert sum(x['amount'] for x in estimate['lines']) == estimate['range']['mid'] == 600 * 2 + 1200 + 200 + 300
+call('/price-estimate', 'POST', {'items': [{'kind': 'roof', 'count': 1}]}, customer, 400)
+call('/bookings', 'POST', {**payload, **described, 'hardAccessUnits': 4}, customer, 400)
+call('/bookings', 'POST', {**payload, **described, 'symptoms': ['broken']}, customer, 400)
+posted = call('/bookings', 'POST', {**payload, **described, 'lastCleaned': 'over1y', 'symptoms': ['smell', 'drip']}, customer, 201)
+assert posted['unitCount'] == 3 and posted['service'] == 'ล้างธรรมดา แอร์ติดผนัง + ฝังฝ้า' and posted['price'] == estimate['range']['mid']
+assert posted['market']['mid'] == estimate['range']['mid'] and posted['symptoms'] == ['smell', 'drip'] and posted['lastCleaned'] == 'over1y'
+job_id = posted['id']
+mine = 650 * 2 + 1200 + 250 + 300
+seen = next(row for row in call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=tech) if row['id'] == job_id)
+assert seen['yourQuote'] == mine and len(seen['yourLines']) == 4 and seen['market'] and seen['priceLines'] is None
+offered = call(f'/bookings/{job_id}/applications', 'POST', {}, tech)
+assert offered['applicants'][0]['quote'] == mine and len(offered['applicants'][0]['lines']) == 4
+picked = call(f'/bookings/{job_id}/confirm-technician', 'POST', {'technicianId': profile['id']}, customer)
+assert picked['price'] == mine and picked['applicants'][0]['position'] in ('low', 'typical', 'high')
+assert [x['kind'] for x in picked['priceLines']] == ['clean', 'clean', 'large', 'access']
+# On site the units are not as described: the new price comes from the same list, and nothing changes until the customer says yes.
+corrected = {'kind': 'correction', 'reason': 'เครื่องที่สามเป็นแบบแขวน ไม่ใช่ฝังฝ้า', 'items': [{'kind': 'wall', 'count': 2, 'large': 1}, {'kind': 'hanging', 'count': 1}], 'deep': False, 'hardAccessUnits': 1}
+call(f'/bookings/{job_id}/changes', 'POST', corrected, other_tech, 403)
+call(f'/bookings/{job_id}/changes', 'POST', {**corrected, 'items': described['items']}, tech, 400)
+asked = call(f'/bookings/{job_id}/changes', 'POST', corrected, tech)
+change = asked['pendingChange']
+assert change['oldPrice'] == mine and change['newPrice'] == 650 * 2 + 1000 + 250 + 300 and asked['price'] == mine
+call(f'/bookings/{job_id}/changes', 'POST', corrected, tech, 409)
+call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': True}, other_customer, 403)
+assert call(f'/bookings/{job_id}/complete', 'POST', {'method': 'Cash'}, tech, 409)['code'] == 'change_pending'
+approved = call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': True}, customer)
+assert approved['price'] == change['newPrice'] and approved['pendingChange'] is None and approved['service'] == 'ล้างธรรมดา แอร์ติดผนัง + แขวน/ตั้งพื้น'
+call(f"/bookings/{job_id}/changes/{change['id']}/answer", 'POST', {'approve': False}, customer, 409)
+# Extra work names its own price and reason. Declined or withdrawn, the price stays as agreed.
+extra = {'kind': 'extra', 'reason': 'น้ำยาเหลือน้อย วัดแรงดันได้ 60 psi', 'extras': [{'label': 'เติมน้ำยา R32', 'amount': 800}]}
+call(f'/bookings/{job_id}/changes', 'POST', {**extra, 'extras': []}, tech, 400)
+declined = call(f"/bookings/{job_id}/changes/{call(f'/bookings/{job_id}/changes', 'POST', extra, tech)['pendingChange']['id']}/answer", 'POST', {'approve': False}, customer)
+assert declined['price'] == change['newPrice']
+withdrawn = call(f'/bookings/{job_id}/changes', 'POST', extra, tech)['pendingChange']['id']
+call(f'/bookings/{job_id}/changes/{withdrawn}', 'DELETE', None, other_tech, 403)
+assert call(f'/bookings/{job_id}/changes/{withdrawn}', 'DELETE', None, tech)['pendingChange'] is None
+call(f'/bookings/{job_id}/changes/{withdrawn}/answer', 'POST', {'approve': True}, customer, 409)
+added = call(f"/bookings/{job_id}/changes/{call(f'/bookings/{job_id}/changes', 'POST', extra, tech)['pendingChange']['id']}/answer", 'POST', {'approve': True}, customer)
+total = change['newPrice'] + 800
+assert added['price'] == total and added['priceLines'][-1]['kind'] == 'extra' and len(added['changes']) == 4
+# A job carries at most five requests, so a customer is not asked again and again.
+call(f"/bookings/{job_id}/changes/{call(f'/bookings/{job_id}/changes', 'POST', extra, tech)['pendingChange']['id']}", 'DELETE', None, tech)
+call(f'/bookings/{job_id}/changes', 'POST', extra, tech, 409)
+call(f'/bookings/{job_id}/complete', 'POST', {'method': 'Cash'}, tech)
+call(f'/bookings/{job_id}/payment-confirmation', 'PATCH', {'method': 'Cash', 'confirmed': True}, customer)
+priced_receipt = call(f'/bookings/{job_id}/receipt', token=customer)
+assert priced_receipt['total'] == total and sum(x['amount'] for x in priced_receipt['lines']) == total
+assert priced_receipt['lines'][-1]['description'] == 'งานเพิ่ม: เติมน้ำยา R32'
 # Cancellation in each of the two marketplace waiting states.
 for interested in [False, True]:
     row = call('/bookings', 'POST', payload, customer, 201)

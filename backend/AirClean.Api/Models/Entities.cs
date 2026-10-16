@@ -41,6 +41,8 @@ public class ExternalLogin { public string Provider {get;set;}=""; public string
 public class TechnicianProfile {
  [BsonId] public int Id {get;set;} public int UserId {get;set;} public string Name {get;set;}=""; public string Title {get;set;}="ช่างแอร์"; public decimal Rating {get;set;} public int ReviewCount {get;set;} public int JobsCompleted {get;set;} public decimal BasePrice {get;set;} public string Area {get;set;}=""; public bool IsVerified {get;set;} public string AvailableText {get;set;}=""; public string SkillsCsv {get;set;}=""; public string Accent {get;set;}="sage";
  public string Phone {get;set;}=""; public int ExperienceYears {get;set;}
+ /// <summary>The technician's own price list, one price per kind of job. Null for older profiles: derived from <see cref="BasePrice"/>.</summary>
+ public PriceSheet? Prices {get;set;}
  /// <summary>Copy of the account's photo id, so offers and jobs can show it without looking up the user.</summary>
  public string? PhotoId {get;set;}
  /// <summary>Admin review of the technician application. Older records without it fall back to <see cref="IsVerified"/>.</summary>
@@ -95,6 +97,8 @@ public class BookingApplicant {
  public bool Verified {get;set;} public bool Selected {get;set;} public DateTime AppliedAt {get;set;}=DateTime.UtcNow;
  public string? Note {get;set;}
  public string? PhotoId {get;set;}
+ /// <summary>How the quote adds up, from the technician's price list when they offered (kept, so it cannot change after).</summary>
+ public List<PriceLine> Lines {get;set;}=[]; public PriceSheet? Sheet {get;set;}
 }
 [BsonIgnoreExtraElements]
 public class Booking {
@@ -128,6 +132,48 @@ public class Booking {
  public DateTime? OfferDeadline {get;set;}
  /// <summary>Set once the "only a few minutes left to pick" reminder went out.</summary>
  public bool OfferWarned {get;set;}
+ /// <summary>What the customer described: the units by kind, a deep clean or not, and how many outdoor units are hard to reach. Empty on older jobs (see Pricing.JobOf).</summary>
+ public List<JobItem> Items {get;set;}=[]; public bool Deep {get;set;} public int HardAccessUnits {get;set;}
+ /// <summary>When the units were last cleaned and what is wrong with them, as the customer told it (see Pricing).</summary>
+ public string? LastCleaned {get;set;} public List<string> Symptoms {get;set;}=[];
+ /// <summary>What technicians in the system charge for this job, worked out when it was posted.</summary>
+ public PriceRange? Market {get;set;}
+ /// <summary>The agreed price, line by line, and the chosen technician's price list it came from (for corrections on site).</summary>
+ public List<PriceLine> PriceLines {get;set;}=[]; public PriceSheet? AgreedSheet {get;set;}
+ /// <summary>Extra work the customer approved on site (refrigerant, parts), on top of <see cref="PriceLines"/>.</summary>
+ public List<PriceLine> Extras {get;set;}=[];
+ /// <summary>Every change the technician asked for on site, with the customer's answer. At most one is pending.</summary>
+ public List<PriceChange> Changes {get;set;}=[];
+}
+/// <summary>Kinds of indoor unit a customer can tell apart by looking.</summary>
+public static class AcKinds { public const string Wall="wall"; public const string Hanging="hanging"; public const string Cassette="cassette"; public static readonly string[] All=[Wall,Hanging,Cassette]; }
+/// <summary>Some units of one kind. Large means over 24,000 BTU.</summary>
+public class JobItem { public string Kind {get;set;}=AcKinds.Wall; public int Count {get;set;}=1; public int Large {get;set;} }
+/// <summary>A technician's price list: a price per unit for each kind of clean, and two per-unit additions.</summary>
+public class PriceSheet {
+ public decimal Wall {get;set;} public decimal WallDeep {get;set;} public decimal Hanging {get;set;} public decimal HangingDeep {get;set;}
+ public decimal Cassette {get;set;} public decimal CassetteDeep {get;set;}
+ /// <summary>Added per unit over 24,000 BTU, and per outdoor unit that needs a ladder, a roof or a rope to reach.</summary>
+ public decimal Large {get;set;} public decimal HardAccess {get;set;}
+}
+/// <summary>One line of a price: what it is, how many, and the amount. Kind is clean, large, access or extra.</summary>
+public class PriceLine { public string Kind {get;set;}="clean"; public string Label {get;set;}=""; public int Quantity {get;set;}=1; public decimal UnitPrice {get;set;} public decimal Amount {get;set;} public string? Reason {get;set;} }
+/// <summary>The going rate for a job: most technicians charge between Low and High; Mid is the typical price. Reference means too few technicians, so AirClean's reference prices were used.</summary>
+public class PriceRange { public decimal Low {get;set;} public decimal Mid {get;set;} public decimal High {get;set;} public int Technicians {get;set;} public bool Reference {get;set;} }
+public static class ChangeKinds { public const string Correction="correction"; public const string Extra="extra"; }
+public static class ChangeStates { public const string Pending="Pending"; public const string Approved="Approved"; public const string Declined="Declined"; public const string Withdrawn="Withdrawn"; }
+/// <summary>
+/// A change the technician asks for on site. A correction ("the units are not what was described") is priced from the
+/// agreed price list, so the technician cannot name a new price; extra work names its own price and reason. Nothing
+/// changes until the customer approves.
+/// </summary>
+public class PriceChange {
+ public string Id {get;set;}=""; public string Kind {get;set;}=ChangeKinds.Extra; public string Status {get;set;}=ChangeStates.Pending;
+ public List<JobItem>? Items {get;set;} public bool? Deep {get;set;} public int? HardAccessUnits {get;set;}
+ /// <summary>For a correction, the new lines; for extra work, the added lines.</summary>
+ public List<PriceLine> Lines {get;set;}=[];
+ public string Reason {get;set;}=""; public decimal OldPrice {get;set;} public decimal NewPrice {get;set;}
+ public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public DateTime? AnsweredAt {get;set;}
 }
 public class BookingRoom { public string Name {get;set;}=""; public int Units {get;set;}=1; public bool Done {get;set;} public DateTime? DoneAt {get;set;} }
 public class RoomEntry { public string Name {get;set;}=""; public int Units {get;set;}=1; }

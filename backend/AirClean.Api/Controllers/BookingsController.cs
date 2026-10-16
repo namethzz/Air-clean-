@@ -86,7 +86,14 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         if (request.ScheduledAt.Date < Membership.ThaiNow.Date) return BadRequest(new { message = "กรุณาเลือกวันนัดหมายตั้งแต่วันนี้เป็นต้นไป" });
         if (!ValidWindow(request.TimeWindow, request.ScheduledAt, out var window)) return BadRequest(new { message = "ช่วงเวลาที่เลือกไม่ถูกต้อง" });
         // Homes book up to 30 units at a time; building managers book whole buildings.
-        if (CurrentRole == AppRoles.Customer && request.UnitCount > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
+        var described = request.Items?.Select(DtoMapper.FromDto).ToList();
+        var requestedUnits = described?.Sum(x => x.Count) ?? request.UnitCount;
+        if (CurrentRole == AppRoles.Customer && requestedUnits > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
+        if (described is not null && Pricing.Invalid(described, request.HardAccessUnits) is { } badItems) return BadRequest(new { message = badItems });
+        var lastCleaned = string.IsNullOrWhiteSpace(request.LastCleaned) ? null : request.LastCleaned.Trim();
+        if (lastCleaned is not null && !Pricing.LastCleanedValues.Contains(lastCleaned)) return BadRequest(new { message = "ข้อมูลการล้างครั้งล่าสุดไม่ถูกต้อง" });
+        var symptoms = (request.Symptoms ?? []).Select(x => x.Trim()).Distinct().ToList();
+        if (symptoms.Any(x => !Pricing.SymptomValues.Contains(x))) return BadRequest(new { message = "อาการของแอร์ไม่ถูกต้อง" });
         var place = request.PlaceId is int placeId ? await store.SavedAddresses.Find(x => x.Id == placeId && x.UserId == CurrentUserId).FirstOrDefaultAsync() : null;
         if (request.PlaceId is not null && place is null) return BadRequest(new { message = "ไม่พบอาคารนี้ในรายการของคุณ" });
         // Rooms picked from the building's list decide how many units the job has.
@@ -100,7 +107,13 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             rooms = picked.Select(x => new BookingRoom { Name = x, Units = roster[x].Units }).ToList();
             if (rooms.Sum(x => x.Units) > 300) return BadRequest(new { message = "เลือกได้ไม่เกิน 300 เครื่องต่องาน แบ่งเป็นหลายงานได้" });
         }
-        var unitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : request.UnitCount;
+        var unitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : requestedUnits;
+        // The units as described; older apps send only a service name, read back into one kind of unit.
+        var items = described is not null ? Pricing.Tidy(described)
+            : Pricing.JobOf(new Booking { Service = request.Service, UnitCount = unitCount }).Items.ToList();
+        if (items.Sum(x => x.Count) != unitCount)
+            return BadRequest(new { message = $"จำนวนแอร์แต่ละแบบรวมกันต้องเท่ากับ {unitCount} เครื่องในห้องที่เลือก" });
+        var job = new JobSpec(items, request.Deep, Math.Clamp(request.HardAccessUnits, 0, unitCount));
         // The technician calls this number to agree the visit; it is remembered for the next booking.
         var me = await store.Users.Find(x => x.Id == CurrentUserId).FirstOrDefaultAsync();
         var phone = string.IsNullOrWhiteSpace(request.ContactPhone) ? me?.Phone : request.ContactPhone.Trim();
@@ -114,19 +127,17 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         if (request.AirConditionerId.HasValue &&
             !await store.AirConditioners.Find(x => x.Id == request.AirConditionerId.Value && x.OwnerId == user.Id).AnyAsync())
             return BadRequest(new { message = "ไม่พบเครื่องปรับอากาศนี้ในสมุดประวัติของคุณ" });
-        var technicians = (await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync())
-            .Where(x => x.Status == VerificationStates.Approved).ToList();
-        var cheapest = technicians.OrderBy(x => CalculateQuote(x, request.Service, unitCount)).FirstOrDefault()
-            ?? new TechnicianProfile { BasePrice = 550m };
-        var estimatedPrice = CalculateQuote(cheapest, request.Service, unitCount);
+        // What technicians in the system charge for this job; the request shows the typical price until one is chosen.
+        var market = Pricing.Range(await MarketSheetsAsync(), job);
         var id = await store.NextIdAsync("bookings");
         var booking = new Booking {
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
             TechnicianId = 0, TechnicianName = "รอช่างรับงาน", TechnicianInitials = "—",
             PropertyType = request.PropertyType.Trim(), UnitCount = unitCount, Rooms = rooms, AirConditionerId = request.AirConditionerId,
-            Service = request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
+            Service = described is not null ? Pricing.ServiceName(job) : request.Service.Trim(), UnitLabel = request.UnitLabel.Trim(), Address = request.Address.Trim(),
             Latitude = request.Latitude, Longitude = request.Longitude,
-            ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, CustomerPhone = phone, Price = estimatedPrice, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
+            ScheduledAt = request.ScheduledAt, TimeWindow = window, PlaceId = request.PlaceId, CustomerPhone = phone, Price = market.Mid, Status = BookingStates.OpenForTechnicians, Notes = request.Notes?.Trim(),
+            Items = items, Deep = job.Deep, HardAccessUnits = job.HardAccessUnits, LastCleaned = lastCleaned, Symptoms = symptoms, Market = market,
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
             Events = [new BookingEvent { ChangedByUserId = user.Id, FromStatus = null, ToStatus = BookingStates.OpenForTechnicians, Notes = "เปิดคำขอรับช่างใกล้เคียง", CreatedAt = DateTime.UtcNow }]
         };
