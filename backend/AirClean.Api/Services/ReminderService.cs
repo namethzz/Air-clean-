@@ -41,6 +41,7 @@ public class ReminderService(MongoStore store, Notifier notify, SlipVerifier sli
             var expired = await OfferTimer.ExpireDueAsync(store, notify, utc);
             var warned = await OfferTimer.WarnAsync(store, notify, utc);
             await Membership.RetrySlipsAsync(store, notify, slips, utc, cancel);
+            await JobClosing.AutoCloseAsync(store, notify, utc);
             if (now.Hour is < 7 or >= 21) return new(0, 0, 0, true, expired, warned);
             return new(await VisitsAsync(now), await CleaningDueAsync(now), await MembershipAsync(utc), false, expired, warned);
         } finally { running.Release(); }

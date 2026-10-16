@@ -144,9 +144,11 @@ export function techGuide(booking: Booking): JobGuide {
       return { short: `ต้องไป ${when(booking)}`, title: `งานที่ต้องไป · ${when(booking)}`, hint: 'ดูที่อยู่และกดนำทางได้เลย เมื่อล้างเสร็จและได้รับเงินแล้ว กดปิดงานด้านล่างครั้งเดียว' };
     case 'กำลังเดินทาง':
       return { short: 'กำลังเดินทาง', title: 'กำลังเดินทางไปหาลูกค้า', hint: 'ลูกค้าเห็นตำแหน่งของคุณ เมื่อถึงหน้างานระบบจะรู้เองจาก GPS ไม่ต้องกด เปิดหน้านี้ไว้ระหว่างเดินทาง' };
+    case 'รอชำระเงิน':
+      if (booking.technicianConfirmedPayment) return { short: 'ปิดงานแล้ว · รอลูกค้ายืนยัน', title: 'ปิดงานแล้ว รอลูกค้ายืนยันการจ่ายเงิน', hint: 'ลูกค้าได้รับแจ้งให้ยืนยัน ถ้าลูกค้าไม่ยืนยันหรือแจ้งปัญหาภายใน 3 วัน ระบบปิดงานให้อัตโนมัติ' };
+      return { short: 'อยู่ที่หน้างาน', title: 'ถึงหน้างานแล้ว', hint: 'ล้างแอร์ได้เลย เสร็จแล้วรับเงินจากลูกค้า แล้วกดปิดงานด้านล่างครั้งเดียว' };
     case 'ถึงหน้างาน':
     case 'กำลังดำเนินการ':
-    case 'รอชำระเงิน':
       return { short: 'อยู่ที่หน้างาน', title: 'ถึงหน้างานแล้ว', hint: 'ล้างแอร์ได้เลย เสร็จแล้วรับเงินจากลูกค้า แล้วกดปิดงานด้านล่างครั้งเดียว' };
     case 'มีปัญหาการชำระเงิน':
       return { short: 'ผู้ดูแลกำลังตรวจสอบ', title: 'ผู้ดูแลกำลังตรวจสอบการชำระเงิน', hint: 'รอผู้ดูแลติดต่อกลับ' };
@@ -159,8 +161,13 @@ export function techGuide(booking: Booking): JobGuide {
 
 /** True when the technician is the one who has to act next (a job to go to or to close). */
 export function techNeedsAction(booking: Booking): boolean {
+  // Once the technician has closed the job, it waits on the customer.
+  if (techClosed(booking)) return false;
   return ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'].includes(booking.status);
 }
+
+/** The technician pressed "done and paid"; the job waits for the customer to confirm (or closes by itself after 3 days). */
+export const techClosed = (booking: Booking) => booking.status === 'รอชำระเงิน' && Boolean(booking.technicianConfirmedPayment);
 
 /** Jobs that need the technician first, then the soonest appointment. */
 export function sortByNeed(bookings: Booking[], needs: (booking: Booking) => boolean): Booking[] {

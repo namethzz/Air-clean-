@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentStep, guideFor, minutesToPick, needsAction } from './jobFlow';
+import { currentStep, guideFor, minutesToPick, needsAction, techGuide, techNeedsAction } from './jobFlow';
 import type { Booking } from '../types';
 
 const booking = (fields: Partial<Booking>) => ({ id: 1, technician: '-', applicants: [], ...fields }) as Booking;
@@ -19,5 +19,14 @@ describe('job flow', () => {
   it('puts spaces around a technician name in Thai sentences', () => {
     expect(guideFor(booking({ status: 'ยืนยันแล้ว', technician: 'Nameth Wongmongkol' })).title).toBe('Nameth Wongmongkol รับงานแล้ว');
     expect(guideFor(booking({ status: 'รอยืนยัน', technician: '-' })).title).toBe('รอช่างตอบรับ');
+  });
+});
+
+describe('a job the technician closed', () => {
+  const awaiting = (technicianConfirmedPayment: boolean) => ({ id: 1, status: 'รอชำระเงิน', technicianConfirmedPayment }) as unknown as Booking;
+  it('waits on the customer, not the technician', () => {
+    expect(techNeedsAction(awaiting(false))).toBe(true);
+    expect(techNeedsAction(awaiting(true))).toBe(false);
+    expect(techGuide(awaiting(true)).short).toContain('รอลูกค้ายืนยัน');
   });
 });
