@@ -53,10 +53,6 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         return Ok(DtoMapper.ToDto(saved));
     }
 
-    /// <summary>The amount to collect is not settled while the customer has not answered a price change.</summary>
-    private static bool PendingChange(Booking booking) => (booking.Changes ?? []).Any(x => x.Status == ChangeStates.Pending);
-    private static readonly object PendingChangeMessage = new { message = "ยังมีคำขอปรับราคาที่รอลูกค้าตอบ รอคำตอบหรือยกเลิกคำขอก่อนปิดงาน", code = "change_pending" };
-
     [Authorize(Roles = "Technician,Admin"), HttpPost("bookings/{id:int}/service-complete")]
     public async Task<IActionResult> CompleteService(int id)
     {
@@ -69,7 +65,7 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         }
         if (booking.Status != BookingStates.InProgress)
             return Conflict(new { message = "ต้องเริ่มให้บริการก่อนแจ้งว่างานเสร็จ" });
-        if (PendingChange(booking)) return Conflict(PendingChangeMessage);
+        if (WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
         var previous = booking.Status;
         booking.Status = BookingStates.AwaitingPayment;
         booking.PaymentStatus = "Unpaid";
@@ -159,7 +155,7 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
 
         if (booking.TechnicianConfirmedPayment && booking.Status == BookingStates.AwaitingPayment)
             return Conflict(new { message = "ปิดงานนี้แล้ว รอลูกค้ายืนยันการชำระเงิน" });
-        if (PendingChange(booking)) return Conflict(PendingChangeMessage);
+        if (WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
         if (!string.IsNullOrWhiteSpace(booking.PaymentMethod) && booking.CustomerConfirmedPayment && booking.PaymentMethod != method)
             return Conflict(new { message = "วิธีชำระเงินไม่ตรงกับที่ลูกค้ายืนยันไว้" });
 

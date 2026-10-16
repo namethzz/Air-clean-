@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, Check, Minus, Plus, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import type { AirConditioner, Booking, JobItem, LastCleaned, PriceLine, PriceRange, PriceSheet, SavedAddress, Symptom, UserRole } from '../types';
 import LocationPicker, { type RememberChoice } from './LocationPicker';
 import { RoomPicker } from './Rooms';
@@ -7,7 +7,7 @@ import { dueRooms, lastCleaned } from '../lib/rooms';
 import VisitTimePicker, { defaultVisit, visitPayload, type Visit } from './VisitTimePicker';
 import { fetchPriceEstimate, fetchPriceGuide, isApiConfigured, saveAddress } from '../lib/api';
 import { baht, bahtRange, kindNames, lastCleanedOptions, priceLines, recommendation, referenceRange, referenceSheet, serviceName, symptomOptions, total, unitsOf } from '../lib/pricing';
-import { CleanChoice, PriceBreakdown, UnitRows, newRow, rowsToItems, type UnitRow } from './Pricing';
+import { CleanChoice, PriceBreakdown, Stepper, UnitRows, newRow, rowsToItems, type UnitRow } from './Pricing';
 import { Problem, Sheet } from './kit';
 import './Request.css';
 
@@ -43,12 +43,13 @@ function useEstimate(items:JobItem[],deep:boolean,hardAccessUnits:number){
   },[]);
   const key=JSON.stringify([items,deep,hardAccessUnits]);
   useEffect(()=>{
-    setRange(referenceRange(items,deep,hardAccessUnits));
     setLines(priceLines(typical,items,deep,hardAccessUnits));
-    if(!isApiConfigured())return;
+    // Offline the reference is all there is; online the last range stays up until the new one arrives, so it does not flicker.
+    if(!isApiConfigured()){setRange(referenceRange(items,deep,hardAccessUnits));return;}
     let live=true;
     const timer=window.setTimeout(()=>{
-      fetchPriceEstimate({items,deep,hardAccessUnits}).then(answer=>{if(live){setRange(answer.range);setLines(answer.lines);}}).catch(()=>undefined);
+      fetchPriceEstimate({items,deep,hardAccessUnits}).then(answer=>{if(live){setRange(answer.range);setLines(answer.lines);}})
+        .catch(()=>{if(live)setRange(referenceRange(items,deep,hardAccessUnits));});
     },250);
     return()=>{live=false;window.clearTimeout(timer);};
   },[key,typical]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -240,13 +241,8 @@ export default function BookingModal({units=[],initialUnitId,role,initialPlaceId
             <button type="button" role="radio" aria-checked={access==='unknown'} className="ui-option" onClick={()=>setAccess('unknown')}><span className="ui-option-text"><strong>ไม่แน่ใจ</strong><small>ช่างดูให้หน้างาน ถ้าเข้าถึงยากต้องขอในแอปก่อน</small></span></button>
           </div>
           {access==='hard'&&unitCount>1&&<div className="rq-access-count">
-            <span className="ui-label" id="rq-hard-label">กี่เครื่องที่เข้าถึงยาก</span>
-            <div className="rq-stepper is-sm" role="group" aria-labelledby="rq-hard-label">
-              <button type="button" aria-label="ลดจำนวน" disabled={hardAccessUnits<=1} onClick={()=>setHardText(hardAccessUnits-1)}><Minus size={20}/></button>
-              <input className="ui-num" readOnly value={hardAccessUnits} aria-label="จำนวนคอยล์ร้อนที่เข้าถึงยาก"/>
-              <button type="button" aria-label="เพิ่มจำนวน" disabled={hardAccessUnits>=unitCount} onClick={()=>setHardText(hardAccessUnits+1)}><Plus size={20}/></button>
-              <span className="rq-stepper-unit">จาก {unitCount}</span>
-            </div>
+            <span className="ui-label">กี่เครื่องที่เข้าถึงยาก</span>
+            <Stepper value={hardAccessUnits} min={1} max={unitCount} label="จำนวนคอยล์ร้อนที่เข้าถึงยาก" unit={`จาก ${unitCount}`} onChange={setHardText}/>
           </div>}
         </div>
       </section>

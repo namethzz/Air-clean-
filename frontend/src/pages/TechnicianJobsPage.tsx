@@ -14,7 +14,7 @@ import './Membership.css';
 import type { CompleteJobPayload, ProposeChangePayload } from '../lib/api';
 import PriceChangeSheet from '../components/PriceChangeSheet';
 import { PriceBreakdown } from '../components/Pricing';
-import { cleanName, lastCleanedName, symptomName } from '../lib/pricing';
+import { cleanName, conditionText } from '../lib/pricing';
 import type { Booking, BookingStatus, ServiceReportRecord } from '../types';
 import type { JobFocus } from './CustomerJobsPage';
 import './CustomerJobs.css';
@@ -368,7 +368,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       <p className="tj-address">{booking.address}</p>
       {booking.customerPhone && <div className="cj-call"><a className="cj-ghost" href={telLink(booking.customerPhone)}><Phone size={17}/> โทรหาลูกค้า {formatPhone(booking.customerPhone)}</a></div>}
       <p className="cj-note">{booking.customer} · {booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</p>
-      <p className="cj-note">{conditionText(booking)}</p>
+      <p className="cj-note">{jobCondition(booking)}</p>
       {hasDestination && <LocationMap key={booking.id + booking.status} center={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
         destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}
         technician={hasOwn && booking.status === 'กำลังเดินทาง' ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude!, label: 'ตำแหน่งของคุณ', kind: 'technician' } : undefined}
@@ -407,16 +407,15 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       <dl className="cj-facts">
         <div><dt>พื้นที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        <div><dt>งานและสภาพแอร์</dt><dd>{conditionText(booking)}</dd></div>
+        <div><dt>งานและสภาพแอร์</dt><dd>{jobCondition(booking)}</dd></div>
       </dl>
     </section>}
   </article>;
 }
 
 /** "ล้างธรรมดา · ล้างล่าสุดเกิน 1 ปี · มีกลิ่นอับ": the clean asked for and what the customer said about the units. */
-function conditionText(booking: Booking): string {
-  return [cleanName(Boolean(booking.deep)), booking.hardAccessUnits ? `คอยล์ร้อนเข้าถึงยาก ${booking.hardAccessUnits} เครื่อง` : '',
-    booking.lastCleaned ? 'ล้างล่าสุด ' + lastCleanedName(booking.lastCleaned) : '', ...(booking.symptoms ?? []).map(symptomName)].filter(Boolean).join(' · ');
+function jobCondition(booking: Booking): string {
+  return [cleanName(Boolean(booking.deep)), booking.hardAccessUnits ? `คอยล์ร้อนเข้าถึงยาก ${booking.hardAccessUnits} เครื่อง` : '', conditionText(booking)].filter(Boolean).join(' · ');
 }
 
 /**

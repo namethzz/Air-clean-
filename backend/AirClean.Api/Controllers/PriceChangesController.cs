@@ -43,6 +43,9 @@ public class PriceChangesController(MongoStore db, Notifier notifier) : AirClean
             var hard = request.HardAccessUnits ?? 0;
             if (Pricing.Invalid(items, hard) is { } invalid) return BadRequest(new { message = invalid });
             var job = new JobSpec(Pricing.Tidy(items!), request.Deep ?? false, hard);
+            // Rooms decide how many units a building job has; a correction changes their kinds, not the count.
+            var roomUnits = (booking.Rooms ?? []).Sum(x => x.Units);
+            if (roomUnits > 0 && job.Units != roomUnits) return BadRequest(new { message = $"งานนี้ล้างตามห้อง แอร์แต่ละแบบรวมกันต้องเท่ากับ {roomUnits} เครื่อง" });
             var current = Pricing.JobOf(booking);
             if (Same(current, job)) return BadRequest(new { message = "รายการใหม่เหมือนรายการเดิม ไม่มีอะไรต้องปรับ" });
             // The price list the technician quoted with, so the new price follows the same prices.

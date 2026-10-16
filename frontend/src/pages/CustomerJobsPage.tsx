@@ -17,7 +17,7 @@ import Avatar from '../components/Avatar';
 import { Plate, PhotoCard, Steps } from '../components/kit';
 import { nextCleaning } from '../lib/cleaning';
 import { webLink } from '../lib/links';
-import { bahtRange, cleanName, included, kindNames, lastCleanedName, notIncluded, positionNames, positionOf, symptomName } from '../lib/pricing';
+import { bahtRange, cleanName, conditionText, included, kindNames, notIncluded, positionNames, positionOf } from '../lib/pricing';
 import { PriceBreakdown } from '../components/Pricing';
 import type { PriceChange } from '../types';
 import filterPhoto from '../assets/hero/photo-filter.webp';
@@ -225,7 +225,7 @@ function JobDetail({ booking, reports, onBack, onNewBooking, onSelectTechnician,
       <dl className="jb-facts">
         <div><dt>สถานที่</dt><dd>{booking.address}</dd></div>
         <div><dt>ที่พักและแอร์</dt><dd>{booking.propertyType || 'ที่พัก'} · {booking.unitCount || 1} เครื่อง{booking.unitLabel ? ` · ${booking.unitLabel}` : ''}</dd></div>
-        {(booking.lastCleaned || booking.symptoms?.length) ? <div><dt>สภาพแอร์</dt><dd>{[booking.lastCleaned ? 'ล้างล่าสุด ' + lastCleanedName(booking.lastCleaned) : '', ...(booking.symptoms ?? []).map(symptomName)].filter(Boolean).join(' · ')}</dd></div> : null}
+        {conditionText(booking) ? <div><dt>สภาพแอร์</dt><dd>{conditionText(booking)}</dd></div> : null}
         {booking.rooms?.length ? <div><dt>ห้อง</dt><dd>{booking.rooms.length} ห้อง · {booking.rooms.map(room => room.name).slice(0, 12).join(', ')}{booking.rooms.length > 12 ? ' …' : ''}</dd></div> : null}
         {booking.notes && <div><dt>ข้อมูลสำหรับช่าง</dt><dd className="jb-pre">{booking.notes}</dd></div>}
         {choosing && booking.market
@@ -405,7 +405,7 @@ function jobText(booking: Booking): string {
  * The technician asked to change the price on site. Old and new price side by side, the reason in their words, the
  * lines, and two plain answers. Declining keeps the job as agreed.
  */
-function ChangeAnswer({ change, onAnswer }: { booking: Booking; change: PriceChange; onAnswer: (approve: boolean) => Promise<boolean> }) {
+function ChangeAnswer({ booking, change, onAnswer }: { booking: Booking; change: PriceChange; onAnswer: (approve: boolean) => Promise<boolean> }) {
   const [busy, setBusy] = useState<'yes' | 'no' | null>(null);
   const diff = change.newPrice - change.oldPrice;
   async function answer(approve: boolean) {
@@ -424,7 +424,9 @@ function ChangeAnswer({ change, onAnswer }: { booking: Booking; change: PriceCha
       <div><span>ราคาใหม่</span><strong className="ui-num">{baht(change.newPrice)}</strong><small className="ui-num">{diff >= 0 ? '+' : '−'}{baht(Math.abs(diff))}</small></div>
     </div>
     {change.kind === 'correction' && <p className="jb-note">คิดจากใบราคาที่ช่างเสนอไว้ตอนแรก ช่างตั้งราคาใหม่เองไม่ได้</p>}
-    <PriceBreakdown lines={change.lines.map(line => ({ ...line, reason: null }))} totalLabel={change.kind === 'correction' ? 'ค่าล้างตามรายการใหม่' : 'งานเพิ่มรวม'}/>
+    {/* A correction replaces the cleaning lines; extra work already approved stays, so it is listed to add up to the new price. */}
+    <PriceBreakdown lines={(change.kind === 'correction' ? [...change.lines, ...(booking.priceLines ?? []).filter(line => line.kind === 'extra')] : change.lines).map(line => ({ ...line, reason: null }))}
+      totalLabel={change.kind === 'correction' ? 'ราคาใหม่รวม' : 'งานเพิ่มรวม'}/>
     <div className="jb-confirm-actions">
       <button type="button" className="ui-btn is-primary is-lg" disabled={busy != null} aria-busy={busy === 'yes'} onClick={() => void answer(true)}>{busy === 'yes' ? 'กำลังส่ง…' : <>อนุมัติ <span className="ui-num">{baht(change.newPrice)}</span></>}</button>
       <button type="button" className="ui-btn is-lg" disabled={busy != null} aria-busy={busy === 'no'} onClick={() => void answer(false)}>{busy === 'no' ? 'กำลังส่ง…' : 'ไม่อนุมัติ'}</button>

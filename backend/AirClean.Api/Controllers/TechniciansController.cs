@@ -50,7 +50,8 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
             .Set(x => x.Phone, phone).Set(x => x.ExperienceYears, request.ExperienceYears ?? profile.ExperienceYears);
         // A new base price alone (older apps) moves the whole list with it, unless the technician set the list themselves.
         if (prices is not null) update = update.Set(x => x.Prices, prices);
-        else if (request.BasePrice != profile.BasePrice && profile.Prices is not null) update = update.Set(x => x.Prices!.Wall, request.BasePrice);
+        else if (request.BasePrice != profile.BasePrice && profile.Prices is not null)
+            update = update.Set(x => x.Prices!.Wall, request.BasePrice).Set(x => x.Prices!.WallDeep, Math.Max(profile.Prices.WallDeep, request.BasePrice));
         // A rejected application goes back to the admin queue once the technician corrects it.
         if (profile.Status == VerificationStates.Rejected)
             update = update.Set(x => x.VerificationStatus, VerificationStates.Pending).Set(x => x.IsVerified, false).Set(x => x.AppliedAt, DateTime.UtcNow);
