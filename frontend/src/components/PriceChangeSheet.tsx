@@ -18,7 +18,9 @@ let nextExtraId = 1;
  * needed (the technician names each item and its price). Either way the customer approves in the app first.
  */
 export default function PriceChangeSheet({ booking, onSend, onClose }: { booking: Booking; onSend: (payload: ProposeChangePayload) => Promise<boolean>; onClose: () => void }) {
-  const [kind, setKind] = useState<'correction' | 'extra'>('correction');
+  // Jobs agreed as one sum (before quotes had a price list) can only add extra work; there is no list to re-price from.
+  const canCorrect = Boolean(booking.agreedSheet);
+  const [kind, setKind] = useState<'correction' | 'extra'>(canCorrect ? 'correction' : 'extra');
   const [rows, setRows] = useState<UnitRow[]>(() => booking.items?.length ? itemsToRows(booking.items) : [newRow('wall', booking.unitCount ?? 1, 'normal')]);
   const [deep, setDeep] = useState(Boolean(booking.deep));
   const [hard, setHard] = useState(booking.hardAccessUnits ?? 0);
@@ -73,10 +75,10 @@ export default function PriceChangeSheet({ booking, onSend, onClose }: { booking
     </div>}>
     <div className="rq">
       <section className="rq-section">
-        <div className="ui-tabs" role="tablist" aria-label="ประเภทคำขอ">
-          <button type="button" role="tab" aria-selected={kind === 'correction'} onClick={() => setKind('correction')}>แอร์ไม่ตรงกับที่แจ้ง</button>
-          <button type="button" role="tab" aria-selected={kind === 'extra'} onClick={() => setKind('extra')}>ต้องทำงานเพิ่ม</button>
-        </div>
+        {canCorrect && <div className="ui-tabs" role="group" aria-label="ประเภทคำขอ">
+          <button type="button" aria-pressed={kind === 'correction'} onClick={() => setKind('correction')}>แอร์ไม่ตรงกับที่แจ้ง</button>
+          <button type="button" aria-pressed={kind === 'extra'} onClick={() => setKind('extra')}>ต้องทำงานเพิ่ม</button>
+        </div>}
         {kind === 'correction'
           ? <>
             <p className="pc-hint">แก้ให้ตรงกับที่เห็นจริง ราคาคิดจากใบราคาที่คุณเสนอไว้ตอนแรก</p>

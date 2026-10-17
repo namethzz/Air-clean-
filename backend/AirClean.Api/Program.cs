@@ -15,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls("http://0.0.0.0:" + port);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options => options.Filters.Add<AirClean.Api.Services.TechnicianViewFilter>());
 builder.Services.AddSingleton<MongoStore>();
 builder.Services.AddHttpClient();
 // Profile pictures from Google: no redirects, so nothing but the checked address is fetched.

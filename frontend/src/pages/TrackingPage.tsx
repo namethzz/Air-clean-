@@ -12,7 +12,7 @@ import './Admin.css';
  * The admin's map of jobs (App sends every other role to their own jobs page). A list on one side, narrowed by a
  * chip; the chosen job on the other with the place, the technician's last position while on the road, and the facts.
  */
-interface Props { bookings: Booking[]; onRefresh: () => void; }
+interface Props { bookings: Booking[]; focus?: { id: number; token: number } | null; onRefresh: () => void; }
 
 const FALLBACK_DESTINATION: Coordinates = { latitude: 13.806, longitude: 100.572 };
 const ON_THE_ROAD = ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ'];
@@ -29,7 +29,7 @@ function updatedLine(value?: string | null) {
   return Number.isNaN(date.getTime()) ? '' : `อัปเดตล่าสุด ${date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
 }
 
-export default function TrackingPage({ bookings, onRefresh }: Props) {
+export default function TrackingPage({ bookings, focus, onRefresh }: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const detail = useRef<HTMLElement>(null);
@@ -46,6 +46,11 @@ export default function TrackingPage({ bookings, onRefresh }: Props) {
   const rows = useMemo(() => bookings.filter(scopes[scope]), [bookings, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const selected = rows.find(item => item.id === selectedId) ?? rows.find(item => ON_THE_ROAD.includes(item.status)) ?? rows[0];
 
+  // Opened for one job (from the bookings table or the overview): show it, whatever chip it falls under.
+  useEffect(() => {
+    if (!focus || !bookings.some(item => item.id === focus.id)) return;
+    setScope('all'); setSelectedId(focus.id);
+  }, [focus?.token, bookings.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const timer = window.setInterval(onRefresh, 10000); return () => window.clearInterval(timer); }, [onRefresh]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
 
@@ -96,6 +101,10 @@ export default function TrackingPage({ bookings, onRefresh }: Props) {
           <div><dt>สถานที่</dt><dd>{selected.address}{selected.unitLabel && <><br/>{selected.unitLabel}</>}</dd></div>
           <div><dt>วันและเวลา</dt><dd>{day(selected.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} · {timeLabel(selected)}</dd></div>
           <div><dt>ราคาที่ตกลง</dt><dd><span className="ui-num">฿{selected.price.toLocaleString()}</span> · จ่ายช่างหน้างาน ({payment})</dd></div>
+          {['รอชำระเงิน', 'มีปัญหาการชำระเงิน', 'เสร็จสิ้น'].includes(selected.status) && <div><dt>ยืนยันการชำระ</dt><dd>
+            {selected.technicianConfirmedPayment ? 'ช่างยืนยันว่าได้รับเงินแล้ว' : 'รอช่างยืนยันว่าได้รับเงิน'}<br/>
+            {selected.customerConfirmedPayment ? 'ลูกค้ายืนยันว่าจ่ายแล้ว' : 'รอลูกค้ายืนยันว่าจ่ายแล้ว'}
+          </dd></div>}
         </dl>
         <a className="ui-btn is-primary is-block" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={18}/> เปิดสถานที่ใน Google Maps</a>
       </section>

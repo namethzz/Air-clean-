@@ -196,6 +196,7 @@ estimate = call('/price-estimate', 'POST', described, customer)
 assert estimate['range']['reference'] and estimate['range']['low'] < estimate['range']['mid'] < estimate['range']['high']
 assert sum(x['amount'] for x in estimate['lines']) == estimate['range']['mid'] == 600 * 2 + 1200 + 200 + 300
 call('/price-estimate', 'POST', {'items': [{'kind': 'roof', 'count': 1}]}, customer, 400)
+call('/price-estimate', 'POST', {'items': [None]}, customer, 400)  # a malformed list is refused, not a crash
 call('/bookings', 'POST', {**payload, **described, 'hardAccessUnits': 4}, customer, 400)
 call('/bookings', 'POST', {**payload, **described, 'symptoms': ['broken']}, customer, 400)
 posted = call('/bookings', 'POST', {**payload, **described, 'lastCleaned': 'over1y', 'symptoms': ['smell', 'drip']}, customer, 201)
@@ -207,15 +208,22 @@ seen = next(row for row in call('/technician-jobs?latitude=13.7563&longitude=100
 assert seen['yourQuote'] == mine and len(seen['yourLines']) == 4 and seen['market'] and seen['priceLines'] is None
 offered = call(f'/bookings/{job_id}/applications', 'POST', {}, tech)
 assert offered['applicants'][0]['quote'] == mine and len(offered['applicants'][0]['lines']) == 4
+call(f'/bookings/{job_id}/applications', 'POST', {}, other_tech)
+assert len(call(f'/bookings/{job_id}', token=customer)['applicants']) == 2
 picked = call(f'/bookings/{job_id}/confirm-technician', 'POST', {'technicianId': profile['id']}, customer)
 assert picked['price'] == mine and picked['applicants'][0]['position'] in ('low', 'typical', 'high')
 assert [x['kind'] for x in picked['priceLines']] == ['clean', 'clean', 'large', 'access']
+# The chosen technician sees only their own offer, never who else offered or at what price.
+for view in [call(f'/bookings/{job_id}', token=tech), next(row for row in call('/bookings', token=tech) if row['id'] == job_id)]:
+    assert [x['technicianId'] for x in view['applicants']] == [profile['id']]
 for status in ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ']:
     call(f'/bookings/{job_id}/status', 'PATCH', {'status': status}, tech, 204)
 # On site the units are not as described: the new price comes from the same list, and nothing changes until the customer says yes.
 corrected = {'kind': 'correction', 'reason': 'เครื่องที่สามเป็นแบบแขวน ไม่ใช่ฝังฝ้า', 'items': [{'kind': 'wall', 'count': 2, 'large': 1}, {'kind': 'hanging', 'count': 1}], 'deep': False, 'hardAccessUnits': 1}
 call(f'/bookings/{job_id}/changes', 'POST', corrected, other_tech, 403)
 call(f'/bookings/{job_id}/changes', 'POST', {**corrected, 'items': described['items']}, tech, 400)
+call(f'/bookings/{job_id}/changes', 'POST', {**corrected, 'reason': '     '}, tech, 400)
+call(f'/bookings/{job_id}/changes', 'POST', {'kind': 'extra', 'reason': 'ต้องเติมน้ำยา', 'extras': [None]}, tech, 400)
 asked = call(f'/bookings/{job_id}/changes', 'POST', corrected, tech)
 change = asked['pendingChange']
 assert change['oldPrice'] == mine and change['newPrice'] == 650 * 2 + 1000 + 250 + 300 and asked['price'] == mine
@@ -357,6 +365,16 @@ if idp_port:
     call('/auth/login', 'POST', {'email': squatted_email, 'password': 'CiTestPass123!'}, expected=401)
     call('/auth/me', token=squatter, expected=401)
     call('/auth/me', token=owner['token'])
+    # Someone signs up with their own Google account, then puts another person's address on it. When that person
+    # signs in with Google, the account becomes theirs alone: the first Google login no longer gets in.
+    planter_email = 'planter' + suffix + '@example.test'
+    planted_email = 'planted' + suffix + '@example.test'
+    planter = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-planter-' + suffix, email=planter_email), 'createAccount': True}, expected=201)
+    call('/auth/profile', 'PATCH', {'fullName': 'ผู้ตั้งบัญชี', 'email': planted_email}, planter['token'])
+    owner2 = call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-planted-' + suffix, email=planted_email)})
+    assert owner2['user']['id'] == planter['user']['id'] and owner2['user']['providers'] == ['google']
+    call('/auth/me', token=planter['token'], expected=401)
+    assert call('/auth/external', 'POST', {'provider': 'google', 'idToken': idp.token('google', google_aud, 'g-planter-' + suffix, email=planter_email)}, expected=404)['code'] == 'signup_required'
     # An unverified email never links to an existing password account.
     _, victim_email = register('Customer')
     sneaky = idp.token('google', google_aud, 'g-sneaky-' + suffix, email=victim_email, email_verified=False)

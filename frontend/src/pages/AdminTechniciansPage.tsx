@@ -5,6 +5,7 @@ import { fetchTechnicianApplications, fetchTechnicianDetail, setTechnicianVerifi
 import StatusBadge from '../components/StatusBadge';
 import { JobPhotoGallery } from '../components/JobPhotos';
 import { EmptyState } from '../components/kit';
+import './Admin.css';
 import Avatar from '../components/Avatar';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -53,8 +54,8 @@ export default function AdminTechniciansPage({ onNotice, onChanged }: Props) {
       <button type="button" className="ui-btn" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
     </div>
     <label className="at-search"><Search size={18}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="ค้นหาชื่อ เบอร์โทร อีเมล หรือพื้นที่" aria-label="ค้นหาช่าง"/></label>
-    <div className="approval-tabs" role="tablist" aria-label="สถานะช่าง">
-      {filters.map(item => <button key={item.key} type="button" role="tab" aria-selected={filter === item.key} className={filter === item.key ? 'active' : ''} onClick={() => setFilter(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
+    <div className="approval-tabs" role="group" aria-label="สถานะช่าง">
+      {filters.map(item => <button key={item.key} type="button" aria-pressed={filter === item.key} className={filter === item.key ? 'active' : ''} onClick={() => setFilter(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load()}><RefreshCw size={15}/> ลองใหม่</button></div>}
     {!loading && !error && shown.length === 0 && <EmptyState icon={Users} title={query ? 'ไม่พบช่างที่ค้นหา' : 'ยังไม่มีช่างในกลุ่มนี้'}/>}
@@ -144,7 +145,7 @@ function TechnicianProfileView({ id, onBack, onNotice, onSaved }: { id: number; 
         {suspending
           ? <div className="approval-reject">
             <label className="ui-field"><span className="ui-label">เหตุผล (ช่างจะเห็นข้อความนี้)</span><textarea className="ui-textarea" rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น ลูกค้าร้องเรียนหลายครั้ง รอตรวจสอบ"/></label>
-            <div><button type="button" className="ui-btn is-primary danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setSuspending(false)}>ยกเลิก</button></div>
+            <div><button type="button" className="ui-btn is-danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setSuspending(false)}>ยกเลิก</button></div>
           </div>
           : <div className="at-actions">
             {profile.verificationStatus !== 'Approved' && <button type="button" className="ui-btn is-primary" disabled={busy || !profile.phone} onClick={() => void decide(true)}><CheckCircle2 size={15}/> อนุมัติ</button>}

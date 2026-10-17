@@ -71,17 +71,21 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
                 if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
                 // Whether Google already proved this address for the account, before this link.
                 var proven = (existing.ExternalLogins ?? []).Any(l => string.Equals(l.Email, identity.Email, StringComparison.OrdinalIgnoreCase));
+                var hadOtherWayIn = !string.IsNullOrEmpty(existing.PasswordHash) || (existing.ExternalLogins?.Count ?? 0) > 0;
                 await LinkExternalLoginAsync(existing, identity);
-                // Sign-up never proved this email belonged to whoever set the password; Google just proved it is this
-                // person's. So a password set before is dropped and every other session signed out: someone who registered the
-                // address first cannot keep a way into the owner's account. The owner can set a new one with "forgot password".
-                if (!proven && !string.IsNullOrEmpty(existing.PasswordHash)) {
+                // Neither sign-up nor an email change proves an address belongs to whoever typed it; Google just proved it is
+                // this person's. So every other way in (a password, another Google account) is dropped and every session
+                // signed out: someone who put the owner's address on an account first cannot keep a way into it. The owner
+                // can set a password again with "forgot password".
+                if (!proven && hadOtherWayIn) {
+                    var only = existing.ExternalLogins!.Where(l => l.Provider == identity.Provider && l.Subject == identity.Subject).ToList();
                     existing.PasswordHash = "";
+                    existing.ExternalLogins = only;
                     existing.SessionVersion += 1;
                     await store.Users.UpdateOneAsync(x => x.Id == existing.Id, Builders<AppUser>.Update
-                        .Set(x => x.PasswordHash, "").Inc(x => x.SessionVersion, 1));
+                        .Set(x => x.PasswordHash, "").Set(x => x.ExternalLogins, only).Inc(x => x.SessionVersion, 1));
                     notify.ToUser(existing.Id, "บัญชีของคุณเชื่อมกับ " + label + " แล้ว",
-                        $"ตั้งแต่นี้เข้าสู่ระบบด้วย {label} ได้เลย เพื่อความปลอดภัย รหัสผ่านเดิมของบัญชีนี้ถูกยกเลิกและทุกเครื่องถูกออกจากระบบ\nถ้าต้องการใช้รหัสผ่าน ตั้งใหม่ได้จาก “ลืมรหัสผ่าน” ที่หน้าเข้าสู่ระบบ", NotificationLink.Profile);
+                        $"ตั้งแต่นี้เข้าสู่ระบบด้วย {label} ได้เลย เพื่อความปลอดภัย รหัสผ่านเดิมและการเข้าสู่ระบบด้วยบัญชีอื่นถูกยกเลิก และทุกเครื่องถูกออกจากระบบ\nถ้าต้องการใช้รหัสผ่าน ตั้งใหม่ได้จาก “ลืมรหัสผ่าน” ที่หน้าเข้าสู่ระบบ", NotificationLink.Profile);
                 }
                 return Ok(CreateLoginResponse(await photos.ImportFromProviderAsync(existing, identity)));
             }
@@ -160,8 +164,12 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         var user = await store.Users.Find(x => x.PasswordResetTokenHash == hash).FirstOrDefaultAsync();
         if (user is null || user.PasswordResetExpiresAt is null || user.PasswordResetExpiresAt < DateTime.UtcNow)
             return BadRequest(new { message = "ลิงก์ตั้งรหัสผ่านหมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่" });
+        // The link reached this address, so the account is this person's: a Google account linked under another address
+        // (someone may have put this address on their own account) no longer gets in.
+        var keep = (user.ExternalLogins ?? []).Where(l => string.Equals(l.Email, user.Email, StringComparison.OrdinalIgnoreCase)).ToList();
         var update = Builders<AppUser>.Update
             .Set(x => x.PasswordHash, hasher.HashPassword(user, request.NewPassword))
+            .Set(x => x.ExternalLogins, keep)
             .Inc(x => x.SessionVersion, 1)
             .Unset(x => x.PasswordResetTokenHash).Unset(x => x.PasswordResetExpiresAt);
         // Matching on the hash makes the link single-use even when two requests race.
