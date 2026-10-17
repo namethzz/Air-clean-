@@ -122,8 +122,7 @@
   gap: 10px;
 }
 .bd-actions .ui-btn {
-  white-space: normal;
-  text-align: center;
+  min-width: 0;
 }
 @media (max-width: 459px) {
   .bd-actions {

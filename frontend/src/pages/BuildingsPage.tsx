@@ -111,7 +111,7 @@ export default function BuildingsPage({ bookings, onBook, onOpenJob, onNotice }:
 
         <div className="bd-actions">
           {stats.dueRooms.length > 0 && !stats.active
-            ? <button type="button" className="ui-btn is-primary is-lg" onClick={() => onBook(place.id, stats.dueRooms)}><Wind size={19}/> ขอช่างล้าง {stats.dueRooms.length} ห้องที่ถึงรอบ</button>
+            ? <button type="button" className="ui-btn is-primary is-lg" onClick={() => onBook(place.id, stats.dueRooms)}><Wind size={19}/> ขอช่างล้าง {stats.dueRooms.length} ห้องนี้</button>
             : <button type="button" className={'ui-btn is-lg' + (stats.active ? '' : ' is-primary')} onClick={() => onBook(place.id)}><Wind size={19}/> ขอช่างล้างอาคารนี้</button>}
           <button type="button" className="ui-btn is-lg" onClick={() => setEditing(place)}>แก้ไข</button>
         </div>

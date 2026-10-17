@@ -381,16 +381,59 @@
   padding: 12px 4px;
   background: linear-gradient(to top, var(--v-ground) 70%, transparent);
 }
+/* Back stays as small as its words; the next step takes the rest, its name on its own line under "ถัดไป" so it
+   never wraps mid-phrase, with the arrow pinned to the right edge. */
+.ts-back {
+  flex: none;
+  padding: 0 18px 0 14px;
+}
 .ts-next {
   flex: 1;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 0 18px 0 20px;
+  text-align: left;
+}
+.ts-next-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ts-next-text small {
+  font: 500 var(--v-text-xs) / 1.2 var(--v-font-text);
+  color: var(--v-on-blue-2);
+}
+.ts-next-text > span {
+  overflow: hidden;
+  font: 600 var(--v-text-lg) / 1.25 var(--v-font-head);
+  text-overflow: ellipsis;
+}
+.ts-next:disabled .ts-next-text small {
+  color: inherit;
 }
 @media (max-width: 1023px) {
   .sh.has-tabbar .ts-foot {
     bottom: calc(68px + env(safe-area-inset-bottom));
   }
 }
-.ts-foot .ui-btn {
-  min-width: 0;
-  white-space: normal;
-  text-align: center;
+.ts-foot .ui-btn.ts-back {
+  min-height: 60px;
+}
+/* On a phone the way back is the arrow alone, a square as tall as the next button; its name stays for screen readers. */
+@media (max-width: 419px) {
+  .ts-back {
+    width: 60px;
+    padding: 0;
+  }
+  .ts-back-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }

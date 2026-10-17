@@ -81,9 +81,12 @@
     color var(--v-fast) var(--v-ease),
     transform var(--v-fast) var(--v-ease);
 }
-.ui-btn:hover:not(:disabled) {
-  border-color: var(--v-blue-400);
-  background: var(--v-blue-050);
+/* Hover colours only where there is a pointer: on touch screens they would stick after a tap. */
+@media (hover: hover) {
+  .ui-btn:hover:not(:disabled) {
+    border-color: var(--v-blue-400);
+    background: var(--v-blue-050);
+  }
 }
 .ui-btn:active:not(:disabled) {
   transform: translateY(1px);
@@ -103,33 +106,41 @@
   color: var(--v-on-blue);
   box-shadow: 0 8px 18px -12px rgb(11 47 116 / 0.9);
 }
-.ui-btn.is-primary:hover:not(:disabled) {
-  border-color: var(--v-blue-800);
-  background: var(--v-blue-800);
+@media (hover: hover) {
+  .ui-btn.is-primary:hover:not(:disabled) {
+    border-color: var(--v-blue-800);
+    background: var(--v-blue-800);
+  }
 }
 .ui-btn.is-turn {
   border-color: var(--v-turn-deep);
   background: var(--v-turn);
   color: var(--v-turn-ink);
 }
-.ui-btn.is-turn:hover:not(:disabled) {
-  background: var(--v-turn-deep);
+@media (hover: hover) {
+  .ui-btn.is-turn:hover:not(:disabled) {
+    background: var(--v-turn-deep);
+  }
 }
 .ui-btn.is-ghost {
   border-color: transparent;
   background: transparent;
   color: var(--v-blue-700);
 }
-.ui-btn.is-ghost:hover:not(:disabled) {
-  background: var(--v-blue-100);
+@media (hover: hover) {
+  .ui-btn.is-ghost:hover:not(:disabled) {
+    background: var(--v-blue-100);
+  }
 }
 .ui-btn.is-danger {
   border-color: var(--v-problem-line);
   color: var(--v-problem);
 }
-.ui-btn.is-danger:hover:not(:disabled) {
-  border-color: var(--v-problem);
-  background: var(--v-problem-bg);
+@media (hover: hover) {
+  .ui-btn.is-danger:hover:not(:disabled) {
+    border-color: var(--v-problem);
+    background: var(--v-problem-bg);
+  }
 }
 /* The one button that destroys something for good (delete the account): solid red, used once per screen. */
 .ui-btn.is-destroy {
@@ -137,9 +148,11 @@
   background: var(--v-problem);
   color: #ffffff;
 }
-.ui-btn.is-destroy:hover:not(:disabled) {
-  border-color: var(--v-problem-ink);
-  background: var(--v-problem-ink);
+@media (hover: hover) {
+  .ui-btn.is-destroy:hover:not(:disabled) {
+    border-color: var(--v-problem-ink);
+    background: var(--v-problem-ink);
+  }
 }
 /* Disabled: a plain grey, not a faded colour, so it stays readable outdoors and still reads as "not yet".
    Doubled class so it outranks every variant above. */
@@ -866,8 +879,10 @@ a.ui-row:hover {
   color: var(--v-blue-800);
   box-shadow: 0 10px 20px -14px rgb(0 0 0 / 0.7);
 }
-.ui-btn.is-light:hover:not(:disabled) {
-  background: var(--v-blue-050);
+@media (hover: hover) {
+  .ui-btn.is-light:hover:not(:disabled) {
+    background: var(--v-blue-050);
+  }
 }
 
 /* ───────── Numbered steps ───────── */

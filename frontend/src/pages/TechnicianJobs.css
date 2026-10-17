@@ -279,8 +279,26 @@
   color: var(--v-ink);
   overflow-wrap: anywhere;
 }
+/* The number matters most: where the card is narrow (the side column on a small laptop) the words give way first. */
+.tj-go {
+  container-type: inline-size;
+}
 .tj-call {
   justify-content: flex-start;
+  min-width: 0;
+}
+.tj-call-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@container (max-width: 300px) {
+  .tj-call-label {
+    display: none;
+  }
+  .tj-call .ui-num {
+    margin: 0 auto;
+  }
 }
 .tj-call .ui-num {
   margin-left: auto;
