@@ -50,9 +50,9 @@ export function priceLines(sheet: PriceSheet, items: JobItem[], deep: boolean, h
     lines.push({ kind: 'clean', label: `${cleanName(deep)} · แอร์${kindNames[kind]}`, quantity: count, unitPrice: each, amount: each * count });
   }
   const large = items.reduce((sum, item) => sum + Math.min(item.large, item.count), 0);
-  if (large) lines.push({ kind: 'large', label: 'เพิ่ม: แอร์ใหญ่กว่า 24,000 BTU', quantity: large, unitPrice: sheet.large, amount: sheet.large * large });
+  if (large && sheet.large > 0) lines.push({ kind: 'large', label: 'เพิ่ม: แอร์ใหญ่กว่า 24,000 BTU', quantity: large, unitPrice: sheet.large, amount: sheet.large * large });
   const hard = Math.max(0, Math.min(hardAccessUnits, unitsOf(items)));
-  if (hard) lines.push({ kind: 'access', label: 'เพิ่ม: คอยล์ร้อนอยู่ที่สูงหรือเข้าถึงยาก', quantity: hard, unitPrice: sheet.hardAccess, amount: sheet.hardAccess * hard });
+  if (hard && sheet.hardAccess > 0) lines.push({ kind: 'access', label: 'เพิ่ม: คอยล์ร้อนอยู่ที่สูงหรือเข้าถึงยาก', quantity: hard, unitPrice: sheet.hardAccess, amount: sheet.hardAccess * hard });
   return lines;
 }
 

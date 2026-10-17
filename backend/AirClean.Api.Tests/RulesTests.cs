@@ -203,6 +203,15 @@ public class PricingTests
     }
 
     [Fact]
+    public void A_surcharge_of_zero_adds_no_line()
+    {
+        var sheet = new PriceSheet { Wall = 550, WallDeep = 1100, Large = 0, HardAccess = 0 };
+        var lines = Pricing.Lines(sheet, Job(false, 2, Units(AcKinds.Wall, 2, large: 1)));
+        Assert.Equal("clean", Assert.Single(lines).Kind);
+        Assert.Equal(1100m, Pricing.Total(lines));
+    }
+
+    [Fact]
     public void Older_profiles_get_a_list_scaled_from_their_base_price()
     {
         var sheet = Pricing.FromBase(500);

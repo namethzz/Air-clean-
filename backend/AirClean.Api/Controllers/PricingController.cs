@@ -20,7 +20,7 @@ public class PricingController(MongoStore db, Notifier notifier) : AirCleanContr
         var items = request.Items.Select(DtoMapper.FromDto).ToList();
         if (Pricing.Invalid(items, request.HardAccessUnits) is { } invalid) return BadRequest(new { message = invalid });
         var job = new JobSpec(Pricing.Tidy(items), request.Deep, request.HardAccessUnits);
-        var sheets = await MarketSheetsAsync();
+        var sheets = await MarketSheetsAsync(job);
         var typical = sheets.Count >= Pricing.MinTechniciansForRange ? Pricing.Median(sheets) : Pricing.Reference;
         return Ok(new PriceEstimateDto(DtoMapper.ToDto(Pricing.Range(sheets, job))!, Pricing.Lines(typical, job).Select(DtoMapper.ToDto).ToList()));
     }

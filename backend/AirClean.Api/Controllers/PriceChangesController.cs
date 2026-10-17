@@ -42,7 +42,9 @@ public class PriceChangesController(MongoStore db, Notifier notifier) : AirClean
         {
             var items = request.Items?.Select(DtoMapper.FromDto).ToList();
             var hard = request.HardAccessUnits ?? 0;
-            if (Pricing.Invalid(items, hard) is { } invalid) return BadRequest(new { message = invalid });
+            // A home job keeps the 30-unit limit it was booked under; buildings go up to 300.
+            var maxUnits = booking.PlaceId is not null || (booking.Rooms ?? []).Count > 0 ? 300 : Math.Max(30, booking.UnitCount);
+            if (Pricing.Invalid(items, hard, maxUnits) is { } invalid) return BadRequest(new { message = invalid });
             var job = new JobSpec(Pricing.Tidy(items!), request.Deep ?? false, hard);
             // Rooms decide how many units a building job has; a correction changes their kinds, not the count.
             var roomUnits = (booking.Rooms ?? []).Sum(x => x.Units);

@@ -1080,6 +1080,8 @@ assert {x['id'] for x in plan['willCancel']} == {d_open['id'], d_planned['id']}
 assert call('/auth/delete-account', 'POST', {'password': 'CiTestPass123!'}, d_customer, 409)['code'] == 'deletion_blocked'
 assert not call('/auth/delete-account', token=d_tech)['allowed']
 call(f"/bookings/{d_busy['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, admin, 204)
+# A closed job stays closed, even for an admin.
+call(f"/bookings/{d_busy['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, admin, 409)
 # The password is checked; then the account goes and every token with it.
 assert call('/auth/delete-account', 'POST', {'password': 'wrong-password'}, d_customer, 400)['code'] == 'wrong_password'
 call('/auth/delete-account', 'POST', {'password': 'CiTestPass123!'}, d_customer)
@@ -1091,6 +1093,14 @@ assert kept['status'] == 'ยกเลิก' and kept['customer'] == 'บัญ
 waits_for(d_tech, 'ลูกค้ายกเลิกงาน')
 # The address is free for a new account.
 call('/auth/register', 'POST', {'fullName': 'กลับมาใหม่', 'email': d_email, 'password': 'CiTestPass123!', 'role': 'Customer'}, expected=201)
+# A technician suspended after offering cannot be picked.
+d_lost = call('/bookings', 'POST', payload, customer, 201)
+call(f"/bookings/{d_lost['id']}/applications", 'POST', {}, d_tech)
+call(f"/bookings/{d_lost['id']}/applications", 'POST', {}, tech)
+call(f"/technicians/{d_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ตรวจสอบเพิ่ม'}, admin)
+assert call(f"/bookings/{d_lost['id']}/confirm-technician", 'POST', {'technicianId': d_profile['id']}, customer, 409)['code'] == 'technician_unavailable'
+call(f"/technicians/{d_profile['id']}/verification", 'PATCH', {'verified': True}, admin)
+call(f"/bookings/{d_lost['id']}/confirm-technician", 'POST', {'technicianId': profile['id']}, customer)
 # A technician's offers are taken back; a job left with none is open again. Their profile leaves every list.
 d_job = call('/bookings', 'POST', payload, customer, 201)
 call(f"/bookings/{d_job['id']}/applications", 'POST', {}, d_tech)
@@ -1102,6 +1112,11 @@ assert reopened_job['status'] == 'เปิดรับช่าง' and reopene
 assert not any(t['id'] == d_profile['id'] for t in call('/technicians'))
 assert not any(t['id'] == d_profile['id'] for t in call('/admin/technicians', token=admin))
 assert call(f"/admin/technicians/{d_profile['id']}", token=admin)['profile']['name'] == 'บัญชีที่ลบแล้ว'
+# Their offer on a job someone else won no longer carries their name.
+lost_offer = next(a for a in call(f"/bookings/{d_lost['id']}", token=customer)['applicants'] if a['technicianId'] == d_profile['id'])
+assert lost_offer['name'] == 'บัญชีที่ลบแล้ว' and not lost_offer.get('photoId')
+# The parked address of a deleted account cannot be signed up for or taken.
+call('/auth/register', 'POST', {'fullName': 'ทดสอบ', 'email': 'deleted-1-x@deleted.invalid', 'password': 'CiTestPass123!', 'role': 'Customer'}, expected=400)
 if os.environ.get('MONGODB_URI'):
     assert db.technicianDocuments.count_documents({'TechnicianId': d_profile['id']}) == 0
     assert db.savedAddresses.count_documents({'Label': 'บ้านที่จะลบ'}) == 0

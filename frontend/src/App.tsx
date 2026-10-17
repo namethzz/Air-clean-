@@ -98,6 +98,10 @@ export default function App() {
   const showNotice = useCallback((message:string) => { window.clearTimeout(noticeTimer.current); setNotice(message); noticeTimer.current = window.setTimeout(()=>setNotice(''),3600); },[]);
   // Each saved change bumps this; a list fetch that started before it is older than what is on screen and is dropped.
   const writes = useRef(0);
+  // Raised on every sign-in and sign-out: a response that started under another account is dropped.
+  const session = useRef(0);
+  // Background refreshes report a lost connection once, not on every poll.
+  const pollFailed = useRef(false);
   const desktop = useMedia('(min-width: 1024px)');
 
   useEffect(()=>{
@@ -109,11 +113,13 @@ export default function App() {
     return ()=>{active=false;};
   },[]);
 
+  // Only who is signed in decides what to load; a new name, photo or phone does not reload everything.
+  const userId = user?.id, userRole = user?.role;
   const refreshData = useCallback(async()=>{
-    if(!user)return;
+    if(userId==null)return;
     setIsLoading(true);setDataError('');
-    const at = writes.current;
-    const needsUnits = user.role!=='technician';
+    const at = writes.current, signedIn = session.current;
+    const needsUnits = userRole!=='technician';
     const [t,b,u,r] = await Promise.allSettled([
       fetchTechnicians(),fetchBookings(),needsUnits?fetchAirConditioners():Promise.resolve([]),fetchServiceReports(),
     ]);
@@ -121,6 +127,7 @@ export default function App() {
     const bookings = b.status==='fulfilled'?b.value:[];
     const units = u.status==='fulfilled'?u.value:[];
     const reports = r.status==='fulfilled'?r.value:[];
+    if(session.current!==signedIn)return;
     // A change saved while this was loading is newer than these bookings: keep it.
     if(writes.current!==at)setState(previous=>({technicians,bookings:previous.bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,previous.bookings)}));
     else setState({technicians,bookings,airConditioners:units,serviceReports:reports,summary:summarize(units,bookings)});
@@ -132,8 +139,8 @@ export default function App() {
     if(r.status==='rejected')failed.push('รายงานบริการ');
     if(failed.length)setDataError('โหลดข้อมูลบางส่วนไม่สำเร็จ: '+failed.join(', ')+' กรุณาลองโหลดใหม่');
     setIsLoading(false);
-  },[user]);
-  useEffect(()=>{if(user)void refreshData();},[user,refreshData]);
+  },[userId,userRole]);
+  useEffect(()=>{if(userId!=null)void refreshData();},[userId,refreshData]);
   useEffect(()=>{void registerServiceWorker();},[]);
 
   // Notification links use the same role rules as the menus (navigate is redefined each render).
@@ -176,9 +183,11 @@ export default function App() {
   function openJob(id?:number){setPage(user?.role==='admin'&&id!=null?'tracking':'bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
   function profileUpdated(nextUser:UserProfile){setUser(nextUser);showNotice('อัปเดตโปรไฟล์เรียบร้อยแล้ว');}
   function onAuthenticated(nextUser:UserProfile){
+    session.current++;
     setAuthInfo('');setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
   }
   async function logout(){
+    session.current++;
     // Stop this device's push notifications so the next person using it does not receive them.
     await Promise.race([disablePush().catch(()=>undefined),new Promise(resolve=>window.setTimeout(resolve,3000))]);
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
@@ -186,6 +195,9 @@ export default function App() {
   }
   /** The account was deleted on the server: its tokens no longer work, so this device just forgets it. */
   async function accountDeleted(message:string){
+    session.current++;
+    // A half-finished technician setup is kept on the device between visits; the account is gone, so is the draft.
+    try{for(const key of Object.keys(localStorage))if(key.startsWith('airclean.techSetup.'))localStorage.removeItem(key);}catch{/* storage blocked */}
     await Promise.race([disablePush().catch(()=>undefined),new Promise(resolve=>window.setTimeout(resolve,3000))]);
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');setVisitorScreen('login');setAuthInfo(message);
@@ -202,25 +214,25 @@ export default function App() {
         items:payload.items,deep:payload.deep,hardAccessUnits:payload.hardAccessUnits,lastCleaned:payload.lastCleaned,symptoms:payload.symptoms,
       });
       if(payload.contactPhone&&payload.contactPhone!==user.phone)setUser({...user,phone:payload.contactPhone});
-      setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      writes.current++;setState(previous=>{const bookings=[saved,...previous.bookings];return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       openJob(saved.id);showNotice('ส่งคำขอแล้ว รอช่างใกล้เคียงเสนอราคา');return true;
     }catch(error){showNotice(errorMessage(error,'บันทึกการจองไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
   async function applyForNearbyJob(id:number):Promise<boolean>{
     try{
       await applyForBooking(id);
-      // Show the offer in "my jobs" straight away, so the technician sees where it stands.
-      const bookings=await fetchBookings();
-      setState(previous=>({...previous,bookings}));
-      openJob(id);
-      showNotice('ส่งข้อเสนอแล้ว รอลูกค้าเลือก ถ้าลูกค้าเลือกคุณจะมีแจ้งเตือน');return true;
     }
     catch(error){showNotice(errorMessage(error,'ส่งความสนใจไม่สำเร็จ'));return false;}
+    // The offer is sent. Show it in "my jobs" straight away; if that load fails, the next refresh brings it.
+    writes.current++;
+    try{const bookings=await fetchBookings();setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));}catch{/* next poll */}
+    openJob(id);
+    showNotice('ส่งข้อเสนอแล้ว รอลูกค้าเลือก ถ้าลูกค้าเลือกคุณจะมีแจ้งเตือน');return true;
   }
   async function selectTechnician(id:number,technicianId:number):Promise<boolean>{
     try{
       const saved=await confirmBookingTechnician(id,technicianId);
-      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      writes.current++;setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       showNotice('ยืนยันช่างเรียบร้อยแล้ว ช่างจะเห็นงานในรายการของตน');return true;
     }catch(error){showNotice(errorMessage(error,'ยืนยันช่างไม่สำเร็จ กรุณาโหลดข้อมูลใหม่'));return false;}
   }
@@ -228,7 +240,7 @@ export default function App() {
   async function changeAction(id:number,run:()=>Promise<Booking>,done:string,failed:string):Promise<boolean>{
     try{
       const saved=await run();
-      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      writes.current++;setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       showNotice(done);return true;
     }catch(error){showNotice(errorMessage(error,failed));return false;}
   }
@@ -240,7 +252,7 @@ export default function App() {
   async function statusChange(id:number,status:BookingStatus){
     try{
       await updateBookingStatus(id,status);
-      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?{...item,status}:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      writes.current++;setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?{...item,status}:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       showNotice(status==='ยกเลิก'?'ยกเลิกรายการแล้ว':status==='กำลังเดินทาง'?'ออกเดินทางแล้ว ลูกค้าจะเห็นตำแหน่งของคุณ':status==='ถึงหน้างาน'?'ถึงหน้างานแล้ว หยุดแชร์ตำแหน่ง':'บันทึกสถานะงานแล้ว');
     }catch(error){showNotice(errorMessage(error,'อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'));}
   }
@@ -255,7 +267,7 @@ export default function App() {
   const paymentConfirm=useCallback(async(id:number,method:PaymentMethod)=>{
     try{
       const saved=await confirmOnsitePayment(id,method);
-      setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
+      writes.current++;setState(previous=>{const bookings=previous.bookings.map(item=>item.id===id?saved:item);return {...previous,bookings,summary:summarize(previous.airConditioners,bookings)};});
       showNotice(saved.status==='เสร็จสิ้น'?'ทั้งสองฝ่ายยืนยันแล้ว ปิดงานเรียบร้อย':'บันทึกการยืนยันแล้ว รออีกฝ่ายยืนยัน');setApiConnected(true);
     }catch(error){showNotice(errorMessage(error,'บันทึกการยืนยันไม่สำเร็จ'));}
   },[showNotice]);
@@ -264,9 +276,20 @@ export default function App() {
     catch(error){showNotice(errorMessage(error,'ส่งเรื่องไม่สำเร็จ กรุณาลองใหม่'));}
   },[showNotice]);
   const refreshBookings=useCallback(async()=>{
-    const at=writes.current;
-    try{const bookings=await fetchBookings();if(writes.current!==at)return;setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));}
-    catch(error){showNotice(errorMessage(error,'โหลดรายการจองไม่สำเร็จ'));}
+    const at=writes.current, signedIn=session.current;
+    try{
+      const bookings=await fetchBookings();
+      if(writes.current!==at||session.current!==signedIn)return;
+      pollFailed.current=false;setApiConnected(true);
+      setState(previous=>({...previous,bookings,summary:summarize(previous.airConditioners,bookings)}));
+    }
+    catch(error){
+      if(session.current!==signedIn)return;
+      setApiConnected(false);
+      // Pages refresh every few seconds: say it once, then the offline line in the footer carries it.
+      if(!pollFailed.current)showNotice(errorMessage(error,'โหลดรายการจองไม่สำเร็จ'));
+      pollFailed.current=true;
+    }
   },[showNotice]);
   async function reviewJob(bookingId:number,rating:number,comment:string):Promise<boolean>{
     try{

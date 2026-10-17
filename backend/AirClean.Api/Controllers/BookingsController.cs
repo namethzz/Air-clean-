@@ -108,6 +108,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             if (rooms.Sum(x => x.Units) > 300) return BadRequest(new { message = "เลือกได้ไม่เกิน 300 เครื่องต่องาน แบ่งเป็นหลายงานได้" });
         }
         var unitCount = rooms.Count > 0 ? rooms.Sum(x => x.Units) : requestedUnits;
+        if (CurrentRole == AppRoles.Customer && unitCount > 30) return BadRequest(new { message = "จองได้สูงสุด 30 เครื่องต่อครั้ง" });
         // The units as described; older apps send only a service name, read back into one kind of unit.
         var items = described is not null ? Pricing.Tidy(described)
             : Pricing.JobOf(new Booking { Service = request.Service, UnitCount = unitCount }).Items.ToList();
@@ -128,7 +129,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             !await store.AirConditioners.Find(x => x.Id == request.AirConditionerId.Value && x.OwnerId == user.Id).AnyAsync())
             return BadRequest(new { message = "ไม่พบเครื่องปรับอากาศนี้ในสมุดประวัติของคุณ" });
         // What technicians in the system charge for this job; the request shows the typical price until one is chosen.
-        var market = Pricing.Range(await MarketSheetsAsync(), job);
+        var market = Pricing.Range(await MarketSheetsAsync(job), job);
         var id = await store.NextIdAsync("bookings");
         var booking = new Booking {
             Id = id, Code = $"AC-{id:00000}", CustomerId = user.Id, CustomerName = user.FullName,
@@ -220,9 +221,16 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         // Closing by hand counts too: a job must not close with a price change nobody can answer any more.
         if (target is BookingStates.AwaitingPayment or BookingStates.Completed && WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
 
+        // Even an admin cannot reopen a closed job: the technician's completed count and the Passport were already updated.
+        if (booking.Status is BookingStates.Completed or BookingStates.Cancelled)
+            return Conflict(new { message = "งานนี้ปิดไปแล้ว เปลี่ยนสถานะไม่ได้" });
+        if (target == BookingStates.Completed && booking.TechnicianId == 0)
+            return Conflict(new { message = "งานนี้ยังไม่มีช่าง ปิดเป็นเสร็จสิ้นไม่ได้" });
         var oldStatus = booking.Status;
         booking.Status = target;
         booking.UpdatedAt = DateTime.UtcNow;
+        // Closing by hand settles the job the same way the two sides closing it would.
+        if (target == BookingStates.Completed) { booking.PaymentStatus = "Paid"; booking.TravelStatus = "Completed"; }
         // An admin moving a disputed job on by hand settles the dispute too, so it does not stay listed as open.
         if (booking.Issue is { IsOpen: true, Kind: IssueKinds.Payment } && target != BookingStates.PaymentIssue) {
             booking.Issue.Resolution = target switch { BookingStates.Completed => IssueResolutions.Paid, BookingStates.Cancelled => IssueResolutions.Cancelled, _ => IssueResolutions.Closed };
@@ -235,6 +243,11 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = target, Notes = request.Notes, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
+        if (target == BookingStates.Completed) {
+            var report = await store.ServiceReports.Find(x => x.BookingId == booking.Id).FirstOrDefaultAsync();
+            await RecordPassportServiceAsync(booking, report?.Summary ?? "ล้างแอร์เรียบร้อย ผู้ดูแลปิดงาน");
+            await store.Technicians.UpdateOneAsync(x => x.Id == booking.TechnicianId, Builders<TechnicianProfile>.Update.Inc(x => x.JobsCompleted, 1));
+        }
         NotifyStatusChange(booking, oldStatus);
         return NoContent();
     }

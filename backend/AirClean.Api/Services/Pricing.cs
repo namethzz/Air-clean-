@@ -62,10 +62,11 @@ public static class Pricing
             var each = PerUnit(sheet, kind, job.Deep);
             lines.Add(new PriceLine { Kind = "clean", Label = $"{CleanName(job.Deep)} · แอร์{KindName(kind)}", Quantity = count, UnitPrice = each, Amount = each * count });
         }
-        if (job.LargeUnits > 0)
+        // A technician who does not charge extra (0) gets no line for it.
+        if (job.LargeUnits > 0 && sheet.Large > 0)
             lines.Add(new PriceLine { Kind = "large", Label = "เพิ่ม: แอร์ใหญ่กว่า 24,000 BTU", Quantity = job.LargeUnits, UnitPrice = sheet.Large, Amount = sheet.Large * job.LargeUnits });
         var hard = Math.Clamp(job.HardAccessUnits, 0, job.Units);
-        if (hard > 0)
+        if (hard > 0 && sheet.HardAccess > 0)
             lines.Add(new PriceLine { Kind = "access", Label = "เพิ่ม: คอยล์ร้อนอยู่ที่สูงหรือเข้าถึงยาก", Quantity = hard, UnitPrice = sheet.HardAccess, Amount = sheet.HardAccess * hard });
         return lines;
     }

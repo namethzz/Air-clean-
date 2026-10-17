@@ -203,6 +203,10 @@ function PasswordSettings({ user, onChanged }: { user: UserProfile; onChanged: (
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  // The "เปลี่ยน" button is replaced by the form while it is open; focus goes back to it when the form closes.
+  const toggle = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => { if (wasOpen.current && !open) toggle.current?.focus(); wasOpen.current = open; }, [open]);
   function close() { setOpen(false); setCurrent(''); setNext(''); setConfirm(''); setError(''); }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError('');
@@ -221,7 +225,7 @@ function PasswordSettings({ user, onChanged }: { user: UserProfile; onChanged: (
         <strong id="pf-password-title">รหัสผ่าน</strong>
         <span>{hasPassword ? 'เปลี่ยนแล้ว เครื่องอื่นที่เข้าสู่ระบบไว้จะต้องเข้าใหม่' : 'บัญชีนี้ยังไม่มีรหัสผ่าน ตั้งไว้เพื่อเข้าสู่ระบบด้วยอีเมลได้ด้วย'}</span>
       </div>
-      {!open && <button type="button" className="pf-button ghost" aria-expanded={false} aria-controls="pf-password-form" onClick={() => { setOpen(true); setDone(false); }}>{hasPassword ? 'เปลี่ยน' : 'ตั้งรหัสผ่าน'}</button>}
+      {!open && <button ref={toggle} type="button" className="pf-button ghost" aria-expanded={false} aria-controls="pf-password-form" onClick={() => { setOpen(true); setDone(false); }}>{hasPassword ? 'เปลี่ยน' : 'ตั้งรหัสผ่าน'}</button>}
     </div>
     {done && <div className="pf-alert ok" role="status"><CheckCircle2 size={17}/><span>บันทึกรหัสผ่านแล้ว</span></div>}
     {open && <form className="pf-password" id="pf-password-form" onSubmit={submit}>

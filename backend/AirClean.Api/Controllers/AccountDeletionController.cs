@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace AirClean.Api.Controllers;
@@ -52,11 +53,12 @@ public class AccountDeletionController(MongoStore db, Notifier notifier, IPasswo
         var technician = user.Role == AppRoles.Technician ? await store.Technicians.Find(x => x.UserId == user.Id).FirstOrDefaultAsync() : null;
         var now = DateTime.UtcNow;
 
-        // 1. The account itself first, so no token works and no sign-in finds it while the rest is cleared.
+        // 1. The account itself first, so no token works and no sign-in finds it while the rest is cleared. The parked
+        // address carries a random part, so nobody can take it ahead of time and block the deletion.
         var signedOut = await store.Users.UpdateOneAsync(x => x.Id == user.Id && x.DeletedAt == null, Builders<AppUser>.Update
             .Set(x => x.DeletedAt, now)
             .Set(x => x.FullName, DeletedName)
-            .Set(x => x.Email, $"deleted-{user.Id}@deleted.invalid")
+            .Set(x => x.Email, $"deleted-{user.Id}-{Guid.NewGuid():N}@deleted.invalid")
             .Set(x => x.PasswordHash, "")
             .Set(x => x.ExternalLogins, new List<ExternalLogin>())
             .Set(x => x.EmailNotifications, false)
@@ -65,50 +67,69 @@ public class AccountDeletionController(MongoStore db, Notifier notifier, IPasswo
             .Inc(x => x.SessionVersion, 1));
         if (signedOut.ModifiedCount == 0) return Conflict(new { message = "บัญชีนี้ถูกลบไปแล้ว" });
 
-        // 2. Jobs that have not started are cancelled; the other side hears about it as if the person cancelled by hand.
-        foreach (var job in await ActiveJobsAsync(user, technician)) {
-            if (!NotStarted.Contains(job.Status)) continue;
-            var previous = job.Status;
-            job.Status = BookingStates.Cancelled;
-            job.UpdatedAt = now;
-            job.Events.Add(new BookingEvent { ChangedByUserId = user.Id, FromStatus = previous, ToStatus = BookingStates.Cancelled, Notes = "ยกเลิกเพราะลบบัญชี", CreatedAt = now });
-            await store.Bookings.ReplaceOneAsync(x => x.Id == job.Id, job);
-            NotifyStatusChange(job, previous);
-        }
-
-        // 3. A technician's offers on open jobs are taken back; a job left with none is open again.
-        if (technician is not null) {
-            var offered = await store.Bookings.Find(Builders<Booking>.Filter.ElemMatch(x => x.Applicants, a => a.TechnicianId == technician.Id)
-                & Builders<Booking>.Filter.In(x => x.Status, [BookingStates.OpenForTechnicians, BookingStates.AwaitingCustomerSelection])).ToListAsync();
-            foreach (var job in offered) {
-                var update = Builders<Booking>.Update.PullFilter(x => x.Applicants, a => a.TechnicianId == technician.Id).Set(x => x.UpdatedAt, now);
-                if (job.Applicants.All(a => a.TechnicianId == technician.Id))
-                    update = update.Set(x => x.Status, BookingStates.OpenForTechnicians).Set(x => x.OfferDeadline, null).Set(x => x.OfferWarned, false);
-                await store.Bookings.UpdateOneAsync(x => x.Id == job.Id, update);
-            }
+        // 2. A technician leaves every list at once, so no customer can pick them from here on.
+        if (technician is not null)
             await store.Technicians.UpdateOneAsync(x => x.Id == technician.Id, Builders<TechnicianProfile>.Update
                 .Set(x => x.VerificationStatus, VerificationStates.Closed).Set(x => x.IsVerified, false)
                 .Set(x => x.Name, DeletedName).Set(x => x.Phone, "").Set(x => x.PhotoId, null)
                 .Set(x => x.AvailableText, "").Set(x => x.VerificationNote, null).Set(x => x.MemberUntil, null)
                 .Set(x => x.NeedsSetup, false));
+
+        // 3. Jobs that have not started are cancelled; the other side hears about it as if the person cancelled by hand.
+        // Each write only lands on the job as it was read: one the other side moved on in the meantime is left alone.
+        foreach (var job in await ActiveJobsAsync(user, technician)) {
+            if (!NotStarted.Contains(job.Status) || job.Issue is { IsOpen: true }) continue;
+            var previous = job.Status;
+            var version = job.UpdatedAt;
+            job.Status = BookingStates.Cancelled;
+            job.UpdatedAt = now;
+            job.Events.Add(new BookingEvent { ChangedByUserId = user.Id, FromStatus = previous, ToStatus = BookingStates.Cancelled, Notes = "ยกเลิกเพราะลบบัญชี", CreatedAt = now });
+            var write = await store.Bookings.ReplaceOneAsync(x => x.Id == job.Id && x.UpdatedAt == version && x.Status == previous, job);
+            if (write.MatchedCount > 0) NotifyStatusChange(job, previous);
+        }
+
+        if (technician is not null) {
+            // 4. Offers on open jobs are taken back; a job left with none is open again.
+            var open = Builders<Booking>.Filter.In(x => x.Status, [BookingStates.OpenForTechnicians, BookingStates.AwaitingCustomerSelection]);
+            var offered = await store.Bookings.Find(Builders<Booking>.Filter.ElemMatch(x => x.Applicants, a => a.TechnicianId == technician.Id) & open).ToListAsync();
+            foreach (var job in offered) {
+                var update = Builders<Booking>.Update.PullFilter(x => x.Applicants, a => a.TechnicianId == technician.Id).Set(x => x.UpdatedAt, now);
+                if (job.Applicants.All(a => a.TechnicianId == technician.Id))
+                    update = update.Set(x => x.Status, BookingStates.OpenForTechnicians).Set(x => x.OfferDeadline, null).Set(x => x.OfferWarned, false);
+                await store.Bookings.UpdateOneAsync(Builders<Booking>.Filter.Eq(x => x.Id, job.Id) & Builders<Booking>.Filter.Eq(x => x.Status, job.Status), update);
+            }
             await store.TechnicianDocuments.DeleteManyAsync(x => x.TechnicianId == technician.Id);
-            // Past jobs stay in the customer's history, under the placeholder name and without the phone or photo.
+            // Past jobs stay in the customer's history, under the placeholder name and without the phone or photo:
+            // the job itself, their offers on other jobs, the Passport history and the membership payments.
             await store.Bookings.UpdateManyAsync(x => x.TechnicianId == technician.Id, Builders<Booking>.Update
                 .Set(x => x.TechnicianName, DeletedName).Set(x => x.TechnicianInitials, "–")
                 .Set(x => x.TechnicianPhone, null).Set(x => x.TechnicianPhotoId, null)
                 .Set(x => x.TechnicianLatitude, null).Set(x => x.TechnicianLongitude, null));
+            await store.Bookings.UpdateManyAsync(Builders<Booking>.Filter.ElemMatch(x => x.Applicants, a => a.TechnicianId == technician.Id),
+                Builders<Booking>.Update.Set("Applicants.$[mine].Name", DeletedName).Set("Applicants.$[mine].Initials", "–")
+                    .Set("Applicants.$[mine].Note", BsonNull.Value).Set("Applicants.$[mine].PhotoId", BsonNull.Value),
+                new UpdateOptions { ArrayFilters = [new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("mine.TechnicianId", technician.Id))] });
+            var jobIds = (await store.Bookings.Find(x => x.TechnicianId == technician.Id).Project(x => x.Id).ToListAsync()).Select(x => (int?)x).ToList();
+            if (jobIds.Count > 0)
+                await store.AirConditioners.UpdateManyAsync(Builders<AirConditioner>.Filter.ElemMatch(x => x.Services, Builders<ServiceRecord>.Filter.In(r => r.BookingId, jobIds)),
+                    Builders<AirConditioner>.Update.Set("Services.$[done].TechnicianName", DeletedName),
+                    new UpdateOptions { ArrayFilters = [new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("done.BookingId", new BsonDocument("$in", new BsonArray(jobIds))))] });
+            await store.MembershipPayments.UpdateManyAsync(x => x.TechnicianId == technician.Id, Builders<MembershipPayment>.Update.Set(x => x.TechnicianName, DeletedName));
         }
 
-        // 4. What only this person had.
+        // 5. What only this person had.
         await store.ProfilePhotos.DeleteManyAsync(x => x.UserId == user.Id);
         await store.SavedAddresses.DeleteManyAsync(x => x.UserId == user.Id);
         await store.AirConditioners.DeleteManyAsync(x => x.OwnerId == user.Id);
         await store.Notifications.DeleteManyAsync(x => x.UserId == user.Id);
         await store.PushSubscriptions.DeleteManyAsync(x => x.UserId == user.Id);
-        // Past jobs as a customer keep the address and a receipt already issued, but not the name, phone or pin.
+        // Past jobs as a customer keep the address and a receipt already issued, but not the name or phone. The pin goes
+        // from closed jobs only: a job that moved on while this ran still needs it to be found.
         await store.Bookings.UpdateManyAsync(x => x.CustomerId == user.Id, Builders<Booking>.Update
-            .Set(x => x.CustomerPhone, null).Set(x => x.CustomerName, DeletedName)
-            .Set(x => x.Latitude, null).Set(x => x.Longitude, null).Set(x => x.FuzzLatitude, null).Set(x => x.FuzzLongitude, null));
+            .Set(x => x.CustomerPhone, null).Set(x => x.CustomerName, DeletedName));
+        await store.Bookings.UpdateManyAsync(Builders<Booking>.Filter.Eq(x => x.CustomerId, user.Id)
+            & Builders<Booking>.Filter.In(x => x.Status, [BookingStates.Completed, BookingStates.Cancelled, BookingStates.OffersExpired]),
+            Builders<Booking>.Update.Set(x => x.Latitude, null).Set(x => x.Longitude, null).Set(x => x.FuzzLatitude, null).Set(x => x.FuzzLongitude, null));
 
         return Ok(new { message = "ลบบัญชีแล้ว ขอบคุณที่ใช้ AirClean" });
     }
