@@ -12,7 +12,9 @@ dotnet restore
 dotnet run
 ```
 
-The API uses the port supplied by Render's `PORT` variable (defaults to 10000 locally). Health check: `/health`.
+`dotnet run` listens on http://localhost:5080 (from `Properties/launchSettings.json`, which also sets `ASPNETCORE_ENVIRONMENT=Development`). When `PORT` is set, as on Render, the API listens on `0.0.0.0:$PORT` instead. Health check: `/health`.
+
+Add `SEED_DEMO_DATA=true` to fill an empty development database with demo accounts (password `Aircare123!`; see the main README). Every other setting is listed in [docs/REFERENCE.md](../../docs/REFERENCE.md#backend-environment-variables).
 
 ## Render setup
 This repository includes `render.yaml` and a Dockerfile. Connect the repository in Render and choose the Blueprint flow, or create a Docker Web Service using:
@@ -21,3 +23,5 @@ This repository includes `render.yaml` and a Dockerfile. Connect the repository 
 - Health check path: `/health`
 
 Set `MONGODB_URI` using the connection string copied from Atlas. Add a database user and allow network access for Render in Atlas Network Access. Never commit secrets.
+
+`render.yaml` asks for the optional secrets too (`BREVO_API_KEY`, `GOOGLE_CLIENT_ID`, `CRON_KEY`, `SLIP2GO_API_SECRET`). Leaving one empty only turns its feature off.
