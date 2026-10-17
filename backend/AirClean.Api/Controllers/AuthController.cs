@@ -144,7 +144,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         var address = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == address).FirstOrDefaultAsync();
         // One email per minute per account; the answer is the same whether or not the account exists.
-        if (user is not null && (user.PasswordResetRequestedAt is null || DateTime.UtcNow - user.PasswordResetRequestedAt > TimeSpan.FromMinutes(1))) {
+        if (user is not null && user.DeletedAt is null && (user.PasswordResetRequestedAt is null || DateTime.UtcNow - user.PasswordResetRequestedAt > TimeSpan.FromMinutes(1))) {
             var link = await IssueResetLinkAsync(user, TimeSpan.FromMinutes(30));
             if (email.IsConfigured)
                 _ = Task.Run(() => email.SendAsync(user.Email, "ตั้งรหัสผ่านใหม่สำหรับ AirClean",
@@ -211,7 +211,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     {
         var address = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == address).FirstOrDefaultAsync();
-        if (user is null) return NotFound(new { message = "ไม่พบบัญชีที่ใช้อีเมลนี้" });
+        if (user is null || user.DeletedAt is not null) return NotFound(new { message = "ไม่พบบัญชีที่ใช้อีเมลนี้" });
         if (user.Role == AppRoles.Admin) return BadRequest(new { message = "บัญชีผู้ดูแลระบบต้องใช้ “ลืมรหัสผ่าน” ด้วยอีเมลของตนเอง" });
         var expires = TimeSpan.FromHours(24);
         var link = await IssueResetLinkAsync(user, expires);

@@ -131,6 +131,16 @@
   border-color: var(--v-problem);
   background: var(--v-problem-bg);
 }
+/* The one button that destroys something for good (delete the account): solid red, used once per screen. */
+.ui-btn.is-destroy {
+  border-color: var(--v-problem);
+  background: var(--v-problem);
+  color: #ffffff;
+}
+.ui-btn.is-destroy:hover:not(:disabled) {
+  border-color: var(--v-problem-ink);
+  background: var(--v-problem-ink);
+}
 /* Disabled: a plain grey, not a faded colour, so it stays readable outdoors and still reads as "not yet".
    Doubled class so it outranks every variant above. */
 .ui-btn.ui-btn:disabled {

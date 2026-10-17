@@ -136,7 +136,8 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
     [Authorize(Roles = "Admin"), HttpGet("admin/technicians")]
     public async Task<IActionResult> TechnicianApplications([FromQuery] string? status)
     {
-        var profiles = await store.Technicians.Find(FilterDefinition<TechnicianProfile>.Empty).ToListAsync();
+        // Technicians who deleted their account are gone from the lists; their past jobs still open from a booking.
+        var profiles = await store.Technicians.Find(x => x.VerificationStatus != VerificationStates.Closed).ToListAsync();
         if (!string.IsNullOrWhiteSpace(status)) profiles = profiles.Where(x => string.Equals(x.Status, status, StringComparison.OrdinalIgnoreCase)).ToList();
         var userIds = profiles.Select(x => x.UserId).Distinct().ToList();
         var emails = (await store.Users.Find(Builders<AppUser>.Filter.In(x => x.Id, userIds)).ToListAsync()).ToDictionary(x => x.Id, x => x.Email);

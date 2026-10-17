@@ -1047,4 +1047,72 @@ if os.environ.get('MONGODB_URI'):
     db.bookings.update_one({'_id': timed['id']}, {'$set': {'ScheduledAt': datetime.now(timezone.utc) - timedelta(days=2)}})
     assert call(f"/bookings/{timed['id']}/reopen", 'POST', {}, t_customer, 409)['code'] == 'date_passed'
     call(f"/bookings/{timed['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, t_customer, 204)
-print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, profile photos, membership, automatic slip checks, reminders and the hour to pick a technician.')
+
+# ── Deleting an account. ──
+def waits_for(token, title_part):
+    for _ in range(40):
+        if any(title_part in i['title'] for i in call('/notifications', token=token)['items']):
+            return
+        time.sleep(0.1)
+    raise AssertionError('no notification: ' + title_part)
+
+assert not call('/auth/delete-account', token=admin)['allowed']
+assert call('/auth/delete-account', 'POST', {'password': admin_password}, admin, 409)['code'] == 'deletion_blocked'
+d_customer, d_email = register('Customer')
+d_tech, d_tech_email = register('Technician')
+send_id(d_tech)
+d_profile = call('/technicians/me', token=d_tech)
+call(f"/technicians/{d_profile['id']}/verification", 'PATCH', {'verified': True}, admin)
+d_open = call('/bookings', 'POST', payload, d_customer, 201)
+call(f"/bookings/{d_open['id']}/applications", 'POST', {}, tech)
+d_planned = call('/bookings', 'POST', payload, d_customer, 201)
+call(f"/bookings/{d_planned['id']}/applications", 'POST', {}, d_tech)
+call(f"/bookings/{d_planned['id']}/confirm-technician", 'POST', {'technicianId': d_profile['id']}, d_customer)
+d_busy = call('/bookings', 'POST', payload, d_customer, 201)
+call(f"/bookings/{d_busy['id']}/applications", 'POST', {}, d_tech)
+call(f"/bookings/{d_busy['id']}/confirm-technician", 'POST', {'technicianId': d_profile['id']}, d_customer)
+call(f"/bookings/{d_busy['id']}/status", 'PATCH', {'status': 'กำลังเดินทาง'}, d_tech, 204)
+call('/me/addresses', 'POST', {'label': 'บ้านที่จะลบ', 'placeType': 'บ้าน', 'address': 'PRIVATE-HOUSE-123', 'latitude': 13.75, 'longitude': 100.5}, d_customer)
+# A job on the way holds the deletion back, for both sides.
+plan = call('/auth/delete-account', token=d_customer)
+assert not plan['allowed'] and plan['needsPassword'] and [x['id'] for x in plan['blocking']] == [d_busy['id']]
+assert {x['id'] for x in plan['willCancel']} == {d_open['id'], d_planned['id']}
+assert call('/auth/delete-account', 'POST', {'password': 'CiTestPass123!'}, d_customer, 409)['code'] == 'deletion_blocked'
+assert not call('/auth/delete-account', token=d_tech)['allowed']
+call(f"/bookings/{d_busy['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, admin, 204)
+# The password is checked; then the account goes and every token with it.
+assert call('/auth/delete-account', 'POST', {'password': 'wrong-password'}, d_customer, 400)['code'] == 'wrong_password'
+call('/auth/delete-account', 'POST', {'password': 'CiTestPass123!'}, d_customer)
+call('/auth/me', token=d_customer, expected=401)
+call('/auth/login', 'POST', {'email': d_email, 'password': 'CiTestPass123!'}, expected=401)
+assert call(f"/bookings/{d_open['id']}", token=admin)['status'] == 'ยกเลิก'
+kept = call(f"/bookings/{d_planned['id']}", token=admin)
+assert kept['status'] == 'ยกเลิก' and kept['customer'] == 'บัญชีที่ลบแล้ว' and not kept.get('customerPhone') and kept['latitude'] is None
+waits_for(d_tech, 'ลูกค้ายกเลิกงาน')
+# The address is free for a new account.
+call('/auth/register', 'POST', {'fullName': 'กลับมาใหม่', 'email': d_email, 'password': 'CiTestPass123!', 'role': 'Customer'}, expected=201)
+# A technician's offers are taken back; a job left with none is open again. Their profile leaves every list.
+d_job = call('/bookings', 'POST', payload, customer, 201)
+call(f"/bookings/{d_job['id']}/applications", 'POST', {}, d_tech)
+assert call('/auth/delete-account', token=d_tech)['offersWithdrawn'] >= 1
+call('/auth/delete-account', 'POST', {'password': 'CiTestPass123!'}, d_tech)
+call('/technicians/me', token=d_tech, expected=401)
+reopened_job = call(f"/bookings/{d_job['id']}", token=customer)
+assert reopened_job['status'] == 'เปิดรับช่าง' and reopened_job['applicants'] == []
+assert not any(t['id'] == d_profile['id'] for t in call('/technicians'))
+assert not any(t['id'] == d_profile['id'] for t in call('/admin/technicians', token=admin))
+assert call(f"/admin/technicians/{d_profile['id']}", token=admin)['profile']['name'] == 'บัญชีที่ลบแล้ว'
+if os.environ.get('MONGODB_URI'):
+    assert db.technicianDocuments.count_documents({'TechnicianId': d_profile['id']}) == 0
+    assert db.savedAddresses.count_documents({'Label': 'บ้านที่จะลบ'}) == 0
+# An account without a password confirms with the word typed out.
+if idp_port:
+    g_email = 'leaving' + suffix + '@example.test'
+    g_token = idp.token('google', google_aud, 'g-leaving-' + suffix, email=g_email)
+    g_user = call('/auth/external', 'POST', {'provider': 'google', 'idToken': g_token, 'createAccount': True}, expected=201)['token']
+    assert not call('/auth/delete-account', token=g_user)['needsPassword']
+    assert call('/auth/delete-account', 'POST', {'confirm': 'ลบ'}, g_user, 400)['code'] == 'confirm_required'
+    call('/auth/delete-account', 'POST', {'confirm': 'ลบบัญชี'}, g_user)
+    g_again = idp.token('google', google_aud, 'g-leaving-' + suffix, email=g_email)
+    assert call('/auth/external', 'POST', {'provider': 'google', 'idToken': g_again}, expected=404)['code'] == 'signup_required'
+print('Marketplace API checks passed: privacy, ownership, quotes, status, reports, payment, reviews, passport, technician approval, saved addresses, password reset, email, in-app and push notifications, Google sign-in, reported issues, job photos, technician details, time windows, building managers, building rooms, receipts, rescheduling and cancellation, technician documents, profile photos, membership, automatic slip checks, reminders, the hour to pick a technician and deleting an account.')

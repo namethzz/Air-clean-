@@ -50,6 +50,7 @@ public class Notifier(MongoStore store, WebPushSender push, IConfiguration confi
 
     private async Task DeliverAsync(AppUser user, string subject, string message, NotificationLink link)
     {
+        if (user.DeletedAt is not null) return;
         await store.Notifications.InsertOneAsync(new AppNotification {
             UserId = user.Id, Title = subject, Body = message, Target = link.Target, BookingId = link.BookingId, CreatedAt = DateTime.UtcNow
         });
