@@ -44,7 +44,8 @@ export const toPriceText = (sheet: PriceSheet): PriceText => Object.fromEntries(
  */
 export function sheetOf(text: PriceText, services: Services, guide?: PriceGuide | null): PriceSheet {
   const typical = guide?.typical ?? referenceSheet;
-  const sheet = Object.fromEntries(priceKeys.map(key => [key, Number(text[key]) || typical[key]])) as unknown as PriceSheet;
+  // Only an empty box falls back to the typical price: 0 is a real answer ("no surcharge").
+  const sheet = Object.fromEntries(priceKeys.map(key => [key, text[key].trim() === '' || !Number.isFinite(Number(text[key])) ? typical[key] : Number(text[key])])) as unknown as PriceSheet;
   for (const kind of acKinds) {
     if (!services.kinds.includes(kind)) { sheet[kind] = typical[kind]; sheet[deepKey[kind]] = Math.max(typical[deepKey[kind]], typical[kind]); }
     else if (!services.deep) sheet[deepKey[kind]] = Math.max(sheet[kind], typical[deepKey[kind]]);

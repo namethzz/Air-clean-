@@ -60,6 +60,11 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         var version = booking.UpdatedAt;
         if (booking.Status is not (BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection))
             return Conflict(new { message = "งานนี้ปิดรับความสนใจแล้ว" });
+        // The hour to pick has run out but the sweep has not marked it yet.
+        if (booking.OfferDeadline is { } deadline && deadline <= DateTime.UtcNow) {
+            await OfferTimer.ExpireDueAsync(store, notify);
+            return Conflict(new { message = "งานนี้หมดเวลารับข้อเสนอแล้ว", code = "offers_expired" });
+        }
         var technician = await EnsureCurrentTechnicianProfileAsync();
         if (technician is null) return Conflict(new { message = "ไม่สามารถเตรียมโปรไฟล์ช่างได้ กรุณาลองใหม่อีกครั้ง" });
         if (technician.Status != VerificationStates.Approved) return NotApprovedResult(technician);
@@ -117,6 +122,9 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         booking.TechnicianName = chosen.Name;
         booking.TechnicianInitials = chosen.Initials;
         var chosenProfile = await store.Technicians.Find(x => x.Id == chosen.TechnicianId).FirstOrDefaultAsync();
+        // A technician the admin suspended, or who deleted the account, after offering cannot be picked.
+        if (chosenProfile is null || chosenProfile.Status != VerificationStates.Approved)
+            return Conflict(new { message = "ช่างคนนี้รับงานไม่ได้แล้ว กรุณาเลือกช่างท่านอื่น", code = "technician_unavailable" });
         booking.TechnicianPhone = chosenProfile?.Phone;
         booking.TechnicianPhotoId = chosenProfile?.PhotoId;
         booking.Price = chosen.Quote;
@@ -127,6 +135,8 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
         booking.Status = BookingStates.Confirmed;
         booking.UpdatedAt = DateTime.UtcNow;
+        // A "you have not picked a technician yet" notice may have used the reminder; the visit reminder is still owed.
+        booking.VisitReminded = false;
         booking.Events.Add(new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = oldStatus, ToStatus = booking.Status, Notes = "ลูกค้ายืนยันช่าง: " + chosen.Name, CreatedAt = DateTime.UtcNow });
         var write = await store.Bookings.ReplaceOneAsync(x => x.Id == id && x.UpdatedAt == version, booking);
         if (write.MatchedCount == 0) return Conflict(new { message = "รายการนี้มีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง" });
@@ -151,7 +161,7 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         var saved = await store.Bookings.FindOneAndUpdateAsync(
             Builders<Booking>.Filter.Where(x => x.Id == id && x.Status == BookingStates.OffersExpired),
             Builders<Booking>.Update.Set(x => x.Status, BookingStates.OpenForTechnicians).Set(x => x.Applicants, new List<BookingApplicant>())
-                .Set(x => x.OfferDeadline, null).Set(x => x.OfferWarned, false).Set(x => x.UpdatedAt, DateTime.UtcNow)
+                .Set(x => x.OfferDeadline, null).Set(x => x.OfferWarned, false).Set(x => x.VisitReminded, false).Set(x => x.UpdatedAt, DateTime.UtcNow)
                 .Push(x => x.Events, new BookingEvent { ChangedByUserId = CurrentUserId, FromStatus = BookingStates.OffersExpired, ToStatus = BookingStates.OpenForTechnicians,
                     Notes = "ลูกค้าเปิดรับข้อเสนออีกครั้ง", CreatedAt = DateTime.UtcNow }),
             new FindOneAndUpdateOptions<Booking, Booking> { ReturnDocument = ReturnDocument.After });

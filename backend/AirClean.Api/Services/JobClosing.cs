@@ -16,11 +16,13 @@ public static class JobClosing
         if (!booking.AirConditionerId.HasValue) return;
         var unit = await store.AirConditioners.Find(x => x.Id == booking.AirConditionerId.Value).FirstOrDefaultAsync();
         if (unit is null || unit.Services.Any(x => x.BookingId == booking.Id)) return;
-        unit.LastServiceDate = Membership.ThaiNow.Date;
-        unit.NextServiceDate = Membership.ThaiNow.Date.AddMonths(6);
+        // The day of the visit, not the day the job was closed (it may close days later, or an admin may settle it later).
+        var visited = booking.ScheduledAt.Date <= Membership.ThaiNow.Date ? booking.ScheduledAt.Date : Membership.ThaiNow.Date;
+        unit.LastServiceDate = visited;
+        unit.NextServiceDate = visited.AddMonths(6);
         unit.Health = "good";
         unit.Services.Add(new ServiceRecord {
-            Id = await store.NextIdAsync("serviceRecords"), BookingId = booking.Id, Date = Membership.ThaiNow.Date,
+            Id = await store.NextIdAsync("serviceRecords"), BookingId = booking.Id, Date = visited,
             TechnicianName = booking.TechnicianName, Service = booking.Service, Price = booking.Price, Summary = summary, Status = BookingStates.Completed
         });
         await store.AirConditioners.ReplaceOneAsync(x => x.Id == unit.Id, unit);

@@ -31,6 +31,8 @@ public class JobCompletionController(MongoStore db, Notifier notifier) : AirClea
         if (tech is null || tech.Id != booking.TechnicianId) return Forbid();
         if (booking.Status is not (BookingStates.Confirmed or BookingStates.Traveling or BookingStates.Arrived or BookingStates.InProgress or BookingStates.AwaitingPayment))
             return Conflict(new { message = "อัปเดตความคืบหน้าได้ระหว่างทำงานเท่านั้น" });
+        // Once the technician has closed the job as paid the count is final (and the 3-day auto close runs from then).
+        if (booking.TechnicianConfirmedPayment) return Conflict(new { message = "ปิดงานแล้ว แก้ความคืบหน้าไม่ได้" });
         var done = Math.Clamp(request.UnitsDone, 0, booking.UnitCount);
         var update = Builders<Booking>.Update.Set(x => x.UnitsDone, done);
         if (booking.Rooms.Count > 0 && request.RoomsDone is not null) {

@@ -28,4 +28,8 @@ describe('pricing (same rules as the server)', () => {
     const range = { low: 1000, mid: 1200, high: 1500, technicians: 5, reference: false };
     expect([positionOf(900, range), positionOf(1200, range), positionOf(1600, range)]).toEqual(['low', 'typical', 'high']);
   });
+  it('leaves out a surcharge the technician set to 0', () => {
+    const lines = priceLines({ ...referenceSheet, large: 0, hardAccess: 0 }, [{ kind: 'wall', count: 2, large: 1 }], false, 1);
+    expect(lines.map(line => line.kind)).toEqual(['clean']);
+  });
 });

@@ -27,7 +27,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await store.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
         // Accounts created with Google have no password until the user sets one.
-        if (user is null || string.IsNullOrEmpty(user.PasswordHash) || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+        if (user is null || user.DeletedAt is not null || string.IsNullOrEmpty(user.PasswordHash) || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return Ok(CreateLoginResponse(user));
     }
@@ -36,6 +36,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        if (IsReservedEmail(email)) return BadRequest(new { message = "กรุณาใช้อีเมลจริงที่รับข้อความได้" });
         if (await store.Users.Find(x => x.Email == email).AnyAsync())
             return Conflict(new { message = "อีเมลนี้ถูกใช้แล้ว" });
         var requestedRole = PublicRole(request.Role);
@@ -61,12 +62,12 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         if (identity is null) return Unauthorized(new { message = $"ยืนยันตัวตนกับ {label} ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
 
         // 1. This Google account is already linked.
-        var user = await store.Users.Find(x => x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
+        var user = await store.Users.Find(x => x.DeletedAt == null && x.ExternalLogins.Any(l => l.Provider == identity.Provider && l.Subject == identity.Subject)).FirstOrDefaultAsync();
         if (user is not null) return Ok(CreateLoginResponse(await photos.ImportFromProviderAsync(user, identity)));
 
         // 2. Same verified email as an existing account: link it. Admin accounts keep password-only sign-in.
         if (identity.Email is not null && identity.EmailVerified) {
-            var existing = await store.Users.Find(x => x.Email == identity.Email).FirstOrDefaultAsync();
+            var existing = await store.Users.Find(x => x.Email == identity.Email && x.DeletedAt == null).FirstOrDefaultAsync();
             if (existing is not null) {
                 if (existing.Role == AppRoles.Admin) return Conflict(new { message = "บัญชีผู้ดูแลระบบต้องเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน" });
                 // Whether Google already proved this address for the account, before this link.
@@ -128,13 +129,15 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         if (user is null) return NotFound(new { message = "ไม่พบบัญชีผู้ใช้" });
 
         var email = request.Email.Trim().ToLowerInvariant();
+        if (IsReservedEmail(email)) return BadRequest(new { message = "กรุณาใช้อีเมลจริงที่รับข้อความได้" });
         if (await store.Users.Find(x => x.Email == email && x.Id != user.Id).AnyAsync())
             return Conflict(new { message = "อีเมลนี้ถูกใช้โดยบัญชีอื่นแล้ว" });
 
         user.FullName = request.FullName.Trim();
         user.Email = email;
         if (request.EmailNotifications is bool wantsEmail) user.EmailNotifications = wantsEmail;
-        await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
+        // Never writes back over an account deleted in the meantime.
+        if ((await store.Users.ReplaceOneAsync(x => x.Id == user.Id && x.DeletedAt == null, user)).MatchedCount == 0) return Unauthorized();
         return Ok(ToAuthUser(user));
     }
 
@@ -190,7 +193,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         user.PasswordHash = hasher.HashPassword(user, request.NewPassword);
         user.SessionVersion += 1;
         user.PasswordResetTokenHash = null; user.PasswordResetExpiresAt = null;
-        await store.Users.ReplaceOneAsync(x => x.Id == user.Id, user);
+        if ((await store.Users.ReplaceOneAsync(x => x.Id == user.Id && x.DeletedAt == null, user)).MatchedCount == 0) return Unauthorized();
         // Other devices are signed out; this one continues with a fresh token.
         return Ok(CreateLoginResponse(user));
     }
@@ -228,6 +231,9 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
         _ => AppRoles.Customer
     };
 
+    /// <summary>".invalid" never receives mail (RFC 2606); deleted accounts are parked under it.</summary>
+    private static bool IsReservedEmail(string email) => email.EndsWith(".invalid", StringComparison.Ordinal);
+
     private static string? TechnicianApplicationError(string role, string phone, string serviceArea) =>
         role != AppRoles.Technician ? null
         : !IsPhone(phone) ? "กรุณากรอกเบอร์โทรศัพท์ที่ติดต่อได้ (9–15 หลัก)"
@@ -238,7 +244,7 @@ public class AuthController(MongoStore db, Notifier notifier, IPasswordHasher<Ap
     {
         var login = new ExternalLogin { Provider = identity.Provider, Subject = identity.Subject, Email = identity.Email, LinkedAt = DateTime.UtcNow };
         (user.ExternalLogins ??= []).Add(login);
-        return store.Users.UpdateOneAsync(x => x.Id == user.Id, Builders<AppUser>.Update.Push(x => x.ExternalLogins, login));
+        return store.Users.UpdateOneAsync(x => x.Id == user.Id && x.DeletedAt == null, Builders<AppUser>.Update.Push(x => x.ExternalLogins, login));
     }
 
     private async Task<string> IssueResetLinkAsync(AppUser user, TimeSpan lifetime)

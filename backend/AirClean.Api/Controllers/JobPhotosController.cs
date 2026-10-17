@@ -76,6 +76,14 @@ public class JobPhotosController(MongoStore db, Notifier notifier) : AirCleanCon
     [Authorize(Roles = "Technician"), HttpDelete("photos/{photoId}")]
     public async Task<IActionResult> DeleteJobPhoto(string photoId)
     {
+        var photo = await store.JobPhotos.Find(x => x.Id == photoId && x.UploadedByUserId == CurrentUserId).FirstOrDefaultAsync();
+        if (photo is null) return NotFound();
+        // Photos are the evidence when something goes wrong: they stay once a problem is reported, and after the same
+        // window in which new ones can still be added.
+        var booking = await store.Bookings.Find(x => x.Id == photo.BookingId).FirstOrDefaultAsync();
+        if (booking is not null && (booking.Issue is { IsOpen: true } || booking.Status == BookingStates.PaymentIssue
+            || (booking.Status == BookingStates.Completed && booking.UpdatedAt < DateTime.UtcNow.AddDays(-1))))
+            return Conflict(new { message = "ลบรูปงานนี้ไม่ได้แล้ว รูปใช้เป็นหลักฐานของงาน" });
         var deleted = await store.JobPhotos.DeleteOneAsync(x => x.Id == photoId && x.UploadedByUserId == CurrentUserId);
         return deleted.DeletedCount == 0 ? NotFound() : NoContent();
     }

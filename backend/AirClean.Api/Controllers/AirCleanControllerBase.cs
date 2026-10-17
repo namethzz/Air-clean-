@@ -44,12 +44,13 @@ public abstract class AirCleanControllerBase : ControllerBase
     }
 
     /// <summary>The price lists of every approved technician: what the going rate for a job is worked out from.</summary>
-    protected async Task<List<PriceSheet>> MarketSheetsAsync()
+    /// <param name="job">When given, only technicians who take this job (its kinds of unit, a deep clean) count.</param>
+    protected async Task<List<PriceSheet>> MarketSheetsAsync(JobSpec? job = null)
     {
         // Approved, or older records approved before VerificationStatus existed (see TechnicianProfile.Status).
         var approved = Builders<TechnicianProfile>.Filter.Eq(x => x.VerificationStatus, VerificationStates.Approved)
             | (Builders<TechnicianProfile>.Filter.Eq(x => x.VerificationStatus, null) & Builders<TechnicianProfile>.Filter.Eq(x => x.IsVerified, true));
-        return (await store.Technicians.Find(approved).ToListAsync()).Select(Pricing.SheetOf).ToList();
+        return (await store.Technicians.Find(approved).ToListAsync()).Where(x => job is null || Pricing.Takes(x, job)).Select(Pricing.SheetOf).ToList();
     }
 
     /// <summary>
@@ -130,6 +131,11 @@ public abstract class AirCleanControllerBase : ControllerBase
             case BookingStates.Completed:
                 notify.ToUser(booking.CustomerId, $"งานเสร็จสมบูรณ์ {booking.Code}", $"ขอบคุณที่ใช้บริการ งาน{job}ปิดเรียบร้อยแล้ว\nให้คะแนน {booking.TechnicianName} ได้ที่ “งานของฉัน” เพื่อช่วยลูกค้าคนอื่นเลือกช่าง", NotificationLink.Job(booking.Id));
                 notify.ToTechnician(booking.TechnicianId, $"งานเสร็จสมบูรณ์ {booking.Code}", $"ลูกค้ายืนยันการชำระเงิน ฿{booking.Price:N0} แล้ว งาน{job}ปิดเรียบร้อย", NotificationLink.Job(booking.Id));
+                break;
+            // Cancelled before anyone was picked: the technicians who offered hear it instead of the job just disappearing.
+            case BookingStates.Cancelled when booking.TechnicianId == 0 && previous is BookingStates.OpenForTechnicians or BookingStates.AwaitingCustomerSelection:
+                foreach (var applicant in booking.Applicants ?? [])
+                    notify.ToTechnician(applicant.TechnicianId, $"ลูกค้ายกเลิกคำขอ {booking.Code}", $"ลูกค้ายกเลิกคำขอ{job}ที่คุณเสนอราคาไว้ ดูงานอื่นในพื้นที่ได้ที่ “งานใกล้ฉัน”", NotificationLink.NearbyJobs);
                 break;
             case BookingStates.Cancelled when booking.TechnicianId > 0 && previous is BookingStates.Confirmed or BookingStates.Pending:
                 if (CurrentRole == AppRoles.Technician)

@@ -66,8 +66,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             var store = context.HttpContext.RequestServices.GetRequiredService<MongoStore>();
             // Deserialize through AppUser so records saved before SessionVersion existed read as version 0.
             var account = await store.Users.Find(x => x.Id == userId)
-                .Project<AppUser>(Builders<AppUser>.Projection.Include(x => x.SessionVersion)).FirstOrDefaultAsync();
-            if (account is null || account.SessionVersion != tokenVersion) context.Fail("Session expired.");
+                .Project<AppUser>(Builders<AppUser>.Projection.Include(x => x.SessionVersion).Include(x => x.DeletedAt)).FirstOrDefaultAsync();
+            // A deleted account keeps a placeholder record; nothing signed for it works any more.
+            if (account is null || account.DeletedAt is not null || account.SessionVersion != tokenVersion) context.Fail("Session expired.");
         }
     };
     });
