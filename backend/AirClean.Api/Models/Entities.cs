@@ -134,9 +134,9 @@ public class Booking {
  public int UnitsDone {get;set;}
  /// <summary>For buildings: the rooms in this job and which ones the technician has finished.</summary>
  public List<BookingRoom> Rooms {get;set;}=[];
- /// <summary>Set once, the first time the customer issues the receipt for this paid job.</summary>
  /// <summary>Phones the two sides use to call each other once a technician is chosen.</summary>
  public string? CustomerPhone {get;set;} public string? TechnicianPhone {get;set;} public string? TechnicianPhotoId {get;set;}
+ /// <summary>Set once, the first time the customer issues the receipt for this paid job.</summary>
  public string? ReceiptNo {get;set;} public DateTime? ReceiptIssuedAt {get;set;} public BillingInfo? ReceiptPayer {get;set;}
  /// <summary>Set once the "your visit is tomorrow / today" reminder went out.</summary>
  public bool VisitReminded {get;set;}
@@ -198,12 +198,13 @@ public class BookingIssue {
  public string? Resolution {get;set;} public string? ResolutionNote {get;set;} public int? ResolvedByUserId {get;set;} public DateTime? ResolvedAt {get;set;}
  public bool IsOpen => Resolution is null;
 }
-[BsonIgnoreExtraElements]
-/// <summary>A photo the technician took on the job, stored in the database (resized on the phone first).</summary>
 /// <summary>A profile photo, cropped square and shrunk by the browser. Served publicly under its random id.</summary>
+[BsonIgnoreExtraElements]
 public class ProfilePhoto {
  [BsonId] public string Id {get;set;}=""; public int UserId {get;set;} public string ContentType {get;set;}="image/jpeg"; public byte[] Data {get;set;}=[]; public DateTime CreatedAt {get;set;}=DateTime.UtcNow;
 }
+/// <summary>A photo the technician took on the job, stored in the database (resized on the phone first).</summary>
+[BsonIgnoreExtraElements]
 public class JobPhoto {
  [BsonId] public string Id {get;set;}="" ; public int BookingId {get;set;} public int TechnicianId {get;set;} public int UploadedByUserId {get;set;}
  /// <summary>before or after.</summary>

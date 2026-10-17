@@ -38,3 +38,10 @@ services:
       # as VITE_GOOGLE_CLIENT_ID.
       - key: GOOGLE_CLIENT_ID
         sync: false
+      # Lets the GitHub Actions "Reminders" workflow wake the server (POST /api/cron/reminders with X-Cron-Key).
+      # Use the same value as the repository secret AIRCLEAN_CRON_KEY. Leave empty to turn the endpoint off.
+      - key: CRON_KEY
+        sync: false
+      # Automatic checking of membership slips with the bank. Leave empty and slips wait for an admin.
+      - key: SLIP2GO_API_SECRET
+        sync: false
