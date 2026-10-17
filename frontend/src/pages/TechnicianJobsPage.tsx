@@ -387,7 +387,7 @@ function JobDetail({ booking, bookings, reports, onBack, onStatusChange, onLocat
       <div className="ui-card-head"><div><h2 id={`tj-go-${booking.id}`}>ที่ต้องไป</h2><p>{booking.customer} · {booking.propertyType || 'ที่พัก'}</p></div></div>
       <p className="tj-address">{booking.address}</p>
       {booking.customerPhone && <a className="ui-btn is-lg is-block tj-call" href={telLink(booking.customerPhone)} aria-label={`โทรหาลูกค้า ${formatPhone(booking.customerPhone)}`}>
-        <Phone size={20}/><span>โทรหาลูกค้า</span><span className="ui-num">{formatPhone(booking.customerPhone)}</span>
+        <Phone size={20} aria-hidden="true"/><span className="tj-call-label">โทรหาลูกค้า</span><span className="ui-num">{formatPhone(booking.customerPhone)}</span>
       </a>}
       {hasDestination && <div className="jb-map"><LocationMap key={booking.id + booking.status} center={hasOwn && traveling ? { latitude: booking.technicianLatitude!, longitude: booking.technicianLongitude! } : { latitude: booking.latitude!, longitude: booking.longitude! }}
         destination={{ latitude: booking.latitude!, longitude: booking.longitude!, label: 'บ้านลูกค้า', kind: 'destination' }}

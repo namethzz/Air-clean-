@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, IdCard, MapPin, Send, Tags, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, IdCard, Loader2, MapPin, Send, Tags, Wrench } from 'lucide-react';
 import type { AcKind, PriceGuide, TechnicianApplication, TechnicianDocument } from '../types';
 import { fetchPriceGuide, isApiConfigured, submitTechnicianProfile, updateMyTechnicianProfile } from '../lib/api';
 import { acKinds, baht, kindNames, referenceSheet } from '../lib/pricing';
@@ -203,10 +203,13 @@ export default function TechnicianSetup({ profile, onDone }: { profile: Technici
     </section>
 
     <div className="ts-foot">
-      {step > 0 && <button type="button" className="ui-btn is-lg" onClick={() => go(step - 1)} disabled={busy}><ArrowLeft size={20}/> ย้อนกลับ</button>}
+      {step > 0 && <button type="button" className="ui-btn is-lg ts-back" onClick={() => go(step - 1)} disabled={busy}><ArrowLeft size={22} aria-hidden="true"/><span className="ts-back-text">ย้อนกลับ</span></button>}
       {step < 4
-        ? <button type="button" className="ui-btn is-primary is-lg ts-next" onClick={next}>ถัดไป: {steps[step + 1].title} <ArrowRight size={20}/></button>
-        : <button type="button" className="ui-btn is-primary is-lg ts-next" onClick={() => void send()} disabled={busy} aria-busy={busy}>{busy ? 'กำลังส่ง…' : <>ส่งให้ผู้ดูแลตรวจ <Send size={20}/></>}</button>}
+        ? <button type="button" className="ui-btn is-primary is-lg ts-next" onClick={next}>
+            <span className="ts-next-text"><small>ถัดไป</small><span>{steps[step + 1].title}</span></span><ArrowRight size={22} aria-hidden="true"/></button>
+        : <button type="button" className="ui-btn is-primary is-lg ts-next" onClick={() => void send()} disabled={busy} aria-busy={busy}>
+            <span className="ts-next-text"><small>ขั้นสุดท้าย</small><span>{busy ? 'กำลังส่ง…' : 'ส่งให้ผู้ดูแลตรวจ'}</span></span>
+            {busy ? <Loader2 size={22} className="animate-spin" aria-hidden="true"/> : <Send size={22} aria-hidden="true"/>}</button>}
     </div>
   </div>;
 }
