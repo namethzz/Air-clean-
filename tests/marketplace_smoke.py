@@ -48,7 +48,14 @@ def account(role):
 TINY_JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U'
 
 def send_id(token):
-    return call('/technicians/me/documents', 'POST', {'kind': 'idcard', 'data': TINY_JPEG}, token, 201)
+    """Finishes a technician's setup: the ID card, what they clean, their prices, then sends it for review."""
+    sent = call('/technicians/me/documents', 'POST', {'kind': 'idcard', 'data': TINY_JPEG}, token, 201)
+    me = call('/technicians/me', token=token)
+    if me['needsSetup']:
+        call('/technicians/me', 'PATCH', {'title': me['title'], 'area': me['area'], 'basePrice': me['prices']['wall'], 'availableText': 'ทุกวัน 08:00–18:00',
+             'skills': ', '.join(me['skills']) or 'ล้างแอร์', 'phone': me['phone'], 'prices': me['prices'], 'kinds': ['wall', 'hanging', 'cassette'], 'offersDeep': True}, token)
+        assert not call('/technicians/me/submit', 'POST', {}, token)['needsSetup']
+    return sent
 
 admin_email, admin_password = os.environ['TEST_ADMIN_EMAIL'], os.environ['TEST_ADMIN_PASSWORD']
 admin = call('/auth/login', 'POST', {'email': admin_email, 'password': admin_password})['token']
@@ -88,6 +95,13 @@ other_tech = account('technician')
 profile = call('/technicians/me', token=tech)
 assert profile['verificationStatus'] == 'Pending' and not profile['verified'] and profile['phone'] == '081-234-5678'
 call('/technicians/me', token=customer, expected=403)
+# A new technician sets up what they clean and their prices, with the ID card, before the admin can approve them.
+assert profile['needsSetup'] and not profile['pricesSet']
+missing = call('/technicians/me/submit', 'POST', {}, tech, 400)
+assert missing['code'] == 'setup_incomplete' and 'ราคา' in missing['message'] and 'บัตรประชาชน' in missing['message']
+base_patch = {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600, 'availableText': 'ทุกวัน', 'skills': 'ล้างแอร์'}
+call('/technicians/me', 'PATCH', {**base_patch, 'kinds': ['roof']}, tech, 400)
+call('/technicians/me', 'PATCH', {**base_patch, 'kinds': []}, tech, 400)
 call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': 600,
      'availableText': '09:00–18:00', 'skills': 'ล้างแอร์มาตรฐาน, ตรวจเช็ก'}, tech)
 call('/technicians/me', 'PATCH', {'title': 'ช่างทดสอบ', 'area': 'บางเขน', 'basePrice': -1,
@@ -216,6 +230,22 @@ assert [x['kind'] for x in picked['priceLines']] == ['clean', 'clean', 'large', 
 # The chosen technician sees only their own offer, never who else offered or at what price.
 for view in [call(f'/bookings/{job_id}', token=tech), next(row for row in call('/bookings', token=tech) if row['id'] == job_id)]:
     assert [x['technicianId'] for x in view['applicants']] == [profile['id']]
+# A technician sees and offers only on jobs they do: one who cleans wall units only, without deep cleans, does not
+# get a job with a cassette unit or a deep clean.
+other_me = call('/technicians/me', token=other_tech)
+other_patch = {'title': other_me['title'], 'area': other_me['area'], 'basePrice': other_me['prices']['wall'], 'availableText': other_me['availableText'],
+               'skills': ', '.join(other_me['skills']), 'phone': other_me['phone'], 'prices': other_me['prices']}
+assert call('/technicians/me', 'PATCH', {**other_patch, 'kinds': ['wall'], 'offersDeep': False}, other_tech)['kinds'] == ['wall']
+cassette_job = call('/bookings', 'POST', {**payload, **described}, customer, 201)
+deep_job = call('/bookings', 'POST', {**payload, 'items': [{'kind': 'wall', 'count': 1}], 'deep': True}, customer, 201)
+wall_job = call('/bookings', 'POST', {**payload, 'items': [{'kind': 'wall', 'count': 1}]}, customer, 201)
+other_feed = [row['id'] for row in call('/technician-jobs?latitude=13.7563&longitude=100.5018&radiusKm=5', token=other_tech)]
+assert wall_job['id'] in other_feed and cassette_job['id'] not in other_feed and deep_job['id'] not in other_feed
+call(f"/bookings/{cassette_job['id']}/applications", 'POST', {}, other_tech, 409)
+call(f"/bookings/{deep_job['id']}/applications", 'POST', {}, other_tech, 409)
+call('/technicians/me', 'PATCH', {**other_patch, 'kinds': ['wall', 'hanging', 'cassette'], 'offersDeep': True}, other_tech)
+for row in [cassette_job, deep_job, wall_job]:
+    call(f"/bookings/{row['id']}/status", 'PATCH', {'status': 'ยกเลิก'}, customer, 204)
 for status in ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ']:
     call(f'/bookings/{job_id}/status', 'PATCH', {'status': status}, tech, 204)
 # On site the units are not as described: the new price comes from the same list, and nothing changes until the customer says yes.
@@ -441,7 +471,6 @@ if brevo_port:
     n_customer, n_customer_email = register('Customer')
     n_tech, n_tech_email = register('Technician')
     n_other, n_other_email = register('Technician')
-    notice(admin, 'มีช่างสมัครใหม่')
     n_profile = call('/technicians/me', token=n_tech)
     n_other_profile = call('/technicians/me', token=n_other)
     call(f"/technicians/{n_other_profile['id']}/verification", 'PATCH', {'verified': False, 'note': 'ทดสอบเหตุผล'}, admin)
@@ -449,6 +478,7 @@ if brevo_port:
     for token, row in [(n_tech, n_profile), (n_other, n_other_profile)]:
         send_id(token)
         call(f"/technicians/{row['id']}/verification", 'PATCH', {'verified': True}, admin)
+    notice(admin, 'มีช่างสมัครใหม่')
     notice(n_tech, 'ได้รับการอนุมัติ')
     job = call('/bookings', 'POST', {**payload, 'address': 'NOTIFY-HOUSE-9'}, n_customer, 201)
     call(f"/bookings/{job['id']}/applications", 'POST', {}, n_tech)

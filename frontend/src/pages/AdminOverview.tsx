@@ -24,7 +24,7 @@ export default function AdminOverview({ state, userName, onNavigate, onOpenJob }
     if (!isApiConfigured()) return;
     let live = true;
     // Each count is shown as soon as it arrives; one that fails stays "—" rather than holding the others back.
-    fetchTechnicianApplications().then(rows => { if (live) setQueues(q => ({ ...q, technicians: rows.filter(row => row.verificationStatus === 'Pending').length })); }).catch(() => undefined);
+    fetchTechnicianApplications().then(rows => { if (live) setQueues(q => ({ ...q, technicians: rows.filter(row => row.verificationStatus === 'Pending' && !row.needsSetup).length })); }).catch(() => undefined);
     fetchAdminIssues('open').then(rows => { if (live) setQueues(q => ({ ...q, issues: rows.length })); }).catch(() => undefined);
     fetchAdminMembership().then(data => { if (live) setQueues(q => ({ ...q, slips: data.payments.filter(row => row.status === 'Pending').length })); }).catch(() => undefined);
     return () => { live = false; };

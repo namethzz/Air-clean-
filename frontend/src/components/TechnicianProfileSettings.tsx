@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { Check, CheckCircle2, Clock3, Loader2, Plus, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { CheckCircle2, Clock3, Loader2, XCircle } from 'lucide-react';
 import { fetchPriceGuide, isApiConfigured, updateMyTechnicianProfile } from '../lib/api';
 import { numberText } from '../lib/numberText';
-import { baht, referenceSheet } from '../lib/pricing';
-import type { PriceGuide, PriceSheet, TechnicianApplication } from '../types';
+import { acKinds, referenceSheet } from '../lib/pricing';
+import type { AcKind, PriceGuide, TechnicianApplication } from '../types';
+import { othersOf, priceProblems, PriceSheetEditor, serviceProblem, ServicesPicker, sheetOf, skillsOf, toPriceText, type PriceKey, type PriceText, type Services } from './TechnicianServices';
+import TechnicianSetup from '../pages/TechnicianSetup';
 
 /** Where the technician's application stands with the admin. */
 export function VerificationBanner({ profile }: { profile: TechnicianApplication }) {
@@ -12,49 +14,24 @@ export function VerificationBanner({ profile }: { profile: TechnicianApplication
   return <div className="ui-alert is-wait" role="status"><Clock3 size={18}/><span><strong>รอผู้ดูแลระบบตรวจสอบ</strong>ผู้ดูแลอาจโทรยืนยันตามเบอร์ที่ให้ไว้ เมื่ออนุมัติแล้วจะเห็นงานใกล้ตัวทันที</span></div>;
 }
 
-/** Services a technician can tick. The first four are what customers choose when they book. */
-export const SKILL_SUGGESTIONS = ['ล้างแอร์มาตรฐาน', 'ล้างแอร์แบบแขวน', 'ล้างแอร์แบบแขวน (ฝังฝ้า)', 'ล้างแอร์ + ตรวจเช็ก', 'ล้างใหญ่ (ถอดล้าง)', 'เติมน้ำยาแอร์', 'ซ่อมแอร์', 'ติดตั้งแอร์'];
-
 /** Numbers stay text while editing, so a box can be emptied and retyped without a stray 0. */
-type PriceKey = keyof PriceSheet;
-interface ServiceForm { title: string; area: string; prices: Record<PriceKey, string>; experienceYears: string; skills: string[]; availableText: string; phone: string }
-type FieldKey = Exclude<keyof ServiceForm, 'skills' | 'prices'> | 'skills' | PriceKey;
+interface ServiceForm { title: string; area: string; services: Services; prices: PriceText; experienceYears: string; availableText: string; phone: string }
+type FieldKey = 'title' | 'area' | 'experienceYears' | 'availableText' | 'phone' | 'services' | PriceKey;
 
-/** The price list as customers' jobs need it: a price per unit for each kind of clean, then two per-unit additions. */
-const priceRows: { kind: string; normal: PriceKey; deep: PriceKey }[] = [
-  { kind: 'แอร์ติดผนัง', normal: 'wall', deep: 'wallDeep' },
-  { kind: 'แอร์แขวน / ตั้งพื้น', normal: 'hanging', deep: 'hangingDeep' },
-  { kind: 'แอร์ฝังฝ้า', normal: 'cassette', deep: 'cassetteDeep' },
-];
-const additions: { key: PriceKey; label: string }[] = [
-  { key: 'large', label: 'แอร์ใหญ่กว่า 24,000 BTU' },
-  { key: 'hardAccess', label: 'คอยล์ร้อนอยู่ที่สูง / เข้าถึงยาก' },
-];
-const priceKeys: PriceKey[] = ['wall', 'wallDeep', 'hanging', 'hangingDeep', 'cassette', 'cassetteDeep', 'large', 'hardAccess'];
-
-const toForm = (p: TechnicianApplication): ServiceForm => {
-  const sheet = p.prices ?? { ...referenceSheet, wall: p.basePrice || referenceSheet.wall };
-  return {
-    title: p.title, area: p.area, prices: Object.fromEntries(priceKeys.map(key => [key, String(sheet[key])])) as Record<PriceKey, string>,
-    experienceYears: String(p.experienceYears ?? 0), skills: p.skills, availableText: p.availableText, phone: p.phone,
-  };
-};
+const toForm = (p: TechnicianApplication): ServiceForm => ({
+  title: p.title, area: p.area, experienceYears: String(p.experienceYears ?? 0), availableText: p.availableText, phone: p.phone,
+  services: { kinds: (p.kinds?.length ? p.kinds : [...acKinds]) as AcKind[], deep: p.offersDeep ?? true, others: othersOf(p.skills) },
+  prices: toPriceText(p.prices ?? { ...referenceSheet, wall: p.basePrice || referenceSheet.wall }),
+});
 const sameForm = (a: ServiceForm, b: ServiceForm) => JSON.stringify(a) === JSON.stringify(b);
 
 function problemsOf(form: ServiceForm): Partial<Record<FieldKey, string>> {
   const years = Number(form.experienceYears || 0), phoneDigits = form.phone.replace(/\D/g, '').length;
-  const problems: Partial<Record<FieldKey, string>> = {};
+  const problems: Partial<Record<FieldKey, string>> = { ...priceProblems(form.prices, form.services) };
   if (!form.title.trim()) problems.title = 'บอกลูกค้าว่าคุณเชี่ยวชาญงานแบบไหน';
-  for (const row of priceRows) {
-    const normal = Number(form.prices[row.normal]), deep = Number(form.prices[row.deep]);
-    if (!form.prices[row.normal] || normal < 50 || normal > 20000) problems[row.normal] = '50–20,000 บาท';
-    if (!form.prices[row.deep] || deep < 50 || deep > 20000) problems[row.deep] = '50–20,000 บาท';
-    else if (deep < normal) problems[row.deep] = 'ต้องไม่ต่ำกว่าล้างธรรมดา';
-  }
-  for (const item of additions) if (form.prices[item.key] === '' || Number(form.prices[item.key]) > 10000) problems[item.key] = '0–10,000 บาท';
+  const service = serviceProblem(form.services);
+  if (service) problems.services = service;
   if (years > 60) problems.experienceYears = 'ไม่เกิน 60 ปี';
-  if (!form.skills.length) problems.skills = 'เลือกบริการที่รับอย่างน้อย 1 อย่าง';
-  else if (form.skills.join(', ').length > 500) problems.skills = 'รายการบริการยาวเกินไป ลองเอาบางอย่างออก';
   if (!form.area.trim()) problems.area = 'บอกย่านหรือเขตที่คุณรับงาน';
   if (!form.availableText.trim()) problems.availableText = 'บอกวันและเวลาที่สะดวกรับงาน';
   if (phoneDigits < 9 || phoneDigits > 15) problems.phone = 'เบอร์โทรศัพท์ 9–15 หลัก';
@@ -74,9 +51,14 @@ function Field({ id, label, hint, problem, children }: { id: string; label: stri
  * calls. A save bar appears once something changes; prices already offered on jobs are not touched.
  */
 export default function ServiceProfileForm({ profile, onSaved }: { profile: TechnicianApplication; onSaved: (profile: TechnicianApplication) => void }) {
+  // Until the first setup is sent, this page is that setup.
+  if (profile.needsSetup) return <TechnicianSetup profile={profile} onDone={onSaved}/>;
+  return <ServiceEditor profile={profile} onSaved={onSaved}/>;
+}
+
+function ServiceEditor({ profile, onSaved }: { profile: TechnicianApplication; onSaved: (profile: TechnicianApplication) => void }) {
   const [base, setBase] = useState(() => toForm(profile));
   const [form, setForm] = useState(base);
-  const [draft, setDraft] = useState('');
   const [showProblems, setShowProblems] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -87,26 +69,10 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
   // What other technicians charge, next to each price, so the list can be set sensibly.
   const [guide, setGuide] = useState<PriceGuide | null>(null);
   useEffect(() => { if (isApiConfigured()) fetchPriceGuide().then(setGuide).catch(() => undefined); }, []);
-  const setPrice = (key: PriceKey, value: string) => set('prices', { ...form.prices, [key]: numberText(value, { maxLength: 5 }) });
-  const priceField = (key: PriceKey, label: string) => <Field id={`pf-${key}`} label={label} problem={problems[key]} hint={guide ? `${guide.reference ? 'ราคาอ้างอิง' : 'ช่างส่วนใหญ่'} ${baht(guide.typical[key])}` : undefined}>
-    <div className="pf-affix"><span aria-hidden="true">฿</span>
-      <input id={`pf-${key}`} inputMode="numeric" autoComplete="off" value={form.prices[key]} aria-invalid={!!problems[key]} aria-describedby={described(key, Boolean(guide))}
-        onChange={event => setPrice(key, event.target.value)}/>
-    </div>
-  </Field>;
 
   const dirty = !sameForm(form, base);
   const problems = showProblems ? problemsOf(form) : {};
   const set = <K extends keyof ServiceForm>(key: K, value: ServiceForm[K]) => { setForm(previous => ({ ...previous, [key]: value })); setSavedNote(''); setError(''); };
-  const toggleSkill = (skill: string) => set('skills', form.skills.includes(skill) ? form.skills.filter(item => item !== skill) : [...form.skills, skill]);
-  function addDraft() {
-    const skill = draft.replace(/,/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
-    if (skill && !form.skills.includes(skill)) set('skills', [...form.skills, skill]);
-    setDraft('');
-  }
-  function draftKey(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); addDraft(); }
-  }
   const described = (key: FieldKey, hint = false) => problems[key] ? `pf-${key}-problem` : hint ? `pf-${key}-hint` : undefined;
 
   async function submit(event: FormEvent) {
@@ -114,16 +80,17 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
     const found = problemsOf(form);
     if (Object.keys(found).length) {
       setShowProblems(true);
-      window.requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('.pf-field.invalid input, .pf-field.invalid button')?.focus());
+      window.requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('.pf-field.invalid input, [aria-invalid="true"], .ui-problem')?.focus?.());
       return;
     }
     setSaving(true); setError('');
     try {
       const wasRejected = profile.verificationStatus === 'Rejected';
-      const prices = Object.fromEntries(priceKeys.map(key => [key, Number(form.prices[key])])) as unknown as PriceSheet;
+      const prices = sheetOf(form.prices, form.services, guide);
       const saved = await updateMyTechnicianProfile({
         title: form.title.trim(), area: form.area.trim(), basePrice: prices.wall, prices, availableText: form.availableText.trim(),
-        skills: form.skills.join(', '), phone: form.phone.trim(), experienceYears: Number(form.experienceYears || 0),
+        kinds: acKinds.filter(kind => form.services.kinds.includes(kind)), offersDeep: form.services.deep,
+        skills: skillsOf(form.services).join(', '), phone: form.phone.trim(), experienceYears: Number(form.experienceYears || 0),
       });
       setShowProblems(false);
       setSavedNote(wasRejected ? 'บันทึกแล้ว ส่งให้ผู้ดูแลตรวจอีกครั้ง' : 'บันทึกข้อมูลบริการแล้ว');
@@ -132,7 +99,6 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
     finally { setSaving(false); }
   }
 
-  const custom = form.skills.filter(skill => !SKILL_SUGGESTIONS.includes(skill));
   return <form className="pf-service" onSubmit={submit} ref={formRef} noValidate>
     {profile.verificationStatus !== 'Approved' && <VerificationBanner profile={profile}/>}
 
@@ -153,23 +119,6 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
         </Field>
       </div>
 
-      <div className={'pf-field' + (problems.skills ? ' invalid' : '')} role="group" aria-labelledby="pf-skills-label" aria-describedby={described('skills')}>
-        <span className="pf-label" id="pf-skills-label">บริการที่รับ</span>
-        <div className="pf-chips">
-          {[...SKILL_SUGGESTIONS, ...custom].map(skill => {
-            const on = form.skills.includes(skill);
-            return <button type="button" key={skill} className={'pf-chip' + (on ? ' on' : '')} aria-pressed={on} onClick={() => toggleSkill(skill)}>
-              {on ? <Check size={15}/> : <Plus size={15}/>}{skill}
-            </button>;
-          })}
-        </div>
-        <div className="pf-chip-add">
-          <input value={draft} maxLength={60} placeholder="บริการอื่น เช่น ล้างแอร์รถยนต์" aria-label="เพิ่มบริการอื่น" onChange={event => setDraft(event.target.value)} onKeyDown={draftKey}/>
-          <button type="button" onClick={addDraft} disabled={!draft.trim()}><Plus size={16}/>เพิ่ม</button>
-        </div>
-        {problems.skills && <small className="pf-field-problem" id="pf-skills-problem">{problems.skills}</small>}
-      </div>
-
       <Field id="pf-area" label="พื้นที่ให้บริการ" hint="ย่านหรือเขตที่สะดวกเดินทางไป งานใกล้ฉันยังค้นจาก GPS และระยะที่ตั้งไว้" problem={problems.area}>
         <input id="pf-area" value={form.area} maxLength={200} placeholder="เช่น ลาดพร้าว · จตุจักร · บางซื่อ" aria-invalid={!!problems.area} aria-describedby={described('area', true)}
           onChange={event => set('area', event.target.value)}/>
@@ -180,19 +129,14 @@ export default function ServiceProfileForm({ profile, onSaved }: { profile: Tech
       </Field>
     </section>
 
+    <section className="pf-card" aria-labelledby="pf-services-title">
+      <header className="pf-card-head"><h2 id="pf-services-title">งานที่รับ</h2><p>คุณเห็นเฉพาะงานที่มีแอร์แบบที่เลือก ถ้าไม่รับล้างใหญ่ จะไม่เห็นงานที่ลูกค้าขอล้างใหญ่</p></header>
+      <ServicesPicker value={form.services} onChange={value => set('services', value)} problem={problems.services} idPrefix="pf"/>
+    </section>
+
     <section className="pf-card" aria-labelledby="pf-prices-title">
       <header className="pf-card-head"><h2 id="pf-prices-title">ใบราคาของคุณ</h2><p>ราคาต่อเครื่อง ระบบคิดราคาเสนอของแต่ละงานจากใบนี้ให้อัตโนมัติ และแสดงให้ลูกค้าเห็นทีละรายการ ถ้าหน้างานไม่ตรงกับที่ลูกค้าแจ้ง ราคาใหม่ก็คิดจากใบนี้</p></header>
-      <div className="pf-prices">
-        {priceRows.map(row => <fieldset key={row.normal} className="pf-price-row">
-          <legend>{row.kind}</legend>
-          {priceField(row.normal, 'ล้างธรรมดา')}
-          {priceField(row.deep, 'ล้างใหญ่ (ถอดล้าง)')}
-        </fieldset>)}
-        <fieldset className="pf-price-row">
-          <legend>บวกเพิ่มต่อเครื่อง</legend>
-          {additions.map(item => <div key={item.key}>{priceField(item.key, item.label)}</div>)}
-        </fieldset>
-      </div>
+      <PriceSheetEditor services={form.services} value={form.prices} onChange={value => set('prices', value)} guide={guide} problems={problems} idPrefix="pf"/>
       <p className="pf-price-note">ไม่ต้องใส่ราคาเติมน้ำยาหรือซ่อม งานเหล่านี้เสนอราคาที่หน้างานผ่านแอป และลูกค้าต้องกดอนุมัติก่อน</p>
     </section>
 

@@ -19,14 +19,14 @@ Candidate 7 of the grounded list: the soi's registered motorcycle-taxi stand (�
 ## Direction contract
 THESIS: AirClean is the soi's registered win stand. Every job and every technician wears a numbered blue plate you can read at arm's length, and a reflective strip marks whose turn it is. The app refuses the white-card delivery-app default, where every object is the same grey card with a small blue button.
 OWN-WORLD:
-- Vest-blue fields (deep #1756c8 rising to #1f86ea) cover the shell bands and the plates.
+- A light frame (owner, 2026-10-17: "ให้สีทั้งแอปสว่างขึ้น"): white rail and phone bar, pale blue bands; vest blue stays on the plates, the primary action and the active place.
 - Plain white working cards sit on a cool ground (#eef3f9), with navy ink (#0f1e33).
-- One vest orange (#ff7a1a, dark ink on it) appears only for "your turn now" (the owner swapped the earlier lime for it on 2026-10-16). State colours carry meaning only: teal is done, amber is waiting, red is a problem.
+- One mint (#3ddbaa, dark ink on it) appears only for "your turn now" (lime until 2026-10-16, orange until 2026-10-17; the owner asked for neither to stay). State colours carry meaning only: teal is done, amber is waiting, red is a problem.
 - Type: Kanit 600/700 for numerals and headings, read like a vest's printed number. IBM Plex Sans Thai Looped for text.
 - Shape: 14px corners, controls 52px tall on phones.
 STORY: The customer sees offers as plates, compares price, area and rating, and chooses in one tap. The technician sees earnings and distance before anything else. Everyone always sees what happens next and who does it.
 FIRST VIEWPORT: The customer's job page on a phone.
-- Top: a blue band with the job code, the stage name and an orange countdown strip ("เลือกช่างภายใน 42 นาที").
+- Top: a blue band with the job code, the stage name and a mint countdown strip ("เลือกช่างภายใน 42 นาที").
 - Below: offer plates stacked lowest price first. Each plate shows a huge Kanit price, then name · area, then rating · distance, and a "ตรวจแล้ว" mark.
 - The primary "เลือก … ฿…" button is pinned above the bottom tab bar.
 - On desktop the blue band becomes a left rail.

@@ -42,6 +42,10 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
         var prices = request.Prices is null ? null : DtoMapper.FromDto(request.Prices);
         if (prices is not null && (prices.WallDeep < prices.Wall || prices.HangingDeep < prices.Hanging || prices.CassetteDeep < prices.Cassette))
             return BadRequest(new { message = "ราคาล้างใหญ่ต้องไม่ต่ำกว่าล้างธรรมดาของแอร์แบบเดียวกัน" });
+        // The kinds of unit they clean; jobs with any other kind are not shown to them.
+        var kinds = request.Kinds?.Where(x => x is not null).Select(x => x.Trim().ToLowerInvariant()).Distinct().ToList();
+        if (kinds is not null && (kinds.Count == 0 || kinds.Any(x => !AcKinds.All.Contains(x))))
+            return BadRequest(new { message = "เลือกแอร์ที่คุณรับล้างอย่างน้อย 1 แบบ" });
         // Update only editable fields; verification, reviews and job totals remain system-managed.
         var update = Builders<TechnicianProfile>.Update
             .Set(x => x.Title, request.Title.Trim()).Set(x => x.Area, request.Area.Trim())
@@ -52,12 +56,40 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
         if (prices is not null) update = update.Set(x => x.Prices, prices);
         else if (request.BasePrice != profile.BasePrice && profile.Prices is not null)
             update = update.Set(x => x.Prices!.Wall, DtoMapper.Baht(request.BasePrice)).Set(x => x.Prices!.WallDeep, Math.Max(profile.Prices.WallDeep, DtoMapper.Baht(request.BasePrice)));
+        if (kinds is not null) update = update.Set(x => x.Kinds, AcKinds.All.Where(kinds.Contains).ToList());
+        if (request.OffersDeep is bool deep) update = update.Set(x => x.OffersDeep, deep);
         // A rejected application goes back to the admin queue once the technician corrects it.
         if (profile.Status == VerificationStates.Rejected)
             update = update.Set(x => x.VerificationStatus, VerificationStates.Pending).Set(x => x.IsVerified, false).Set(x => x.AppliedAt, DateTime.UtcNow);
         var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Where(x => x.Id == profile.Id && x.UserId == CurrentUserId),
             update, new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
         return saved is null ? NotFound() : Ok(DtoMapper.ToApplicationDto(saved, User.FindFirstValue(ClaimTypes.Email) ?? ""));
+    }
+
+    /// <summary>
+    /// Sends a new technician's details to the admin: what they clean, their own prices, where and when they work, a
+    /// phone number and the ID card. Until then they are not in the admin's queue.
+    /// </summary>
+    [Authorize(Roles = "Technician"), HttpPost("technicians/me/submit")]
+    public async Task<IActionResult> SubmitTechnicianProfile()
+    {
+        var profile = await EnsureCurrentTechnicianProfileAsync();
+        if (profile is null) return NotFound();
+        if (!profile.NeedsSetup) return Ok(DtoMapper.ToApplicationDto(profile, User.FindFirstValue(ClaimTypes.Email) ?? ""));
+        var missing = new List<string>();
+        if (profile.Kinds is not { Count: > 0 }) missing.Add("แอร์ที่รับล้าง");
+        if (profile.Prices is null) missing.Add("ราคาของคุณ");
+        if (string.IsNullOrWhiteSpace(profile.Area) || profile.Area == UnsetArea) missing.Add("พื้นที่ให้บริการ");
+        if (!IsPhone(profile.Phone)) missing.Add("เบอร์โทรศัพท์");
+        if (!await store.TechnicianDocuments.Find(x => x.TechnicianId == profile.Id && x.Kind == "idcard").AnyAsync()) missing.Add("รูปบัตรประชาชน");
+        if (missing.Count > 0) return BadRequest(new { message = "ยังขาด: " + string.Join(", ", missing), code = "setup_incomplete" });
+        var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Where(x => x.Id == profile.Id && x.NeedsSetup),
+            Builders<TechnicianProfile>.Update.Set(x => x.NeedsSetup, false).Set(x => x.AppliedAt, DateTime.UtcNow)
+                .Set(x => x.VerificationStatus, VerificationStates.Pending).Set(x => x.IsVerified, false),
+            new FindOneAndUpdateOptions<TechnicianProfile, TechnicianProfile> { ReturnDocument = ReturnDocument.After });
+        if (saved is null) return Ok(DtoMapper.ToApplicationDto(profile, User.FindFirstValue(ClaimTypes.Email) ?? ""));
+        notify.ToAdmins("มีช่างสมัครใหม่รอตรวจสอบ", $"{saved.Name} ส่งข้อมูลบริการและราคาแล้ว พื้นที่ {saved.Area} เบอร์ {saved.Phone}\nตรวจสอบและอนุมัติได้ที่เมนู “ตรวจสอบช่าง”", NotificationLink.Approvals);
+        return Ok(DtoMapper.ToApplicationDto(saved, User.FindFirstValue(ClaimTypes.Email) ?? ""));
     }
 
     [AllowAnonymous, HttpGet("technicians")]
@@ -84,6 +116,8 @@ public class TechniciansController(MongoStore db, Notifier notifier) : AirCleanC
         if (request.Verified && !await store.TechnicianDocuments.Find(x => x.TechnicianId == id && x.Kind == "idcard").AnyAsync()
             && await store.Technicians.Find(x => x.Id == id && x.VerificationStatus != VerificationStates.Approved).AnyAsync())
             return Conflict(new { message = "ช่างยังไม่ได้ส่งรูปบัตรประชาชน ให้ช่างแนบที่หน้า “โปรไฟล์และราคา” ก่อนอนุมัติ" });
+        if (request.Verified && await store.Technicians.Find(x => x.Id == id && x.NeedsSetup).AnyAsync())
+            return Conflict(new { message = "ช่างยังส่งข้อมูลบริการและราคาไม่ครบ จะอนุมัติได้หลังช่างกดส่งให้ตรวจ" });
         var saved = await store.Technicians.FindOneAndUpdateAsync(Builders<TechnicianProfile>.Filter.Eq(x => x.Id, id),
             Builders<TechnicianProfile>.Update.Set(x => x.IsVerified, request.Verified)
                 .Set(x => x.VerificationStatus, request.Verified ? VerificationStates.Approved : VerificationStates.Rejected)

@@ -170,14 +170,16 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px 22px;
+  border: 1px solid var(--v-blue-line);
   border-radius: var(--v-radius-lg);
-  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
-  color: var(--v-on-blue);
-  box-shadow: var(--v-shadow-plate);
+  background: linear-gradient(160deg, var(--v-surface) 0%, var(--v-blue-050) 55%, var(--v-blue-100) 100%);
+  color: var(--v-ink);
+  box-shadow: var(--v-shadow-card);
   overflow: hidden;
 }
 .jb-hero.is-off {
-  background: linear-gradient(160deg, var(--v-ink-3) 0%, var(--v-ink-2) 100%);
+  border-color: var(--v-line);
+  background: var(--v-sunken);
 }
 .jb-hero-top {
   display: flex;
@@ -187,13 +189,14 @@
 }
 .jb-code {
   font-size: var(--v-text-sm);
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-3);
   letter-spacing: 0.02em;
 }
 .jb-hero-status {
   padding: 4px 11px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.16);
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
   font-size: var(--v-text-xs);
   font-weight: 600;
   white-space: nowrap;
@@ -208,14 +211,14 @@
   align-items: center;
   gap: 6px;
   margin: -6px 0 0;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
 }
 .jb-guide {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding-top: 12px;
-  border-top: 1px solid rgb(255 255 255 / 0.18);
+  border-top: 1px solid var(--v-blue-line);
 }
 .jb-guide strong {
   font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
@@ -223,7 +226,7 @@
 .jb-guide p {
   margin: 0;
   max-width: 62ch;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
   line-height: 1.6;
   text-wrap: pretty;
 }
@@ -256,11 +259,11 @@
   right: 50%;
   width: 100%;
   height: 3px;
-  background: rgb(255 255 255 / 0.25);
+  background: var(--v-blue-line);
 }
 .jb-journey li.is-done::before,
 .jb-journey li.is-now::before {
-  background: var(--v-surface);
+  background: var(--v-blue-600);
 }
 .jb-stop {
   position: relative;
@@ -269,30 +272,30 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 2px solid rgb(255 255 255 / 0.45);
+  border: 2px solid var(--v-line-strong);
   border-radius: 50%;
-  background: var(--v-blue-700);
-  color: var(--v-on-blue-2);
+  background: var(--v-surface);
+  color: var(--v-ink-3);
   font: 600 var(--v-text-sm) / 1 var(--v-font-head);
 }
 .jb-journey .is-done .jb-stop {
-  border-color: var(--v-surface);
-  background: var(--v-surface);
-  color: var(--v-blue-700);
+  border-color: var(--v-blue-600);
+  background: var(--v-blue-600);
+  color: var(--v-on-blue);
 }
 .jb-journey .is-now .jb-stop {
   border-color: var(--v-turn);
   background: var(--v-turn);
   color: var(--v-turn-ink);
-  box-shadow: 0 0 0 4px rgb(255 122 26 / 0.32);
+  box-shadow: 0 0 0 4px rgb(61 219 170 / 0.35);
 }
 .jb-stop-label {
   font-size: var(--v-text-xs);
   line-height: 1.3;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-3);
 }
 .jb-journey .is-now .jb-stop-label {
-  color: var(--v-on-blue);
+  color: var(--v-ink);
   font-weight: 600;
 }
 
@@ -711,10 +714,11 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
   overflow: hidden;
+  border: 1px solid var(--v-line);
   border-radius: var(--v-radius-lg);
-  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
-  color: var(--v-on-blue);
-  box-shadow: var(--v-shadow-plate);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  box-shadow: var(--v-shadow-card);
 }
 .jb-summary div {
   display: flex;
@@ -724,27 +728,28 @@
   padding: 14px 14px 16px;
 }
 .jb-summary div + div {
-  border-left: 1px solid rgb(255 255 255 / 0.16);
+  border-left: 1px solid var(--v-line);
 }
 .jb-summary dt {
   font-size: var(--v-text-xs);
   font-weight: 600;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-3);
 }
 .jb-summary dd {
   margin: 0;
   font-size: var(--v-text-sm);
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
 }
 .jb-summary dd.ui-num,
 .jb-summary dd .ui-num {
   font-size: 1.875rem;
   font-weight: 600;
   line-height: 1.1;
-  color: var(--v-on-blue);
+  color: var(--v-blue-800);
 }
 .jb-summary .is-turn {
-  background: var(--v-turn);
+  background: var(--v-turn-bg);
+  box-shadow: inset 0 -4px 0 var(--v-turn);
 }
 .jb-summary .is-turn dt,
 .jb-summary .is-turn dd.ui-num {
@@ -798,14 +803,14 @@
 }
 .jb-due.is-due {
   border-color: var(--v-turn-deep);
-  background: #fff3e8;
+  background: var(--v-turn-bg);
 }
 .jb-due.is-due .jb-due-icon {
   background: var(--v-turn);
   color: var(--v-turn-ink);
 }
 .jb-due.is-due .jb-due-text small {
-  color: #9a4a00;
+  color: var(--v-turn-ink);
 }
 
 .jb-invite {

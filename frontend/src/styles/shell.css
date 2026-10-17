@@ -50,9 +50,10 @@
   padding: 22px 14px 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(180deg, var(--v-blue-800) 0%, var(--v-blue-900) 100%);
-  color: var(--v-on-blue);
-  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  border-right: 1px solid var(--v-line);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  scrollbar-color: var(--v-line-strong) transparent;
 }
 .sh-brand {
   display: flex;
@@ -66,10 +67,9 @@
   flex: none;
   width: 44px;
   height: 44px;
-  border: 1px solid rgb(255 255 255 / 0.24);
   border-radius: 12px;
-  background: rgb(255 255 255 / 0.12);
-  color: #ffffff;
+  background: var(--v-blue-600);
+  color: var(--v-on-blue);
 }
 .sh-brand-text {
   display: flex;
@@ -83,7 +83,7 @@
 .sh-brand-text small {
   margin-top: 3px;
   font-size: var(--v-text-sm);
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-3);
 }
 .sh-rail-cta {
   display: flex;
@@ -93,17 +93,17 @@
   min-height: var(--v-control-lg);
   border: 0;
   border-radius: var(--v-radius-md);
-  background: var(--v-surface);
-  color: var(--v-blue-800);
+  background: var(--v-blue-700);
+  color: var(--v-on-blue);
   font: 600 var(--v-text-md) / 1 var(--v-font-text);
   cursor: pointer;
-  box-shadow: 0 10px 20px -14px rgb(0 0 0 / 0.6);
+  box-shadow: 0 8px 18px -12px rgb(11 47 116 / 0.7);
   transition:
     transform var(--v-fast) var(--v-ease),
     background-color var(--v-fast) var(--v-ease);
 }
 .sh-rail-cta:hover {
-  background: var(--v-blue-050);
+  background: var(--v-blue-800);
 }
 .sh-rail-cta:active {
   transform: translateY(1px);
@@ -124,7 +124,7 @@
   border: 0;
   border-radius: var(--v-radius);
   background: none;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
   font: 500 var(--v-text-md) / 1.2 var(--v-font-text);
   text-align: left;
   cursor: pointer;
@@ -137,16 +137,13 @@
   min-width: 0;
 }
 .sh-nav-item:hover {
-  background: rgb(255 255 255 / 0.08);
-  color: var(--v-on-blue);
+  background: var(--v-sunken);
+  color: var(--v-ink);
 }
 .sh-nav-item.is-active {
-  background: var(--v-surface);
+  background: var(--v-blue-100);
   color: var(--v-blue-800);
   font-weight: 600;
-}
-.sh-rail :focus-visible {
-  outline-color: var(--v-on-blue);
 }
 .sh-count {
   display: inline-grid;
@@ -165,7 +162,7 @@
   gap: 4px;
   margin-top: auto;
   padding-top: var(--v-gap-4);
-  border-top: 1px solid rgb(255 255 255 / 0.14);
+  border-top: 1px solid var(--v-line);
 }
 .sh-me {
   display: flex;
@@ -176,13 +173,13 @@
   border: 0;
   border-radius: var(--v-radius);
   background: none;
-  color: var(--v-on-blue);
+  color: var(--v-ink);
   text-align: left;
   cursor: pointer;
 }
 .sh-me:hover,
 .sh-me.is-active {
-  background: rgb(255 255 255 / 0.1);
+  background: var(--v-sunken);
 }
 .sh-me-avatar {
   display: grid;
@@ -213,7 +210,7 @@
 }
 .sh-me-text small {
   font-size: var(--v-text-xs);
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-3);
 }
 .sh-logout {
   min-height: 42px;
@@ -282,9 +279,10 @@
   gap: 12px;
   min-height: 64px;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-  background: linear-gradient(160deg, var(--v-blue-600) 0%, var(--v-blue-800) 100%);
-  color: var(--v-on-blue);
-  box-shadow: 0 8px 18px -16px rgb(11 47 116 / 0.9);
+  border-bottom: 1px solid var(--v-line);
+  background: rgb(255 255 255 / 0.96);
+  color: var(--v-ink);
+  backdrop-filter: saturate(1.4) blur(8px);
 }
 .sh-band-mark {
   display: grid;
@@ -292,10 +290,9 @@
   flex: none;
   width: 40px;
   height: 40px;
-  border: 1px solid rgb(255 255 255 / 0.24);
   border-radius: 11px;
-  background: rgb(255 255 255 / 0.12);
-  color: #ffffff;
+  background: var(--v-blue-600);
+  color: var(--v-on-blue);
 }
 .sh-band-btn {
   display: grid;
@@ -306,8 +303,8 @@
   padding: 0;
   border: 0;
   border-radius: 12px;
-  background: rgb(255 255 255 / 0.14);
-  color: var(--v-on-blue);
+  background: var(--v-sunken);
+  color: var(--v-ink);
   cursor: pointer;
 }
 .sh-band-text {
@@ -325,22 +322,7 @@
 }
 .sh-band-text span {
   font-size: var(--v-text-xs);
-  color: var(--v-on-blue-2);
-}
-.sh-band :focus-visible {
-  outline-color: var(--v-on-blue);
-}
-/* The bell on blue */
-.sh-band .nb-trigger {
-  border-color: transparent;
-  background: rgb(255 255 255 / 0.14);
-  color: var(--v-on-blue);
-}
-.sh-band .nb-trigger:hover {
-  background: rgb(255 255 255 / 0.24);
-}
-.sh-band .nb-count {
-  border-color: var(--v-blue-700);
+  color: var(--v-ink-3);
 }
 
 /* ───────── Phone tab bar ───────── */

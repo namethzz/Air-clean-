@@ -1,0 +1,396 @@
+/*
+ * A technician's services and prices (ts-): the setup after sign-up, and the same pieces on the profile page.
+ * One card per step, a numbered step line above it, and the step's buttons pinned at the foot on phones.
+ */
+
+/* ───────── Step line ───────── */
+.ts-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-steps li {
+  position: relative;
+  min-width: 0;
+}
+.ts-steps li > * {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v-ink-3);
+  font: 600 var(--v-text-xs) / 1.3 var(--v-font-text);
+  text-align: center;
+}
+.ts-steps button {
+  cursor: pointer;
+}
+.ts-steps li + li::before {
+  content: "";
+  position: absolute;
+  top: 17px;
+  right: calc(50% + 22px);
+  left: calc(-50% + 22px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--v-line);
+}
+.ts-steps li.is-done::before,
+.ts-steps li.is-now::before {
+  background: var(--v-blue-500);
+}
+.ts-step-num {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--v-line-strong);
+  border-radius: 50%;
+  background: var(--v-surface);
+  color: var(--v-ink-3);
+  font: 600 var(--v-text-md) / 1 var(--v-font-head);
+}
+.ts-steps .is-done .ts-step-num {
+  border-color: var(--v-blue-500);
+  background: var(--v-blue-100);
+  color: var(--v-blue-700);
+}
+.ts-steps .is-now .ts-step-num {
+  border-color: var(--v-blue-600);
+  background: var(--v-blue-600);
+  color: var(--v-on-blue);
+  box-shadow: 0 0 0 4px var(--v-blue-100);
+}
+.ts-steps .is-now > * {
+  color: var(--v-ink);
+}
+@media (max-width: 479px) {
+  /* Only the current step keeps its name on a phone; the others are numbers. */
+  .ts-steps li:not(.is-now) .ts-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ───────── The step's card ───────── */
+.ts-card {
+  gap: var(--v-gap-5);
+}
+.ts-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ts-card-step {
+  font-size: var(--v-text-xs);
+  font-weight: 600;
+  color: var(--v-blue-700);
+}
+.ts-card-head h2 {
+  margin: 0;
+  font: 600 var(--v-text-xl) / 1.3 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ts-card-head p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--v-ink-3);
+  line-height: 1.6;
+}
+.ts-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ts-group legend {
+  margin-bottom: 2px;
+  padding: 0;
+  font: 600 var(--v-text-md) / 1.4 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ts-group legend em,
+.ts-price-row legend em,
+.ts-where label em {
+  margin-left: 6px;
+  font: 400 var(--v-text-sm) / 1 var(--v-font-text);
+  font-style: normal;
+  color: var(--v-ink-3);
+}
+.ts-note {
+  margin: 0 0 4px;
+  font-size: var(--v-text-sm);
+  line-height: 1.55;
+  color: var(--v-ink-3);
+}
+.ts-services {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-6);
+}
+.ts-kinds,
+.ts-yesno {
+  display: grid;
+  gap: var(--v-gap-2);
+}
+@media (min-width: 640px) {
+  .ts-yesno {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.ts-kind {
+  align-items: center;
+}
+.ts-kind .rq-type-icon {
+  flex: none;
+  width: 64px;
+  height: 40px;
+  margin-left: auto;
+}
+.ts-chips,
+.ts-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ts-days .ui-chip {
+  min-width: 52px;
+  justify-content: center;
+}
+.ts-add {
+  display: flex;
+  gap: 8px;
+}
+.ts-add .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ───────── Prices ───────── */
+.ts-prices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-4);
+}
+.ts-price-row {
+  min-width: 0;
+  margin: 0;
+  padding: var(--v-gap-4);
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-md);
+  background: var(--v-sunken);
+}
+.ts-price-row legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  font: 600 var(--v-text-md) / 1.3 var(--v-font-head);
+  color: var(--v-ink);
+}
+.ts-price-row legend .rq-type-icon {
+  width: 40px;
+  height: 26px;
+}
+.ts-price-pair {
+  display: grid;
+  gap: var(--v-gap-3);
+}
+@media (min-width: 560px) {
+  .ts-price-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.ts-price {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ts-price > label {
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-ink-2);
+}
+.ts-price-box {
+  display: flex;
+  align-items: center;
+  min-height: var(--v-control-lg);
+  padding-left: 14px;
+  border: 1px solid var(--v-line-strong);
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  transition:
+    border-color var(--v-fast) var(--v-ease),
+    box-shadow var(--v-fast) var(--v-ease);
+}
+.ts-price-box:focus-within {
+  border-color: var(--v-blue-600);
+  box-shadow: 0 0 0 3px rgb(31 111 224 / 0.18);
+}
+.ts-price-box.is-invalid {
+  border-color: var(--v-problem);
+}
+.ts-price-box span {
+  font: 600 var(--v-text-lg) / 1 var(--v-font-head);
+  color: var(--v-ink-3);
+}
+.ts-price-box input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 50px;
+  padding: 0 14px 0 6px;
+  border: 0;
+  border-radius: var(--v-radius);
+  background: none;
+  color: var(--v-ink);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+.ts-price-box input:focus {
+  outline: none;
+}
+.ts-price small {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.ts-price small.is-problem {
+  font-weight: 600;
+  color: var(--v-problem);
+}
+.ts-example {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: var(--v-gap-4);
+  border-radius: var(--v-radius-md);
+  background: var(--v-blue-050);
+  border: 1px solid var(--v-blue-line);
+  color: var(--v-ink-2);
+}
+.ts-example > span {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+  font-size: var(--v-text-sm);
+}
+.ts-example strong {
+  font-size: var(--v-text-2xl);
+  font-weight: 600;
+  color: var(--v-blue-800);
+}
+.ts-example small {
+  color: var(--v-ink-3);
+}
+
+/* ───────── Where and when ───────── */
+.ts-where {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-5);
+}
+.ts-hours,
+.ts-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--v-gap-3);
+}
+@media (max-width: 479px) {
+  .ts-pair {
+    grid-template-columns: 1fr;
+  }
+}
+.ts-id {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-3);
+}
+
+/* ───────── Review ───────── */
+.ts-review {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.ts-review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--v-line);
+}
+.ts-review-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.ts-review-row dt {
+  grid-column: 1;
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+  color: var(--v-ink-3);
+}
+.ts-review-row dd {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  color: var(--v-ink);
+  line-height: 1.6;
+}
+.ts-review-row > .ui-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.ts-muted {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+}
+.ts-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--v-done);
+}
+
+/* ───────── Buttons at the foot ───────── */
+.ts-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: var(--v-gap-3);
+  margin: 0 -4px;
+  padding: 12px 4px;
+  background: linear-gradient(to top, var(--v-ground) 70%, transparent);
+}
+.ts-next {
+  flex: 1;
+}
+@media (max-width: 1023px) {
+  .sh.has-tabbar .ts-foot {
+    bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+}
+.ts-foot .ui-btn {
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
+}

@@ -16,7 +16,7 @@
     border-left: 0;
   }
   .ad-summary div:nth-child(n + 3) {
-    border-top: 1px solid rgb(255 255 255 / 0.16);
+    border-top: 1px solid var(--v-line);
   }
 }
 .ad-summary a {
@@ -225,7 +225,7 @@
   text-decoration: underline;
 }
 .ad-summary .ad-queue:focus-visible {
-  outline: 2px solid var(--v-on-blue);
+  outline: 2px solid var(--v-blue-500);
   outline-offset: 2px;
 }
 .ad-two {
@@ -948,4 +948,7 @@
   color: var(--v-blue-700);
   font-weight: 600;
   text-decoration: none;
+}
+.ad-price {
+  display: block;
 }

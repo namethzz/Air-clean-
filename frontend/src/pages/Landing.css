@@ -363,7 +363,7 @@ html:has(.ld) {
   margin: 0 auto;
   overflow: hidden;
   border-radius: 26px;
-  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 55%, var(--v-blue-900) 100%);
+  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-600) 100%);
   color: var(--v-on-blue);
   box-shadow: var(--v-shadow-plate);
 }

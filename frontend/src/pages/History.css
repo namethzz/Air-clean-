@@ -43,19 +43,11 @@
   flex: none;
 }
 .hs-next.is-due {
-  border-color: transparent;
-  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
-  box-shadow: var(--v-shadow-plate);
+  border-color: var(--v-turn-deep);
+  background: var(--v-turn-bg);
 }
-.hs-next.is-due h2 {
-  color: var(--v-on-blue);
-}
-.hs-next.is-due p,
 .hs-next.is-due .hs-next-label {
-  color: var(--v-on-blue-2);
-}
-.hs-next.is-due :focus-visible {
-  outline-color: var(--v-on-blue);
+  color: var(--v-turn-ink);
 }
 @media (max-width: 559px) {
   .hs-next {

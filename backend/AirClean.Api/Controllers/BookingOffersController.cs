@@ -38,7 +38,7 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
                 .Set(x => x.FuzzLatitude, job.FuzzLatitude).Set(x => x.FuzzLongitude, job.FuzzLongitude));
         var sheet = Pricing.SheetOf(technician);
         var nearby = rows
-            .Where(x => x.Latitude.HasValue && x.Longitude.HasValue)
+            .Where(x => x.Latitude.HasValue && x.Longitude.HasValue && Pricing.Takes(technician, Pricing.JobOf(x)))
             .Select(x => new { Booking = x, DistanceKm = BlurredDistanceKm(latitude, longitude, x) })
             .Where(x => x.DistanceKm <= radiusKm)
             .OrderBy(x => x.DistanceKm)
@@ -66,6 +66,8 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         technician = await Membership.EnsureTrialAsync(store, technician);
         if (!Membership.IsActive(technician))
             return StatusCode(StatusCodes.Status402PaymentRequired, new { message = "สมาชิก AirClean หมดอายุแล้ว ต่ออายุที่หน้า “สมาชิก AirClean” เพื่อส่งข้อเสนองานใหม่", code = "membership_expired" });
+        if (!Pricing.Takes(technician, Pricing.JobOf(booking)))
+            return Conflict(new { message = "งานนี้มีแอร์หรือแบบการล้างที่คุณไม่ได้รับ แก้ได้ที่ “โปรไฟล์และราคา”" });
         booking.Applicants ??= [];
         if (booking.Applicants.Any(x => x.TechnicianId == technician.Id))
             return Conflict(new { message = "คุณส่งความสนใจในงานนี้ไปแล้ว" });

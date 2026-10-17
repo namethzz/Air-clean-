@@ -1,4 +1,4 @@
-import type { JobItem, LastCleaned, PriceGuide, PriceLine, PriceRange, PriceSheet, Symptom, AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
+import type { AcKind, JobItem, LastCleaned, PriceGuide, PriceLine, PriceRange, PriceSheet, Symptom, AdminMembership, DocumentKind, Membership, MembershipPayment, MembershipSettings, TechnicianDocument, Billing, Receipt, RoomEntry, AdminIssue, JobPhoto, TechnicianDetail, AppNotification, AirConditioner, Booking, PaymentMethod, SavedAddress, ServiceReportRecord, Technician, TechnicianApplication, UserProfile, UserRole } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const TOKEN_KEY = 'aircare.auth.token';
@@ -264,10 +264,15 @@ export async function approveServiceReport(id:number): Promise<void> {
 
 export interface TechnicianProfilePayload {
   title: string; area: string; basePrice: number; availableText: string; skills: string; phone: string; experienceYears: number; prices?: PriceSheet;
+  kinds?: AcKind[]; offersDeep?: boolean;
 }
 export function fetchMyTechnicianProfile(): Promise<TechnicianApplication> { return request<TechnicianApplication>('/technicians/me'); }
 export function updateMyTechnicianProfile(payload: TechnicianProfilePayload): Promise<TechnicianApplication> {
   return request<TechnicianApplication>('/technicians/me', { method: 'PATCH', body: JSON.stringify(payload) });
+}
+/** Sends a new technician's services, prices and ID card to the admin for review. */
+export function submitTechnicianProfile(): Promise<TechnicianApplication> {
+  return request<TechnicianApplication>('/technicians/me/submit', { method: 'POST', body: '{}' });
 }
 
 export async function uploadJobPhoto(bookingId:number,kind:'before'|'after',data:string):Promise<JobPhoto> {
