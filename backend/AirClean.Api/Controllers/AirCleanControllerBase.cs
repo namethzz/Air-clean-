@@ -59,6 +59,9 @@ public abstract class AirCleanControllerBase : ControllerBase
     protected static bool WaitsOnPriceChange(Booking booking) => (booking.Changes ?? []).Any(x => x.Status == ChangeStates.Pending);
     protected static readonly object PriceChangePending = new { message = "ยังมีคำขอปรับราคาที่รอลูกค้าตอบ รอคำตอบหรือยกเลิกคำขอก่อนปิดงาน", code = "change_pending" };
 
+    /// <summary>The area a profile has until the technician says where they work.</summary>
+    protected const string UnsetArea = "ยังไม่ระบุพื้นที่ให้บริการ";
+
     protected async Task<TechnicianProfile?> EnsureCurrentTechnicianProfileAsync()
     {
         var technician = await store.Technicians.Find(x => x.UserId == CurrentUserId).FirstOrDefaultAsync();
@@ -68,7 +71,7 @@ public abstract class AirCleanControllerBase : ControllerBase
         if (user is null || user.Role != AppRoles.Technician) return null;
 
         // Accounts created before technician applications existed get a pending profile to complete.
-        return await CreateTechnicianProfileAsync(user, "", "ยังไม่ระบุพื้นที่ให้บริการ", 0);
+        return await CreateTechnicianProfileAsync(user, "", UnsetArea, 0);
     }
 
     protected async Task<TechnicianProfile?> CreateTechnicianProfileAsync(AppUser user, string phone, string area, int experienceYears)
@@ -81,13 +84,13 @@ public abstract class AirCleanControllerBase : ControllerBase
             {
                 Id = (last?.Id ?? 0) + 1, UserId = user.Id, Name = user.FullName, PhotoId = user.PhotoId, Title = "ช่างแอร์", BasePrice = 550m,
                 Area = area, Phone = phone, ExperienceYears = experienceYears, IsVerified = false,
-                VerificationStatus = VerificationStates.Pending, AppliedAt = DateTime.UtcNow,
+                // The technician sets what they do and their prices next; the admin hears about them once they send it.
+                VerificationStatus = VerificationStates.Pending, NeedsSetup = true,
                 AvailableText = "รับคำขอผ่าน AirClean", SkillsCsv = "ล้างแอร์มาตรฐาน,ล้างแอร์ผนัง", Accent = "sage"
             };
             try
             {
                 await store.Technicians.InsertOneAsync(profile);
-                notify.ToAdmins("มีช่างสมัครใหม่รอตรวจสอบ", $"{user.FullName} ({user.Email}) สมัครเป็นช่างแอร์ พื้นที่ {area} เบอร์ {(string.IsNullOrEmpty(phone) ? "ยังไม่ระบุ" : phone)}\nตรวจสอบและอนุมัติได้ที่เมนู “ตรวจสอบช่าง”", NotificationLink.Approvals);
                 return profile;
             }
             catch (MongoWriteException)

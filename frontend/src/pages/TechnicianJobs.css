@@ -376,8 +376,8 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.16);
-  color: var(--v-on-blue);
+  background: var(--v-done-bg);
+  color: var(--v-done);
 }
 .tj-done-hero h1 {
   margin: 4px 0 0;
@@ -389,7 +389,7 @@
 }
 .tj-done-sub {
   margin: 0;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
 }
 .tj-done-stats {
   display: grid;

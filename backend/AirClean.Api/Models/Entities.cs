@@ -43,6 +43,13 @@ public class TechnicianProfile {
  public string Phone {get;set;}=""; public int ExperienceYears {get;set;}
  /// <summary>The technician's own price list, one price per kind of job. Null for older profiles: derived from <see cref="BasePrice"/>.</summary>
  public PriceSheet? Prices {get;set;}
+ /// <summary>The kinds of unit they clean (<see cref="AcKinds"/>). Null on older profiles: every kind.</summary>
+ public List<string>? Kinds {get;set;}
+ /// <summary>Whether they take deep cleans. Null on older profiles: yes.</summary>
+ public bool? OffersDeep {get;set;}
+ /// <summary>From sign-up until the technician sends what they do, their prices and their ID card for review.
+ /// Older profiles do not have it and are complete.</summary>
+ public bool NeedsSetup {get;set;}
  /// <summary>Copy of the account's photo id, so offers and jobs can show it without looking up the user.</summary>
  public string? PhotoId {get;set;}
  /// <summary>Admin review of the technician application. Older records without it fall back to <see cref="IsVerified"/>.</summary>

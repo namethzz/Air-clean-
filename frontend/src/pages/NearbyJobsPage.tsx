@@ -5,6 +5,7 @@ import type { Booking, Membership, TechnicianApplication } from '../types';
 import { VerificationBanner } from '../components/TechnicianProfileSettings';
 import { fetchMyMembership, fetchMyTechnicianProfile, fetchNearbyJobs } from '../lib/api';
 import TechnicianDocuments from '../components/TechnicianDocuments';
+import TechnicianSetup from './TechnicianSetup';
 import { MembershipStrip } from './MembershipPage';
 import { clashesWith, sameDay } from '../lib/clash';
 import HeroSection6 from '../components/ui/hero-section-6';
@@ -37,6 +38,8 @@ export default function NearbyJobsPage({onApply,onOpenProfile,onOpenMembership,o
   },[attempt]);
   if(profileError)return <div className="ui-page is-narrow"><p className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{profileError}</span><button type="button" className="ui-btn is-sm" onClick={()=>setAttempt(n=>n+1)}><RefreshCw size={16}/> ลองอีกครั้ง</button></p></div>;
   if(!profile)return <div className="ui-page is-narrow"><div className="ui-skeleton nj-skel" aria-label="กำลังตรวจสอบบัญชีช่าง"/></div>;
+  // A new technician first says what they do and what they charge, then it goes to the admin.
+  if(profile.needsSetup)return <TechnicianSetup profile={profile} onDone={setProfile}/>;
   if(profile.verificationStatus!=='Approved')return <div className="ui-page is-narrow">
     <PageHead title="งานใกล้ฉัน">เพื่อความปลอดภัยของลูกค้า ผู้ดูแลตรวจสอบช่างทุกคนก่อนเปิดให้เห็นงานและส่งข้อเสนอ</PageHead>
     <VerificationBanner profile={profile}/>

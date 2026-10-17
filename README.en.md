@@ -36,6 +36,18 @@ Built for the Thai market, so the interface is in Thai. Full stack: React + Type
     <td align="center">Nearby jobs</td>
     <td align="center">Technician's schedule</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/13-technician-services.png" alt="A new technician picks the units they clean" width="200"></td>
+    <td><img src="docs/screenshots/14-technician-prices.png" alt="A technician sets their price per unit beside the going rate" width="200"></td>
+    <td><img src="docs/screenshots/06-customer-job.png" alt="A confirmed job" width="200"></td>
+    <td><img src="docs/screenshots/10-building-rooms.png" alt="Booking rooms in a building" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">Technician setup: work</td>
+    <td align="center">Technician setup: prices</td>
+    <td align="center">Confirmed job</td>
+    <td align="center">Rooms in a building</td>
+  </tr>
 </table>
 
 Captured at phone width (390 px) with demo data. The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data. The design system is described in [DESIGN.md](DESIGN.md).
@@ -48,7 +60,7 @@ Captured at phone width (390 px) with demo data. The signed-in screens need the 
 - **A live job.** After confirmation the customer follows the technician on a map. The technician counts finished rooms, attaches before and after photos, and closes the job in one step.
 - **Cash on delivery.** The customer pays the technician directly. AirClean never holds money; both sides confirm, and a dispute goes to an admin queue.
 - **Aircon Passport.** Each finished job is written to the unit's service history, and the next cleaning is scheduled for six months later.
-- **Technician onboarding.** Applications need an ID card and are approved by an admin. After approval a technician gets a free trial and then pays a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
+- **Technician onboarding.** After sign-up a technician sets up their work step by step: the kinds of unit they clean, deep cleans or not, other work, a price per unit (beside what most technicians charge), area and hours, and an ID card, then sends it for an admin to review. They only see jobs they do. After approval they get a free trial, then pay a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
 - **Notifications.** An in-app bell plus Web Push, including iPhone when the app is added to the Home Screen.
 - **Sign-in.** Email and password, or Google (the Google picture becomes the profile photo). Password reset links are single-use and sign out the account's other devices.
 

@@ -37,7 +37,7 @@ const facts: Record<'customer' | 'technician', { title: ReactNode; headline: str
     title: <>รับงานล้างแอร์ใกล้ตัว<br/>ในราคาของคุณเอง</>,
     headline: 'สมัครครั้งเดียว ผู้ดูแลตรวจแล้วเริ่มเสนองานได้',
     items: [
-      ['เห็นค่าจ้างและระยะทางก่อน', 'ราคาคิดจากใบราคาของคุณ เห็นก่อนกดเสนอทุกงาน'],
+      ['ตั้งราคาเอง เห็นค่าจ้างก่อนเสนอ', 'เลือกแอร์ที่รับล้างและตั้งราคาต่อเครื่อง ระบบคิดราคาแต่ละงานจากราคาของคุณ'],
       ['ลูกค้าเลือกแล้วงานจึงเป็นของคุณ', 'ไม่ต้องแย่งกันรับ ลูกค้าเทียบข้อเสนอแล้วเลือกเอง'],
       ['รับเงินจากลูกค้าโดยตรง', 'AirClean ไม่หักค่าคอมจากงาน ใช้ฟรีช่วงทดลองหลังอนุมัติ จากนั้นจ่ายค่าสมาชิกรายเดือน'],
     ],
@@ -211,7 +211,7 @@ export default function AuthPage({ onAuthenticated, initialError = '', initialMo
               <Field id="au-area" label="พื้นที่ให้บริการ">
                 <input id="au-area" className="ui-input" value={serviceArea} onChange={event => setServiceArea(event.target.value)} placeholder="เช่น ลาดพร้าว · จตุจักร" minLength={2} maxLength={200} required/>
               </Field>
-              <p className="ui-alert is-info"><Info size={18}/><span>ผู้ดูแลระบบจะตรวจสอบข้อมูลและอาจโทรยืนยันก่อน เมื่ออนุมัติแล้วคุณจึงเห็นงานใกล้ตัวและส่งข้อเสนอได้</span></p>
+              <p className="ui-alert is-info"><Info size={18}/><span>ขั้นถัดไป: เลือกงานที่รับ ตั้งราคาของคุณเอง และส่งรูปบัตรประชาชน ผู้ดูแลจะตรวจและอาจโทรยืนยัน เมื่ออนุมัติแล้วคุณจึงเห็นงานใกล้ตัว</span></p>
             </div>}
             {role === 'manager' && <p className="ui-alert is-info"><Info size={18}/><span>ใช้งานได้ทันที เพิ่มอาคารของคุณ แล้วขอช่างล้างแอร์ได้ครั้งละหลายสิบเครื่อง</span></p>}
           </>}

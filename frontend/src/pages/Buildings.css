@@ -20,7 +20,7 @@
     border-left: 0;
   }
   .bd-summary div:nth-child(n + 3) {
-    border-top: 1px solid rgb(255 255 255 / 0.16);
+    border-top: 1px solid var(--v-line);
   }
 }
 .bd-list {

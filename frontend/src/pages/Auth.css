@@ -42,7 +42,7 @@
   height: 40px;
   overflow: hidden;
   border-radius: 12px;
-  background: rgb(255 255 255 / 0.16);
+  background: var(--v-blue-600);
   color: var(--v-on-blue);
 }
 
@@ -63,8 +63,9 @@
     height: 100dvh;
     padding: 36px clamp(32px, 4vw, 56px);
     overflow: hidden;
-    background: linear-gradient(165deg, var(--v-blue-500) 0%, var(--v-blue-700) 58%, var(--v-blue-800) 100%);
-    color: var(--v-on-blue);
+    border-right: 1px solid var(--v-blue-line);
+    background: linear-gradient(165deg, var(--v-surface) 0%, var(--v-blue-050) 45%, var(--v-blue-100) 100%);
+    color: var(--v-ink);
   }
 }
 .au-side-body {
@@ -82,7 +83,7 @@
 .au-side-body > p {
   font-size: var(--v-text-lg);
   line-height: 1.55;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
 }
 .au-facts {
   display: flex;
@@ -96,26 +97,26 @@
   grid-template-columns: 3.25rem minmax(0, 1fr);
   gap: var(--v-gap-3);
   padding: 16px 0;
-  border-top: 1px solid rgb(255 255 255 / 0.2);
+  border-top: 1px solid var(--v-blue-line);
 }
 .au-fact-num {
   font-size: 2rem;
   font-weight: 600;
   line-height: 1;
-  color: var(--v-on-blue);
+  color: var(--v-blue-600);
 }
 .au-facts li > span:last-child {
   font-size: var(--v-text-sm);
   line-height: 1.55;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
 }
 .au-facts strong {
   display: block;
   margin-bottom: 2px;
   font: 600 var(--v-text-lg) / 1.35 var(--v-font-head);
-  color: var(--v-on-blue);
+  color: var(--v-ink);
 }
-/* The photo takes the blue: a duotone at the foot of the column, gone when the screen is short. */
+/* The photo at the foot of the column, gone when the screen is short. */
 .au-side-photo {
   flex: none;
   width: 100%;
@@ -123,8 +124,7 @@
   margin-bottom: auto;
   border-radius: var(--v-radius-lg);
   object-fit: cover;
-  mix-blend-mode: luminosity;
-  opacity: 0.5;
+  box-shadow: var(--v-shadow-card);
 }
 @media (max-height: 760px) {
   .au-side-photo {
@@ -148,8 +148,8 @@
   gap: 6px;
   width: 100%;
   padding: 14px max(16px, calc((100% - 480px) / 2)) 64px;
-  background: linear-gradient(165deg, var(--v-blue-500) 0%, var(--v-blue-700) 70%, var(--v-blue-800) 100%);
-  color: var(--v-on-blue);
+  background: linear-gradient(180deg, var(--v-blue-100) 0%, var(--v-blue-050) 70%, var(--v-ground) 100%);
+  color: var(--v-ink);
 }
 .au-band-top {
   display: flex;
@@ -184,7 +184,7 @@
   max-width: 44ch;
   font-size: var(--v-text-md);
   line-height: 1.6;
-  color: var(--v-on-blue-2);
+  color: var(--v-ink-2);
   text-wrap: pretty;
 }
 @media (min-width: 1024px) {

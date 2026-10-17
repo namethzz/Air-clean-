@@ -379,7 +379,7 @@ a.ui-row:hover {
   gap: 4px var(--v-gap-3);
   padding: var(--v-gap-4) var(--v-gap-5);
   border-radius: var(--v-radius-md);
-  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-700) 62%, var(--v-blue-800) 100%);
+  background: linear-gradient(160deg, var(--v-blue-500) 0%, var(--v-blue-600) 100%);
   color: var(--v-on-blue);
   box-shadow: var(--v-shadow-plate);
   overflow: hidden;

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import PrivateImage, { ImageViewer } from '../components/PrivateImage';
 import '../pages/Membership.css';
-import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, BriefcaseBusiness, Clock3, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import type { TechnicianApplication, TechnicianDocument, VerificationStatus } from '../types';
 import { EmptyState } from '../components/kit';
 import './Admin.css';
+import { acKinds, baht, kindNames } from '../lib/pricing';
+import type { AcKind } from '../types';
+const deepKeyOf = (kind: AcKind) => kind === 'wall' ? 'wallDeep' as const : kind === 'hanging' ? 'hangingDeep' as const : 'cassetteDeep' as const;
 import { createPasswordResetLink, fetchTechnicianApplications, fetchTechnicianDocuments, sendTestEmail, setTechnicianVerification } from '../lib/api';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -31,8 +34,11 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
   }, []);
   useEffect(() => { void load(); }, [load]);
   function replace(saved: TechnicianApplication) { setRows(previous => previous.map(row => row.id === saved.id ? saved : row)); onChanged(); }
-  const shown = rows.filter(row => row.verificationStatus === tab);
-  const count = (key: VerificationStatus) => rows.filter(row => row.verificationStatus === key).length;
+  // Technicians still setting up their services and prices have not sent anything to check yet.
+  const ready = rows.filter(row => !row.needsSetup);
+  const settingUp = rows.length - ready.length;
+  const shown = ready.filter(row => row.verificationStatus === tab);
+  const count = (key: VerificationStatus) => ready.filter(row => row.verificationStatus === key).length;
 
   return <div className="ui-page ad">
     <div className="ui-page-head">
@@ -43,6 +49,7 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
       {tabs.map(item => <button key={item.key} type="button" aria-pressed={tab === item.key} className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load()}><RefreshCw size={15}/> ลองใหม่</button></div>}
+    {tab === 'Pending' && settingUp > 0 && <p className="ui-alert is-info"><Clock3 size={18}/><span>อีก {settingUp} คนสมัครแล้วแต่ยังตั้งค่างานและราคาไม่เสร็จ จะขึ้นที่นี่เมื่อช่างกดส่งให้ตรวจ</span></p>}
     {!loading && !error && shown.length === 0 && <EmptyState icon={ShieldCheck} title={tab === 'Pending' ? 'ไม่มีช่างรอตรวจสอบ' : 'ไม่มีรายการ'}/>}
     <div className="approval-grid">{shown.map(row => <ApplicationCard key={row.id} row={row} onSaved={replace} onNotice={onNotice}/>)}</div>
     <ResetLinkPanel/>
@@ -74,8 +81,9 @@ function ApplicationCard({ row, onSaved, onNotice }: { row: TechnicianApplicatio
       <div><dt><Phone size={14}/> โทร</dt><dd>{row.phone ? <a href={'tel:' + row.phone.replace(/[^\d+]/g, '')}>{row.phone}</a> : <em>ยังไม่ระบุ</em>}</dd></div>
       <div><dt><Mail size={14}/> อีเมล</dt><dd>{row.email || '—'}</dd></div>
       <div><dt><MapPin size={14}/> พื้นที่</dt><dd>{row.area}</dd></div>
-      <div><dt><BriefcaseBusiness size={14}/> ประสบการณ์</dt><dd>{row.experienceYears} ปี · ราคาเริ่มต้น ฿{row.basePrice.toLocaleString()} / เครื่อง</dd></div>
-      <div><dt>บริการ</dt><dd>{row.skills.join(', ') || '—'}</dd></div>
+      <div><dt><BriefcaseBusiness size={14}/> ประสบการณ์</dt><dd>{row.experienceYears} ปี · {row.availableText}</dd></div>
+      <div><dt>งานที่รับ</dt><dd>{row.skills.join(', ') || '—'}</dd></div>
+      {row.prices && <div><dt>ราคาต่อเครื่อง</dt><dd>{(row.kinds ?? acKinds).map(kind => <span key={kind} className="ad-price">แอร์{kindNames[kind]} {baht(row.prices![kind])}{row.offersDeep !== false && <> · ล้างใหญ่ {baht(row.prices![deepKeyOf(kind)])}</>}</span>)}</dd></div>}
       <div><dt>ส่งข้อมูล</dt><dd>{when(row.appliedAt)}{row.reviewedAt ? ` · ตรวจล่าสุด ${when(row.reviewedAt)}` : ''}</dd></div>
       {row.verificationStatus === 'Approved' && <div><dt>ผลงาน</dt><dd>{row.jobsCompleted} งาน · ★ {row.rating.toFixed(1)} ({row.reviewCount} รีวิว)</dd></div>}
       {row.verificationNote && <div><dt>เหตุผล</dt><dd>{row.verificationNote}</dd></div>}

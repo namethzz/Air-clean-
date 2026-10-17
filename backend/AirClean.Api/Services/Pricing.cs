@@ -151,6 +151,10 @@ public static class Pricing
         .Select(group => new JobItem { Kind = group[0].Kind, Count = group.Sum(x => x.Count), Large = group.Sum(x => Math.Min(x.Large, x.Count)) })
         .ToList();
 
+    /// <summary>Whether a technician does this job: every kind of unit in it, and a deep clean if it is one.</summary>
+    public static bool Takes(TechnicianProfile technician, JobSpec job) =>
+        job.Items.All(x => technician.Kinds is null || technician.Kinds.Contains(x.Kind)) && (!job.Deep || technician.OffersDeep != false);
+
     /// <summary>Linear-interpolated percentile of sorted values.</summary>
     private static decimal Percentile(IReadOnlyList<decimal> sorted, double p)
     {
