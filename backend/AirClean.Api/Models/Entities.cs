@@ -2,7 +2,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 namespace AirClean.Api.Models;
 
-public static class VerificationStates { public const string Pending="Pending"; public const string Approved="Approved"; public const string Rejected="Rejected"; }
+public static class VerificationStates { public const string Pending="Pending"; public const string Approved="Approved"; public const string Rejected="Rejected";
+ /// <summary>The technician deleted their account: never listed, never offered work.</summary>
+ public const string Closed="Closed"; }
 public static class AppRoles { public const string Customer="Customer"; public const string Technician="Technician"; public const string Manager="Manager"; public const string Admin="Admin"; }
 public static class BookingStates {
  public const string OpenForTechnicians="OpenForTechnicians"; public const string AwaitingCustomerSelection="AwaitingCustomerSelection";
@@ -34,6 +36,9 @@ public class AppUser {
  public string? PhotoId {get;set;}
  /// <summary>The Google picture was already offered: copied in, or the account had its own photo. A photo removed later stays removed.</summary>
  public bool ProviderPhotoChecked {get;set;}
+ /// <summary>When the person deleted the account. What is left is a placeholder that keeps past jobs readable: no name,
+ /// no address, no way to sign in, and nothing is sent to it.</summary>
+ public DateTime? DeletedAt {get;set;}
 }
 public class BillingInfo { public string Name {get;set;}=""; public string? TaxId {get;set;} public string? Branch {get;set;} public string? Address {get;set;} }
 public class ExternalLogin { public string Provider {get;set;}=""; public string Subject {get;set;}=""; public string? Email {get;set;} public DateTime LinkedAt {get;set;}=DateTime.UtcNow; }

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { BadgeCheck, BellRing, Camera, CheckCircle2, ChevronRight, Eye, EyeOff, IdCard, KeyRound, Loader2, LogOut, ShieldCheck, XCircle } from 'lucide-react';
+import { BadgeCheck, BellRing, Camera, CheckCircle2, ChevronRight, Eye, EyeOff, IdCard, KeyRound, Loader2, LogOut, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import type { Membership, TechnicianApplication, TechnicianDocument, UserProfile, UserRole } from '../types';
 import ServiceProfileForm from '../components/TechnicianProfileSettings';
 import TechnicianDocuments from '../components/TechnicianDocuments';
 import PushSettings, { type PushState } from '../components/PushSettings';
-import { changePassword, fetchMyMembership, fetchMyTechnicianProfile, updateMyProfile } from '../lib/api';
+import { changePassword, deleteMyAccount, fetchDeletionPreview, fetchMyMembership, fetchMyTechnicianProfile, updateMyProfile, type DeletionJob, type DeletionPreview } from '../lib/api';
+import { Problem, Sheet } from '../components/kit';
 import Avatar from '../components/Avatar';
 import PhotoEditor from '../components/PhotoEditor';
 import './Profile.css';
@@ -14,6 +15,8 @@ interface Props {
   onUpdated: (user: UserProfile) => void;
   /** Shown on phones, where the sidebar with its sign-out button is hidden. */
   onLogout?: () => void;
+  /** The account is gone: sign this device out and say so. */
+  onDeleted?: (message: string) => void;
   onOpenMembership?: () => void;
 }
 const roleLabels: Record<UserRole, string> = { customer: 'ลูกค้า', technician: 'ช่างแอร์', manager: 'ผู้ดูแลอาคาร', admin: 'ผู้ดูแลระบบ' };
@@ -30,7 +33,7 @@ const thaiDate = (value?: string | null) => value ? new Date(value).toLocaleDate
  * Profile. Technicians get a status list (verification, documents, membership, notifications) and three tabs:
  * service and price, documents, and account. Other roles see the account settings only.
  */
-export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembership }: Props) {
+export default function ProfilePage({ user, onUpdated, onLogout, onDeleted, onOpenMembership }: Props) {
   const technician = user.role === 'technician';
   const [tab, setTab] = useState<Tab>(technician ? 'service' : 'account');
   const [profile, setProfile] = useState<TechnicianApplication | null>(null);
@@ -63,7 +66,7 @@ export default function ProfilePage({ user, onUpdated, onLogout, onOpenMembershi
     window.requestAnimationFrame(() => (anchor ? document.getElementById(anchor) : tabsRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
-  const account = <AccountSettings user={user} onUpdated={onUpdated} onLogout={onLogout} onPush={setPush} onEditPhoto={() => setEditingPhoto(true)}/>;
+  const account = <AccountSettings user={user} onUpdated={onUpdated} onLogout={onLogout} onDeleted={onDeleted} onPush={setPush} onEditPhoto={() => setEditingPhoto(true)}/>;
   return <div className="pf">
     <header className="pf-hero">
       <button type="button" className="pf-avatar" onClick={() => setEditingPhoto(true)} aria-label={user.photoId ? 'เปลี่ยนรูปโปรไฟล์' : 'เพิ่มรูปโปรไฟล์'}>
@@ -141,12 +144,13 @@ function StatusList({ profile, documents, membership, push, onVerification, onDo
   </section>;
 }
 
-function AccountSettings({ user, onUpdated, onLogout, onPush, onEditPhoto }: { user: UserProfile; onUpdated: (user: UserProfile) => void; onLogout?: () => void; onPush: (state: PushState) => void; onEditPhoto: () => void }) {
+function AccountSettings({ user, onUpdated, onLogout, onDeleted, onPush, onEditPhoto }: { user: UserProfile; onUpdated: (user: UserProfile) => void; onLogout?: () => void; onDeleted?: (message: string) => void; onPush: (state: PushState) => void; onEditPhoto: () => void }) {
   return <div className="pf-stack">
     <PersonalInfo user={user} onUpdated={onUpdated} onEditPhoto={onEditPhoto}/>
     <PushSettings onChange={onPush}/>
     <PasswordSettings user={user} onChanged={onUpdated}/>
     {onLogout && <button type="button" className="pf-logout" onClick={onLogout}><LogOut size={17}/>ออกจากระบบ</button>}
+    {onDeleted && user.role !== 'admin' && <DeleteAccount user={user} onDeleted={onDeleted}/>}
   </div>;
 }
 
@@ -234,5 +238,98 @@ function PasswordSettings({ user, onChanged }: { user: UserProfile; onChanged: (
         <button className="pf-button ghost" type="button" onClick={close} disabled={saving}>ยกเลิก</button>
       </div>
     </form>}
+  </section>;
+}
+
+const CONFIRM_WORD = 'ลบบัญชี';
+const jobDate = (value: string) => new Date(value).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+
+function JobList({ jobs }: { jobs: DeletionJob[] }) {
+  return <ul className="pf-del-jobs">{jobs.map(job => <li key={job.id}>
+    <strong>{job.service}</strong><span>{job.code} · {jobDate(job.scheduledAt)} · {job.status}</span>
+  </li>)}</ul>;
+}
+
+/**
+ * The last thing on the account tab. The sheet first asks the server what deleting would do: jobs under way hold it
+ * back; jobs not started yet are listed as the ones it cancels. The password (or, for Google-only accounts, the word
+ * typed out) confirms it.
+ */
+function DeleteAccount({ user, onDeleted }: { user: UserProfile; onDeleted: (message: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [plan, setPlan] = useState<DeletionPreview | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [password, setPassword] = useState('');
+  const [word, setWord] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const technician = user.role === 'technician';
+
+  function start() {
+    setOpen(true); setPlan(null); setLoadError(''); setPassword(''); setWord(''); setError('');
+    fetchDeletionPreview().then(setPlan).catch(reason => setLoadError(reason instanceof Error ? reason.message : 'ตรวจสอบบัญชีไม่สำเร็จ กรุณาลองใหม่'));
+  }
+  function close() { if (!busy) setOpen(false); }
+  const ready = plan?.allowed && (plan.needsPassword ? password.length > 0 : word.trim() === CONFIRM_WORD);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!ready || busy) return;
+    setBusy(true); setError('');
+    try { onDeleted(await deleteMyAccount(plan?.needsPassword ? password : '', word.trim())); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'ลบบัญชีไม่สำเร็จ กรุณาลองใหม่'); setBusy(false); }
+  }
+
+  const gone = [
+    'ชื่อ อีเมล เบอร์โทร และรูปโปรไฟล์',
+    technician ? 'รูปบัตรประชาชนและเอกสารที่แนบไว้' : 'ที่อยู่ที่บันทึกไว้และรายการแอร์ของคุณ',
+    technician ? 'โปรไฟล์ช่าง ราคา และวันสมาชิกที่เหลือ ลูกค้าจะไม่เห็นคุณอีก' : null,
+    'การแจ้งเตือนทั้งหมด และการเข้าสู่ระบบด้วยรหัสผ่านหรือ Google',
+  ].filter(Boolean) as string[];
+  const type = visible ? 'text' : 'password';
+
+  return <section className="pf-card pf-delete" aria-labelledby="pf-delete-title">
+    <div className="pf-row">
+      <span className="pf-row-icon is-problem" aria-hidden="true"><Trash2 size={19}/></span>
+      <div className="pf-row-text">
+        <strong id="pf-delete-title">ลบบัญชี</strong>
+        <span>ลบชื่อ อีเมล และข้อมูลติดต่อของคุณออกจาก AirClean ลบแล้วกู้คืนไม่ได้</span>
+      </div>
+      <button type="button" className="pf-button ghost danger" onClick={start}>ลบบัญชี</button>
+    </div>
+    {open && <Sheet title="ลบบัญชี AirClean" sub={user.email} onClose={close}
+      footer={plan?.allowed ? <>
+        <button type="submit" form="pf-delete-form" className="ui-btn is-destroy is-lg is-block" disabled={!ready || busy}>
+          {busy ? <><Loader2 size={18} className="animate-spin" aria-hidden="true"/>กำลังลบบัญชี…</> : 'ลบบัญชีถาวร'}</button>
+        <button type="button" className="ui-btn is-ghost is-block" onClick={close} disabled={busy}>ไม่ลบ กลับไปก่อน</button>
+      </> : <button type="button" className="ui-btn is-ghost is-block" onClick={close}>ปิด</button>}>
+      {!plan && !loadError && <p className="pf-del-wait" role="status"><Loader2 size={18} className="animate-spin" aria-hidden="true"/>กำลังตรวจงานที่ค้างอยู่…</p>}
+      {loadError && <Problem>{loadError}</Problem>}
+      {plan && !plan.allowed && <>
+        <div className="ui-alert is-problem" role="alert"><XCircle size={18} aria-hidden="true"/><span><strong>ยังลบบัญชีไม่ได้</strong>{plan.reason}</span></div>
+        {plan.blocking.length > 0 && <div className="pf-del-group"><h3>งานที่ต้องปิดก่อน</h3><JobList jobs={plan.blocking}/></div>}
+      </>}
+      {plan?.allowed && <form id="pf-delete-form" className="pf-del-form" onSubmit={submit}>
+        <div className="pf-del-group is-gone"><h3>สิ่งที่จะถูกลบ</h3>
+          <ul>{gone.map(item => <li key={item}>{item}</li>)}</ul></div>
+        {plan.willCancel.length > 0 && <div className="pf-del-group is-cancel"><h3>งานที่จะถูกยกเลิก ({plan.willCancel.length})</h3>
+          <JobList jobs={plan.willCancel}/>
+          {plan.willCancel.some(job => job.booked) && <p>{technician ? 'ลูกค้าของงานเหล่านี้จะได้รับแจ้งว่าช่างยกเลิก' : 'ช่างที่นัดไว้จะได้รับแจ้งว่าคุณยกเลิก'}</p>}</div>}
+        {plan.offersWithdrawn > 0 && <p className="pf-del-note">ข้อเสนอราคา {plan.offersWithdrawn} งานที่ยังรอลูกค้าเลือกจะถูกถอนออก</p>}
+        <div className="pf-del-group"><h3>สิ่งที่เก็บไว้</h3>
+          <p>ประวัติงาน รายงาน รีวิว ใบเสร็จที่ออกแล้ว และการชำระเงิน เก็บไว้เพื่อแก้ข้อโต้แย้งและตามที่กฎหมายกำหนด โดยแสดงชื่อเป็น “บัญชีที่ลบแล้ว” และไม่มีเบอร์โทร รูป หรือพิกัดของคุณ <a className="ui-link" href="/privacy.html#s4" target="_blank" rel="noreferrer">อ่านนโยบาย</a></p></div>
+        {plan.needsPassword
+          ? <div className="pf-field"><label htmlFor="pf-del-password">ใส่รหัสผ่านเพื่อยืนยัน</label>
+              <div className="pf-affix"><input id="pf-del-password" type={type} autoComplete="current-password" value={password}
+                onChange={event => { setPassword(event.target.value); setError(''); }} maxLength={128} aria-invalid={error ? true : undefined} aria-describedby={error ? 'pf-del-error' : undefined}/>
+                <button type="button" className="pf-eye" onClick={() => setVisible(v => !v)} aria-label={visible ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} aria-pressed={visible}>{visible ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>
+              <small>ลืมรหัสผ่าน? ออกจากระบบแล้วใช้ “ลืมรหัสผ่าน” ที่หน้าเข้าสู่ระบบ</small></div>
+          : <div className="pf-field"><label htmlFor="pf-del-word">พิมพ์คำว่า <q>{CONFIRM_WORD}</q> เพื่อยืนยัน</label>
+              <input id="pf-del-word" value={word} onChange={event => { setWord(event.target.value); setError(''); }} maxLength={32}
+                autoComplete="off" autoCapitalize="off" spellCheck={false} placeholder={CONFIRM_WORD} aria-invalid={error ? true : undefined} aria-describedby={error ? 'pf-del-error' : undefined}/></div>}
+        {error && <Problem id="pf-del-error">{error}</Problem>}
+      </form>}
+    </Sheet>}
   </section>;
 }

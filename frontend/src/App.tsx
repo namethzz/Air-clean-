@@ -184,6 +184,12 @@ export default function App() {
     clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
     setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');
   }
+  /** The account was deleted on the server: its tokens no longer work, so this device just forgets it. */
+  async function accountDeleted(message:string){
+    await Promise.race([disablePush().catch(()=>undefined),new Promise(resolve=>window.setTimeout(resolve,3000))]);
+    clearAuth();setUser(null);setState(emptyState());setApiConnected(false);setPage('overview');
+    setBookingModalOpen(false);setMobileNavOpen(false);setSessionError('');setVisitorScreen('login');setAuthInfo(message);
+  }
   function openBooking(unitId?:number,placeId?:string,rooms?:string[]){setBookingUnitId(unitId);setBookingPlaceId(placeId);setBookingRooms(rooms);setBookingModalOpen(true);}
 
   async function bookingSubmit(payload:BookingPayload):Promise<boolean>{
@@ -318,7 +324,7 @@ export default function App() {
       case 'reports':return user.role==='admin'?<ReportsPage bookings={state.bookings} reports={state.serviceReports}/>:null;
       case 'issues':return user.role==='admin'?<IssuesPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
-      case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout} onOpenMembership={()=>navigate('membership')}/>;
+      case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout} onDeleted={accountDeleted} onOpenMembership={()=>navigate('membership')}/>;
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 

@@ -94,6 +94,9 @@
 .pf-button.ghost.danger {
   color: var(--v-problem);
 }
+.pf-button.ghost.danger:hover:not(:disabled) {
+  background: var(--v-problem-bg);
+}
 
 /* ───────────────────────── Photo editor (components/PhotoEditor.tsx) ───────────────────────── */
 .pe-backdrop {
@@ -745,6 +748,10 @@
   background: var(--v-blue-100);
   color: var(--v-blue-700);
 }
+.pf-row-icon.is-problem {
+  background: var(--v-problem-bg);
+  color: var(--v-problem);
+}
 .pf-row-text {
   display: flex;
   flex-direction: column;
@@ -1023,4 +1030,100 @@
   .pf-price-row {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ───────────────────────── Delete the account (the last card on the account tab, and its sheet) ───────────────────────── */
+.pf-delete {
+  border-color: var(--v-problem-line);
+}
+.pf-del-wait {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--v-ink-3);
+}
+.pf-del-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap-5);
+}
+.pf-del-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pf-del-group h3 {
+  margin: 0;
+  font: 600 var(--v-text-md) / 1.4 var(--v-font-head);
+  color: var(--v-ink);
+}
+.pf-del-group p,
+.pf-del-note {
+  margin: 0;
+  font-size: var(--v-text-sm);
+  line-height: 1.6;
+  color: var(--v-ink-2);
+  text-wrap: pretty;
+}
+.pf-del-group > ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pf-del-group.is-gone > ul > li {
+  position: relative;
+  padding-left: 22px;
+  line-height: 1.55;
+  color: var(--v-ink);
+}
+.pf-del-group.is-gone > ul > li::before {
+  content: "";
+  position: absolute;
+  top: 0.68em;
+  left: 4px;
+  width: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--v-problem);
+}
+.pf-del-jobs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  overflow: hidden;
+}
+.pf-del-jobs li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: var(--v-surface);
+}
+.pf-del-jobs li + li {
+  border-top: 1px solid var(--v-line);
+}
+.pf-del-jobs strong {
+  font-weight: 600;
+  color: var(--v-ink);
+}
+.pf-del-jobs span {
+  font-size: var(--v-text-sm);
+  color: var(--v-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.pf-del-group.is-cancel .pf-del-jobs {
+  border-color: var(--v-wait-line);
+}
+.pf-del-note {
+  padding: 10px 14px;
+  border-radius: var(--v-radius);
+  background: var(--v-sunken);
 }

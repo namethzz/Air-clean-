@@ -117,6 +117,16 @@ export async function changePassword(currentPassword: string, newPassword: strin
   saveToken(result.token, localStorage.getItem(TOKEN_KEY) !== null);
   return fromApiUser(result.user);
 }
+/** A job that holds an account deletion back, or that deleting the account cancels. */
+export interface DeletionJob { id: number; code: string; service: string; status: string; scheduledAt: string; booked: boolean; }
+/** What deleting the account would do: shown before the person confirms. */
+export interface DeletionPreview { allowed: boolean; needsPassword: boolean; reason?: string | null; blocking: DeletionJob[]; willCancel: DeletionJob[]; offersWithdrawn: number; }
+export function fetchDeletionPreview(): Promise<DeletionPreview> { return request<DeletionPreview>('/auth/delete-account'); }
+/** Deletes the signed-in account for good. The password when it has one, else the typed word "ลบบัญชี". */
+export async function deleteMyAccount(password: string, confirm: string): Promise<string> {
+  const result = await request<{ message: string }>('/auth/delete-account', { method:'POST', body:JSON.stringify({ password: password || null, confirm: confirm || null }) });
+  return result.message;
+}
 export interface ExternalSignupFields { role: Exclude<UserRole,'admin'>; fullName?: string; phone?: string; serviceArea?: string; experienceYears?: number; }
 /** Signs in with a Google ID token. Without `signup`, an unknown account throws ApiError with code 'signup_required'. */
 export async function externalLogin(provider: 'google', idToken: string, signup?: ExternalSignupFields): Promise<UserProfile> {

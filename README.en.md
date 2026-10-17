@@ -63,6 +63,7 @@ Captured at phone width (390 px) with demo data. The signed-in screens need the 
 - **Technician onboarding.** After sign-up a technician sets up their work step by step: the kinds of unit they clean, deep cleans or not, other work, a price per unit (beside what most technicians charge), area and hours, and an ID card, then sends it for an admin to review. They only see jobs they do. After approval they get a free trial, then pay a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
 - **Notifications.** An in-app bell plus Web Push, including iPhone when the app is added to the Home Screen.
 - **Sign-in.** Email and password, or Google (the Google picture becomes the profile photo). Password reset links are single-use and sign out the account's other devices.
+- **Delete the account.** On the account tab, confirmed with the password (or by typing “ลบบัญชี” for Google-only accounts). Jobs not started are cancelled and the other side is told; a job under way must close first. Personal data is removed; past jobs and receipts stay without the name or phone.
 
 The full feature list and every configuration setting are in [docs/REFERENCE.md](docs/REFERENCE.md). A walkthrough of the product in Thai is in [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md).
 
@@ -225,7 +226,7 @@ Three layers run on every pull request:
 - **Frontend unit tests** (Vitest, `frontend/src/lib/*.test.ts`): PromptPay QR payloads, schedule clashes, room lists, the offer countdown, Thai amounts in words. `npm test` in `frontend/`
 - **End-to-end smoke test**, described below.
 
-`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips and reminder timing. External services are replaced by local stand-ins in `tests/`.
+`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips, reminder timing and account deletion. External services are replaced by local stand-ins in `tests/`.
 
 ```bash
 # with the API running against a disposable database (see .github/workflows/build.yml for the settings)

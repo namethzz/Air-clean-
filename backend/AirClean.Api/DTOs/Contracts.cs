@@ -44,6 +44,13 @@ public record ExternalLoginRequest([Required,MaxLength(20)] string Provider,[Req
 public record ForgotPasswordRequest([Required,EmailAddress,MaxLength(254)] string Email);
 public record ResetPasswordRequest([Required,MinLength(20),MaxLength(200)] string Token,[Required,MinLength(8),MaxLength(128)] string NewPassword);
 public record ChangePasswordRequest([MaxLength(128)] string? CurrentPassword,[Required,MinLength(8),MaxLength(128)] string NewPassword);
+/// <summary>The password when the account has one; otherwise the word <c>ลบบัญชี</c> typed out.</summary>
+public record DeleteAccountRequest([MaxLength(128)] string? Password,[MaxLength(32)] string? Confirm);
+/// <summary>A job that holds a deletion back, or that deleting the account cancels.</summary>
+/// <summary>Booked: a technician is already on it, so the other side is told when it is cancelled.</summary>
+public record DeletionJobDto(int Id,string Code,string Service,string Status,DateTime ScheduledAt,bool Booked);
+/// <summary>What deleting the account would do, shown before the person confirms.</summary>
+public record DeletionPreviewDto(bool Allowed,bool NeedsPassword,string? Reason,DeletionJobDto[] Blocking,DeletionJobDto[] WillCancel,int OffersWithdrawn);
 public record NotificationDto(string Id,string Title,string Body,string Target,int? BookingId,string CreatedAt,bool Read);
 public record MarkNotificationsReadRequest(string[]? Ids);
 public record PushSubscriptionRequest([Required,MaxLength(1000)] string Endpoint,[Required,MaxLength(200)] string P256dh,[Required,MaxLength(100)] string Auth);
