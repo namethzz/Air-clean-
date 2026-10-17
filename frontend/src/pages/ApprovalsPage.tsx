@@ -4,6 +4,7 @@ import '../pages/Membership.css';
 import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import type { TechnicianApplication, TechnicianDocument, VerificationStatus } from '../types';
 import { EmptyState } from '../components/kit';
+import './Admin.css';
 import { createPasswordResetLink, fetchTechnicianApplications, fetchTechnicianDocuments, sendTestEmail, setTechnicianVerification } from '../lib/api';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -38,8 +39,8 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
       <div><h1>ตรวจสอบช่าง</h1><p>ช่างที่สมัครใหม่จะยังไม่เห็นงานจนกว่าคุณอนุมัติ เทียบชื่อและรูปในบัตรประชาชนกับข้อมูลที่สมัคร ตรวจเบอร์โทร พื้นที่ และราคา แล้วโทรยืนยันก่อนอนุมัติ</p></div>
       <button type="button" className="ui-btn" onClick={() => void load()} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
     </div>
-    <div className="approval-tabs" role="tablist" aria-label="สถานะการตรวจสอบ">
-      {tabs.map(item => <button key={item.key} type="button" role="tab" aria-selected={tab === item.key} className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
+    <div className="approval-tabs" role="group" aria-label="สถานะการตรวจสอบ">
+      {tabs.map(item => <button key={item.key} type="button" aria-pressed={tab === item.key} className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load()}><RefreshCw size={15}/> ลองใหม่</button></div>}
     {!loading && !error && shown.length === 0 && <EmptyState icon={ShieldCheck} title={tab === 'Pending' ? 'ไม่มีช่างรอตรวจสอบ' : 'ไม่มีรายการ'}/>}
@@ -89,7 +90,7 @@ function ApplicationCard({ row, onSaved, onNotice }: { row: TechnicianApplicatio
     {rejecting
       ? <div className="approval-reject">
         <label className="ui-field"><span className="ui-label">{row.verificationStatus === 'Approved' ? 'เหตุผลที่ระงับ (ช่างจะเห็นข้อความนี้)' : 'เหตุผลที่ไม่ผ่าน (ช่างจะเห็นข้อความนี้)'}</span><textarea className="ui-textarea" rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น โทรติดต่อไม่ได้ กรุณาตรวจเบอร์โทร"/></label>
-        <div><button type="button" className="ui-btn is-primary danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
+        <div><button type="button" className="ui-btn is-danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
       </div>
       : <footer>
         {!approved && <button type="button" className="ui-btn is-primary" disabled={busy || !row.phone || !hasIdCard} onClick={() => void decide(true)}><CheckCircle2 size={15}/> อนุมัติ</button>}

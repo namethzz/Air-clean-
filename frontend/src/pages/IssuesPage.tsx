@@ -3,6 +3,7 @@ import { AlertCircle, Ban, CheckCircle2, Clock3, Mail, MessageSquareWarning, Pho
 import type { AdminIssue, IssueResolution } from '../types';
 import { fetchAdminIssues, resolveIssue } from '../lib/api';
 import { EmptyState } from '../components/kit';
+import './Admin.css';
 import { JobPhotoGallery } from '../components/JobPhotos';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -35,9 +36,9 @@ export default function IssuesPage({ onNotice, onChanged }: Props) {
       <div><h1>เรื่องที่ถูกแจ้ง</h1><p>โทรหรืออีเมลคุยกับลูกค้าและช่างก่อน แล้วปิดเรื่องตามที่ตกลงกัน ทั้งสองฝ่ายจะได้รับแจ้งผลทันที</p></div>
       <button type="button" className="ui-btn" onClick={() => void load(tab)} disabled={loading}><RefreshCw size={15}/> {loading ? 'กำลังโหลด...' : 'โหลดใหม่'}</button>
     </div>
-    <div className="approval-tabs" role="tablist" aria-label="สถานะเรื่อง">
-      <button type="button" role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>รอดำเนินการ{tab === 'open' && !loading && <span>{rows.length}</span>}</button>
-      <button type="button" role="tab" aria-selected={tab === 'resolved'} className={tab === 'resolved' ? 'active' : ''} onClick={() => setTab('resolved')}>ปิดแล้ว</button>
+    <div className="approval-tabs" role="group" aria-label="สถานะเรื่อง">
+      <button type="button" aria-pressed={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>รอดำเนินการ{tab === 'open' && !loading && <span>{rows.length}</span>}</button>
+      <button type="button" aria-pressed={tab === 'resolved'} className={tab === 'resolved' ? 'active' : ''} onClick={() => setTab('resolved')}>ปิดแล้ว</button>
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load(tab)}><RefreshCw size={15}/> ลองใหม่</button></div>}
     {!loading && !error && rows.length === 0 && <EmptyState icon={MessageSquareWarning} title={tab === 'open' ? 'ไม่มีเรื่องรอดำเนินการ' : 'ยังไม่มีเรื่องที่ปิดแล้ว'}/>}

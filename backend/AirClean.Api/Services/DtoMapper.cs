@@ -42,11 +42,14 @@ public static class DtoMapper {
    b.TechnicianId>0?Pricing.AgreedLines(b).Select(ToDto).ToList():null,changes.LastOrDefault(x=>x.Status==ChangeStates.Pending),changes,AgreedSheet:b.AgreedSheet is null?null:ToDto(b.AgreedSheet));
  }
  public static JobItemDto ToDto(JobItem i)=>new(i.Kind,i.Count,i.Large);
- public static JobItem FromDto(JobItemDto i)=>new(){Kind=i.Kind.Trim().ToLowerInvariant(),Count=i.Count,Large=i.Large};
+ // A null entry in a list becomes an item Pricing.Invalid rejects, so a malformed request gets a 400, not a crash.
+ public static JobItem FromDto(JobItemDto? i)=>i is null?new(){Kind=""}:new(){Kind=(i.Kind??"").Trim().ToLowerInvariant(),Count=i.Count,Large=i.Large};
  public static PriceLineDto ToDto(PriceLine l)=>new(l.Kind,l.Label,l.Quantity,l.UnitPrice,l.Amount,l.Reason);
  public static PriceRangeDto? ToDto(PriceRange? r)=>r is null?null:new(r.Low,r.Mid,r.High,r.Technicians,r.Reference);
  public static PriceSheetDto ToDto(PriceSheet p)=>new(p.Wall,p.WallDeep,p.Hanging,p.HangingDeep,p.Cassette,p.CassetteDeep,p.Large,p.HardAccess);
- public static PriceSheet FromDto(PriceSheetDto p)=>new(){Wall=p.Wall,WallDeep=p.WallDeep,Hanging=p.Hanging,HangingDeep=p.HangingDeep,Cassette=p.Cassette,CassetteDeep=p.CassetteDeep,Large=p.Large,HardAccess=p.HardAccess};
+ // Prices are whole baht, as every screen shows them.
+ public static PriceSheet FromDto(PriceSheetDto p)=>new(){Wall=Baht(p.Wall),WallDeep=Baht(p.WallDeep),Hanging=Baht(p.Hanging),HangingDeep=Baht(p.HangingDeep),Cassette=Baht(p.Cassette),CassetteDeep=Baht(p.CassetteDeep),Large=Baht(p.Large),HardAccess=Baht(p.HardAccess)};
+ public static decimal Baht(decimal value)=>Math.Round(value,MidpointRounding.AwayFromZero);
  public static PriceChangeDto ToDto(PriceChange c)=>new(c.Id,c.Kind,c.Status,c.Lines.Select(ToDto).ToList(),c.Reason,c.OldPrice,c.NewPrice,c.CreatedAt.ToString("O",CultureInfo.InvariantCulture),c.AnsweredAt?.ToString("O",CultureInfo.InvariantCulture),
    c.Items?.Select(ToDto).ToList(),c.Deep,c.HardAccessUnits);
  public static BookingIssueDto? ToDto(BookingIssue? i)=>i is null?null:new(i.Kind,i.Reason,i.ReportedByRole switch {"Technician"=>"ช่าง","Admin"=>"ผู้ดูแล",_=>"ลูกค้า"},i.ReportedAt.ToString("O",CultureInfo.InvariantCulture),i.IsOpen,i.Resolution,i.ResolutionNote,i.ResolvedAt?.ToString("O",CultureInfo.InvariantCulture));

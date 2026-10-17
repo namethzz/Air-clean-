@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import CustomerJobsPage, { type JobFocus } from './pages/CustomerJobsPage';
 import TechnicianJobsPage from './pages/TechnicianJobsPage';
-import { isClosed, isClosedForCustomer, needsAction, techNeedsAction } from './lib/jobFlow';
+import { isClosed, isClosedForCustomer, needsAction, techTurn } from './lib/jobFlow';
 import Topbar from './components/Topbar';
 import BookingModal, { type BookingPayload } from './components/BookingModal';
 import AuthPage from './pages/AuthPage';
@@ -173,7 +173,7 @@ export default function App() {
     const target:PageKey = (books(role)||role==='technician')&&(next==='tracking'||next==='reports')?'bookings':role==='technician'&&next==='overview'?'nearbyJobs':books(role)&&next==='technicians'?'overview':next;
     setPage(target);setMobileNavOpen(false);setSearchQuery('');
   }
-  function openJob(id?:number){setPage('bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
+  function openJob(id?:number){setPage(user?.role==='admin'&&id!=null?'tracking':'bookings');setMobileNavOpen(false);setSearchQuery('');setJobFocus(id==null?null:{id,token:Date.now()});}
   function profileUpdated(nextUser:UserProfile){setUser(nextUser);showNotice('อัปเดตโปรไฟล์เรียบร้อยแล้ว');}
   function onAuthenticated(nextUser:UserProfile){
     setAuthInfo('');setUser(nextUser);setState(emptyState());setPage(homePage(nextUser.role));setSearchQuery('');setSessionError('');setDataError('');
@@ -311,8 +311,8 @@ export default function App() {
       case 'membership':return user.role==='technician'||user.role==='admin'?<MembershipPage admin={user.role==='admin'} onNotice={showNotice}/>:null;
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onOpenProfile={()=>navigate('profile')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onProposeChange={proposeChange} onWithdrawChange={withdrawChange} onRefresh={refreshBookings}/>;
         if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onReopen={reopenJob} onAnswerChange={answerChange} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
-        return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
-      case 'tracking':return user.role==='admin'?<TrackingPage bookings={state.bookings} onRefresh={refreshBookings}/>:null;
+        return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onOpenJob={openJob} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
+      case 'tracking':return user.role==='admin'?<TrackingPage bookings={state.bookings} focus={jobFocus} onRefresh={refreshBookings}/>:null;
       case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={(placeId,rooms)=>openBooking(undefined,placeId,rooms)} onOpenJob={openJob} onNotice={showNotice}/>:null;
       case 'history':return books(user.role)?<CleaningHistoryPage bookings={state.bookings} reports={state.serviceReports} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>:null;
       case 'reports':return user.role==='admin'?<ReportsPage bookings={state.bookings} reports={state.serviceReports}/>:null;
@@ -322,7 +322,7 @@ export default function App() {
     }
   },[user,page,state,searchQuery,jobFocus,locationUpdate,paymentConfirm,paymentIssue,refreshBookings,showNotice]);
 
-  const actionCount = books(user?.role)?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techNeedsAction(item)).length:user?.role==='admin'?state.bookings.filter(item=>item.issue?.open||item.status==='มีปัญหาการชำระเงิน').length:0;
+  const actionCount = books(user?.role)?state.bookings.filter(item=>!isClosedForCustomer(item)&&needsAction(item,state.serviceReports)).length:user?.role==='technician'?state.bookings.filter(item=>!isClosed(item)&&techTurn(item)!=null).length:user?.role==='admin'?state.bookings.filter(item=>item.issue?.open||item.status==='มีปัญหาการชำระเงิน').length:0;
 
   function finishReset(message?:string){
     const url=new URL(window.location.href);url.searchParams.delete('reset');window.history.replaceState(null,'',url.pathname+url.search+url.hash);

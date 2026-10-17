@@ -120,7 +120,8 @@ public class BookingOffersController(MongoStore db, Notifier notifier) : AirClea
         booking.Price = chosen.Quote;
         // The price is now fixed to these lines; a change on site is priced from the same list and needs the customer's yes.
         booking.PriceLines = chosen.Lines ?? [];
-        booking.AgreedSheet = chosen.Sheet ?? (chosenProfile is null ? null : Pricing.SheetOf(chosenProfile));
+        // Only the list the quote was made from; offers made before quotes had a list keep a lump sum (see PriceChangesController).
+        booking.AgreedSheet = chosen.Sheet;
         foreach (var applicant in booking.Applicants) applicant.Selected = applicant.TechnicianId == chosen.TechnicianId;
         booking.Status = BookingStates.Confirmed;
         booking.UpdatedAt = DateTime.UtcNow;

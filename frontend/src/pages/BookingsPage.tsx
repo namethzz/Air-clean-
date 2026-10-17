@@ -1,14 +1,14 @@
 import { timeLabel } from '../lib/time';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownUp, CheckCircle2, ChevronRight, Clock3, MapPin, Navigation, Plus, RefreshCw, SlidersHorizontal, Star, Wallet, Wrench } from 'lucide-react';
-import type { Booking, BookingStatus, PageKey, UserRole } from '../types';
+import type { Booking, BookingStatus, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
 import { EmptyState, PageHead } from '../components/kit';
 import './Jobs.css';
 import './Admin.css';
 
-interface Props { bookings: Booking[]; role: UserRole; searchQuery: string; onNewBooking: () => void; onNavigate: (page: PageKey) => void; onStatusChange: (id: number, status: BookingStatus) => void; onSelectTechnician:(bookingId:number,technicianId:number)=>Promise<boolean>; onRefresh:()=>void; }
+interface Props { bookings: Booking[]; role: UserRole; searchQuery: string; onNewBooking: () => void; onOpenJob: (id: number) => void; onStatusChange: (id: number, status: BookingStatus) => void; onSelectTechnician:(bookingId:number,technicianId:number)=>Promise<boolean>; onRefresh:()=>void; }
 const tabs = ['ทั้งหมด', 'เปิดรับช่าง', 'รอเลือกช่าง', 'รอยืนยัน', 'ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน', 'มีปัญหาการชำระเงิน', 'เสร็จสิ้น', 'ยกเลิก'] as const;
 const PAGE = 20;
 const running: BookingStatus[] = ['ยืนยันแล้ว', 'กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ', 'รอชำระเงิน'];
@@ -19,7 +19,7 @@ function thaiDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDa
  * table lists the jobs (rows stack on a phone). The admin can move a job on when supporting a technician, and
  * pick a technician for a customer who asks for help; both are kept out of the way.
  */
-export default function BookingsPage({ bookings, role, searchQuery, onNewBooking, onNavigate, onStatusChange, onSelectTechnician, onRefresh }: Props) {
+export default function BookingsPage({ bookings, role, searchQuery, onNewBooking, onOpenJob, onStatusChange, onSelectTechnician, onRefresh }: Props) {
   const [activeTab, setActiveTab] = useState<string>('ทั้งหมด');
   const [sortNewest, setSortNewest] = useState(true);
   // A page of rows at a time; a new filter or search starts again from the top.
@@ -45,8 +45,8 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
       case 'กำลังเดินทาง': return step('ถึงหน้างาน', 'ถึงหน้างาน');
       case 'ถึงหน้างาน': return step('เริ่มงาน', 'กำลังดำเนินการ');
       case 'กำลังดำเนินการ': return step('งานเสร็จ', 'รอชำระเงิน');
-      case 'รอชำระเงิน': return <button type="button" className="ui-btn is-sm" onClick={() => onNavigate('tracking')}><Wallet size={15}/> ดูการชำระ</button>;
-      default: return <button type="button" className="ui-btn is-ghost is-sm" aria-label={`ติดตามงาน ${booking.code}`} onClick={() => onNavigate('tracking')}><ChevronRight size={18}/></button>;
+      case 'รอชำระเงิน': return <button type="button" className="ui-btn is-sm" onClick={() => onOpenJob(booking.id)}><Wallet size={15}/> ดูการชำระ</button>;
+      default: return <button type="button" className="ui-btn is-ghost is-sm" aria-label={`ดูงาน ${booking.code}`} onClick={() => onOpenJob(booking.id)}><ChevronRight size={18}/></button>;
     }
   }
 
@@ -54,7 +54,7 @@ export default function BookingsPage({ bookings, role, searchQuery, onNewBooking
     <PageHead title="รายการจองทั้งหมด" actions={<>
       <button type="button" className="ui-btn" onClick={onRefresh}><RefreshCw size={17}/> โหลดใหม่</button>
       <button type="button" className="ui-btn" onClick={onNewBooking}><Plus size={17}/> สร้างคำขอใหม่</button>
-    </>}>ทุกงานในระบบ ตั้งแต่เปิดรับช่างจนปิดงาน ลูกค้าจ่ายช่างโดยตรง และงานปิดเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน</PageHead>
+    </>}>ทุกงานในระบบ ตั้งแต่เปิดรับช่างจนปิดงาน ลูกค้าจ่ายช่างโดยตรง งานปิดเมื่อทั้งสองฝ่ายยืนยันการชำระเงิน หรือ 3 วันหลังช่างยืนยันถ้าลูกค้าไม่แจ้งปัญหา</PageHead>
 
     <dl className="jb-summary ad-summary">
       <div><dt>ทั้งหมด</dt><dd className="ui-num">{bookings.length}</dd></div>

@@ -92,7 +92,7 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
         if (described is not null && Pricing.Invalid(described, request.HardAccessUnits) is { } badItems) return BadRequest(new { message = badItems });
         var lastCleaned = string.IsNullOrWhiteSpace(request.LastCleaned) ? null : request.LastCleaned.Trim();
         if (lastCleaned is not null && !Pricing.LastCleanedValues.Contains(lastCleaned)) return BadRequest(new { message = "ข้อมูลการล้างครั้งล่าสุดไม่ถูกต้อง" });
-        var symptoms = (request.Symptoms ?? []).Select(x => x.Trim()).Distinct().ToList();
+        var symptoms = (request.Symptoms ?? []).Select(x => x?.Trim() ?? "").Distinct().ToList();
         if (symptoms.Any(x => !Pricing.SymptomValues.Contains(x))) return BadRequest(new { message = "อาการของแอร์ไม่ถูกต้อง" });
         var place = request.PlaceId is int placeId ? await store.SavedAddresses.Find(x => x.Id == placeId && x.UserId == CurrentUserId).FirstOrDefaultAsync() : null;
         if (request.PlaceId is not null && place is null) return BadRequest(new { message = "ไม่พบอาคารนี้ในรายการของคุณ" });
@@ -217,7 +217,8 @@ public class BookingsController(MongoStore db, Notifier notifier) : AirCleanCont
             if (target == BookingStates.Confirmed && CurrentRole != AppRoles.Technician)
                 return Forbid();
         }
-        if (target == BookingStates.AwaitingPayment && WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
+        // Closing by hand counts too: a job must not close with a price change nobody can answer any more.
+        if (target is BookingStates.AwaitingPayment or BookingStates.Completed && WaitsOnPriceChange(booking)) return Conflict(PriceChangePending);
 
         var oldStatus = booking.Status;
         booking.Status = target;

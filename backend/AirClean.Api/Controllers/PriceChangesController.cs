@@ -35,6 +35,7 @@ public class PriceChangesController(MongoStore db, Notifier notifier) : AirClean
         if (booking.Changes.Count >= MaxChangesPerJob) return Conflict(new { message = $"ขอปรับราคาได้ไม่เกิน {MaxChangesPerJob} ครั้งต่องาน ถ้ายังตกลงกันไม่ได้ แจ้งปัญหาให้ผู้ดูแลช่วย" });
 
         var reason = request.Reason.Trim();
+        if (reason.Length < 3) return BadRequest(new { message = "บอกเหตุผลให้ลูกค้าเข้าใจ อย่างน้อย 3 ตัวอักษร" });
         var kind = request.Kind.Trim().ToLowerInvariant();
         var change = new PriceChange { Id = ApiHelpers.NewId(), Kind = kind, Reason = reason, OldPrice = booking.Price, CreatedAt = DateTime.UtcNow };
         if (kind == ChangeKinds.Correction)
@@ -48,8 +49,9 @@ public class PriceChangesController(MongoStore db, Notifier notifier) : AirClean
             if (roomUnits > 0 && job.Units != roomUnits) return BadRequest(new { message = $"งานนี้ล้างตามห้อง แอร์แต่ละแบบรวมกันต้องเท่ากับ {roomUnits} เครื่อง" });
             var current = Pricing.JobOf(booking);
             if (Same(current, job)) return BadRequest(new { message = "รายการใหม่เหมือนรายการเดิม ไม่มีอะไรต้องปรับ" });
-            // The price list the technician quoted with, so the new price follows the same prices.
-            var sheet = booking.AgreedSheet ?? Pricing.SheetOf(tech);
+            // The price list the technician quoted with, so the new price follows the same prices. Jobs agreed before
+            // quotes had a list cannot be re-priced from today's list: the technician asks for the extra work instead.
+            if (booking.AgreedSheet is not { } sheet) return Conflict(new { message = "งานนี้ตกลงราคาเป็นยอดรวมไว้ ปรับรายการแอร์ไม่ได้ ถ้ามีงานเพิ่ม เลือก “ต้องทำงานเพิ่ม” แล้วบอกราคา" });
             change.Items = [.. job.Items]; change.Deep = job.Deep; change.HardAccessUnits = job.HardAccessUnits;
             change.Lines = Pricing.Lines(sheet, job);
             change.NewPrice = Pricing.Total(change.Lines) + Pricing.Total(booking.Extras ?? []);
@@ -58,7 +60,8 @@ public class PriceChangesController(MongoStore db, Notifier notifier) : AirClean
         {
             var extras = request.Extras ?? [];
             if (extras.Count is < 1 or > 5) return BadRequest(new { message = "ระบุงานเพิ่ม 1–5 รายการ" });
-            change.Lines = extras.Select(x => new PriceLine { Kind = "extra", Label = x.Label.Trim(), Quantity = 1, UnitPrice = x.Amount, Amount = x.Amount, Reason = reason }).ToList();
+            if (extras.Any(x => x is null || x.Label.Trim().Length < 2)) return BadRequest(new { message = "ใส่ชื่องานเพิ่มทุกรายการ อย่างน้อย 2 ตัวอักษร" });
+            change.Lines = extras.Select(x => new PriceLine { Kind = "extra", Label = x.Label.Trim(), Quantity = 1, UnitPrice = DtoMapper.Baht(x.Amount), Amount = DtoMapper.Baht(x.Amount), Reason = reason }).ToList();
             change.NewPrice = booking.Price + Pricing.Total(change.Lines);
         }
         else return BadRequest(new { message = "ประเภทคำขอไม่ถูกต้อง" });

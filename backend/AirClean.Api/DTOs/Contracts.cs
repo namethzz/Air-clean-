@@ -29,7 +29,7 @@ public record OnsitePaymentRequest([Required] string Method,[Required] bool Conf
 public record PaymentIssueRequest([Required,MaxLength(1000)] string Reason);
 public record CreateServiceReportRequest([Range(1,int.MaxValue)] int BookingId,[Required,MaxLength(2000)] string Summary,bool CleanedFilter,bool CleanedCoil,bool CheckedDrain,bool CheckedCooling,[MaxLength(500)] string? BeforePhotoUrl,[MaxLength(500)] string? AfterPhotoUrl);
 public record CreateReviewRequest([Range(1,5)] int Rating,[MaxLength(1000)] string Comment);
-public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Title,[Required,MaxLength(200)] string Area,[Range(1,100000)] decimal BasePrice,[Required,MaxLength(120)] string AvailableText,[Required,MaxLength(500)] string Skills,[MaxLength(30)] string? Phone=null,[Range(0,60)] int? ExperienceYears=null,PriceSheetDto? Prices=null);
+public record UpdateTechnicianProfileRequest([Required,MaxLength(120)] string Title,[Required,MaxLength(200)] string Area,[Range(50,20000)] decimal BasePrice,[Required,MaxLength(120)] string AvailableText,[Required,MaxLength(500)] string Skills,[MaxLength(30)] string? Phone=null,[Range(0,60)] int? ExperienceYears=null,PriceSheetDto? Prices=null);
 
 public record CreateAirConditionerRequest([Required,MinLength(1),MaxLength(80)] string Label,[MaxLength(80)] string? Room,[MaxLength(60)] string? Brand,[MaxLength(80)] string? Model,[MaxLength(80)] string? Type,[MaxLength(80)] string? SerialNumber,DateTime? LastServiceDate);
 public record TechnicianVerificationRequest(bool Verified,[MaxLength(500)] string? Note=null);

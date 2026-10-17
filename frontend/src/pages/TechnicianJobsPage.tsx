@@ -199,7 +199,8 @@ function Schedule({ jobs, selectedId, onSelect }: { jobs: Booking[]; selectedId?
 function VisitRow({ item, active: current, onSelect, withDate = false, clash = false }: { item: Booking; active: boolean; onSelect: (id: number) => void; withDate?: boolean; clash?: boolean }) {
   const [from, to] = item.timeWindow ? item.timeWindow.split('-') : [item.time, ''];
   const state = rowState(item);
-  const quote = item.applicants?.[0]?.quote ?? item.price;
+  // An offer shows the technician's own quote; a job they have is at its agreed price (which may have changed on site).
+  const quote = isOffer(item) ? (item.applicants?.[0]?.quote ?? item.price) : item.price;
   return <button type="button" className={`tj-visit tone-${state.tone}` + (current ? ' active' : '')} aria-current={current ? 'true' : undefined} onClick={() => onSelect(item.id)}>
     <span className="tj-visit-time">
       {withDate && <b>{new Date(item.date + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</b>}
@@ -228,6 +229,7 @@ export default function TechnicianJobsPage(props: Props) {
   useEffect(() => {
     if (!focus) return;
     const target = bookings.find(item => item.id === focus.id);
+    setFinishedId(null);
     setSelectedId(focus.id);
     if (target) setTab(isClosed(target) ? 'closed' : 'open');
   }, [focus?.token, bookings.length]); // eslint-disable-line react-hooks/exhaustive-deps
