@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Ban, CheckCircle2, Clock3, Mail, MessageSquareWarning, Phone, RefreshCw, Wallet, Wrench } from 'lucide-react';
 import type { AdminIssue, IssueResolution } from '../types';
 import { fetchAdminIssues, resolveIssue } from '../lib/api';
+import { EmptyState } from '../components/kit';
 import { JobPhotoGallery } from '../components/JobPhotos';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -39,7 +40,7 @@ export default function IssuesPage({ onNotice, onChanged }: Props) {
       <button type="button" role="tab" aria-selected={tab === 'resolved'} className={tab === 'resolved' ? 'active' : ''} onClick={() => setTab('resolved')}>ปิดแล้ว</button>
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load(tab)}><RefreshCw size={15}/> ลองใหม่</button></div>}
-    {!loading && !error && rows.length === 0 && <section className="ui-card nearby-empty"><MessageSquareWarning size={24}/><strong>{tab === 'open' ? 'ไม่มีเรื่องรอดำเนินการ' : 'ยังไม่มีเรื่องที่ปิดแล้ว'}</strong></section>}
+    {!loading && !error && rows.length === 0 && <EmptyState icon={MessageSquareWarning} title={tab === 'open' ? 'ไม่มีเรื่องรอดำเนินการ' : 'ยังไม่มีเรื่องที่ปิดแล้ว'}/>}
     <div className="approval-grid">{rows.map(row => <IssueCard key={row.bookingId} row={row} onResolved={resolved} onNotice={onNotice}/>)}</div>
   </div>;
 }
@@ -95,11 +96,11 @@ function IssueCard({ row, onResolved, onNotice }: { row: AdminIssue; onResolved:
       : action
         ? <div className="approval-reject">
           <strong>{action === 'paid' ? 'ยืนยันว่าลูกค้าชำระเงินแล้ว งานจะปิดและบันทึกประวัติ' : action === 'cancel' ? 'ยกเลิกงานนี้ (ไม่มีการเก็บเงิน)' : 'ปิดเรื่องที่ลูกค้าแจ้ง'}</strong>
-          {action === 'paid' && <label className="form-field"><span>ชำระด้วย</span><select value={method} onChange={event => setMethod(event.target.value)}><option value="Cash">เงินสด</option><option value="PromptPay">โอน / PromptPay</option></select></label>}
-          <label className="form-field"><span>{noteRequired ? 'บันทึกว่าตกลงหรือแก้ไขอย่างไร (ทั้งสองฝ่ายจะเห็น)' : 'หมายเหตุ (ไม่บังคับ ทั้งสองฝ่ายจะเห็น)'}</span>
-            <textarea rows={3} maxLength={1000} value={note} onChange={event => setNote(event.target.value)} placeholder={action === 'close' ? 'เช่น ช่างกลับไปแก้ท่อน้ำทิ้งให้แล้ว' : 'เช่น โทรคุยกับทั้งสองฝ่ายแล้ว ลูกค้าโอนเงินเรียบร้อย'}/></label>
+          {action === 'paid' && <label className="ui-field"><span className="ui-label">ชำระด้วย</span><select className="ui-select" value={method} onChange={event => setMethod(event.target.value)}><option value="Cash">เงินสด</option><option value="PromptPay">โอน / PromptPay</option></select></label>}
+          <label className="ui-field"><span className="ui-label">{noteRequired ? 'บันทึกว่าตกลงหรือแก้ไขอย่างไร (ทั้งสองฝ่ายจะเห็น)' : 'หมายเหตุ (ไม่บังคับ ทั้งสองฝ่ายจะเห็น)'}</span>
+            <textarea className="ui-textarea" rows={3} maxLength={1000} value={note} onChange={event => setNote(event.target.value)} placeholder={action === 'close' ? 'เช่น ช่างกลับไปแก้ท่อน้ำทิ้งให้แล้ว' : 'เช่น โทรคุยกับทั้งสองฝ่ายแล้ว ลูกค้าโอนเงินเรียบร้อย'}/></label>
           <div>
-            <button type="button" className={'primary-button' + (action === 'cancel' ? ' danger' : '')} disabled={busy || (noteRequired && !note.trim())} onClick={() => void submit()}>{busy ? 'กำลังบันทึก...' : 'ยืนยัน'}</button>
+            <button type="button" className={'ui-btn ' + (action === 'cancel' ? 'is-danger' : 'is-primary')} disabled={busy || (noteRequired && !note.trim())} onClick={() => void submit()}>{busy ? 'กำลังบันทึก...' : 'ยืนยัน'}</button>
             <button type="button" className="ui-btn" disabled={busy} onClick={() => setAction(null)}>ย้อนกลับ</button>
           </div>
         </div>

@@ -1,0 +1,192 @@
+/* The bell and its list (nb-). On the phone band the trigger turns white on blue (shell.css). */
+.nb {
+  position: relative;
+  flex: none;
+}
+.nb-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  color: var(--v-ink);
+  cursor: pointer;
+}
+.nb-trigger:hover {
+  background: var(--v-sunken);
+}
+.nb-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--v-surface);
+  border-radius: 999px;
+  background: var(--v-problem);
+  color: #ffffff;
+  font: 600 11px / 16px var(--v-font-head);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.nb-panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 120px));
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius-lg);
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-raised);
+  color: var(--v-ink);
+  font-family: var(--v-font-text);
+  overflow: hidden;
+}
+@media (max-width: 860px) {
+  .nb-panel {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
+.nb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 10px 16px;
+  border-bottom: 1px solid var(--v-line);
+}
+.nb-head strong {
+  font: 600 var(--v-text-md) / 1.4 var(--v-font-head);
+  color: var(--v-ink);
+}
+.nb-head > div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nb-link,
+.nb-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--v-radius-sm);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.nb-link {
+  padding: 0 10px;
+  color: var(--v-blue-700);
+  font-size: var(--v-text-sm);
+  font-weight: 600;
+}
+.nb-link:hover {
+  background: var(--v-blue-100);
+}
+.nb-close {
+  width: 40px;
+  color: var(--v-ink-3);
+}
+.nb-close:hover {
+  background: var(--v-sunken);
+  color: var(--v-ink);
+}
+.nb-list {
+  flex: 1;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+.nb-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--v-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.nb-item:hover {
+  background: var(--v-sunken);
+}
+.nb-item:focus-visible {
+  outline: 2px solid var(--v-blue-500);
+  outline-offset: -2px;
+}
+.nb-item.unread {
+  background: var(--v-blue-050);
+}
+.nb-item.unread:hover {
+  background: var(--v-blue-100);
+}
+.nb-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+}
+.nb-item.unread .nb-dot {
+  background: var(--v-blue-600);
+}
+.nb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.nb-text strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--v-ink);
+}
+.nb-item:not(.unread) .nb-text strong {
+  font-weight: 500;
+  color: var(--v-ink-2);
+}
+.nb-text > span {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--v-text-sm);
+  line-height: 1.5;
+  color: var(--v-ink-2);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.nb-text small {
+  font-size: var(--v-text-xs);
+  color: var(--v-ink-3);
+}
+.nb-empty {
+  margin: 0;
+  padding: 24px 18px;
+  font-size: var(--v-text-sm);
+  line-height: 1.7;
+  color: var(--v-ink-3);
+  text-align: center;
+}
+.nb-foot {
+  padding: 6px 8px;
+  border-top: 1px solid var(--v-line);
+}

@@ -341,8 +341,6 @@
 }
 .sh-band .nb-count {
   border-color: var(--v-blue-700);
-  background: var(--v-turn);
-  color: var(--v-turn-ink);
 }
 
 /* ───────── Phone tab bar ───────── */
@@ -587,5 +585,48 @@
     animation: none;
     width: 100%;
     opacity: 0.6;
+  }
+}
+
+/* ───────── "A new version is ready" (UpdateBanner) ───────── */
+.update-banner {
+  position: fixed;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  left: 50%;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: var(--v-ink);
+  color: #ffffff;
+  font: 500 var(--v-text-sm) / 1.4 var(--v-font-text);
+  box-shadow: var(--v-shadow-raised);
+  transform: translateX(-50%);
+}
+.update-banner button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--v-ink);
+  font: 600 var(--v-text-sm) / 1 var(--v-font-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* iPhones zoom into any field under 16px when it is tapped and can stay zoomed, which also throws off the tab bar.
+   The ui-* fields are 16px already; this catches any other field. */
+@media (max-width: 850px) {
+  .ac-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ui-input):not(.ui-num),
+  .ac-shell select:not(.ui-select),
+  .ac-shell textarea:not(.ui-textarea) {
+    font-size: 16px;
   }
 }

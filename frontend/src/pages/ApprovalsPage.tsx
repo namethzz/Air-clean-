@@ -3,6 +3,7 @@ import PrivateImage, { ImageViewer } from '../components/PrivateImage';
 import '../pages/Membership.css';
 import { AlertCircle, BriefcaseBusiness, CheckCircle2, Copy, KeyRound, Mail, MapPin, Phone, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import type { TechnicianApplication, TechnicianDocument, VerificationStatus } from '../types';
+import { EmptyState } from '../components/kit';
 import { createPasswordResetLink, fetchTechnicianApplications, fetchTechnicianDocuments, sendTestEmail, setTechnicianVerification } from '../lib/api';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -41,7 +42,7 @@ export default function ApprovalsPage({ onNotice, onChanged }: Props) {
       {tabs.map(item => <button key={item.key} type="button" role="tab" aria-selected={tab === item.key} className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load()}><RefreshCw size={15}/> ลองใหม่</button></div>}
-    {!loading && !error && shown.length === 0 && <section className="ui-card nearby-empty"><ShieldCheck size={24}/><strong>{tab === 'Pending' ? 'ไม่มีช่างรอตรวจสอบ' : 'ไม่มีรายการ'}</strong></section>}
+    {!loading && !error && shown.length === 0 && <EmptyState icon={ShieldCheck} title={tab === 'Pending' ? 'ไม่มีช่างรอตรวจสอบ' : 'ไม่มีรายการ'}/>}
     <div className="approval-grid">{shown.map(row => <ApplicationCard key={row.id} row={row} onSaved={replace} onNotice={onNotice}/>)}</div>
     <ResetLinkPanel/>
     <TestEmailPanel/>
@@ -87,7 +88,7 @@ function ApplicationCard({ row, onSaved, onNotice }: { row: TechnicianApplicatio
     </div>
     {rejecting
       ? <div className="approval-reject">
-        <label className="form-field"><span>{row.verificationStatus === 'Approved' ? 'เหตุผลที่ระงับ (ช่างจะเห็นข้อความนี้)' : 'เหตุผลที่ไม่ผ่าน (ช่างจะเห็นข้อความนี้)'}</span><textarea rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น โทรติดต่อไม่ได้ กรุณาตรวจเบอร์โทร"/></label>
+        <label className="ui-field"><span className="ui-label">{row.verificationStatus === 'Approved' ? 'เหตุผลที่ระงับ (ช่างจะเห็นข้อความนี้)' : 'เหตุผลที่ไม่ผ่าน (ช่างจะเห็นข้อความนี้)'}</span><textarea className="ui-textarea" rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น โทรติดต่อไม่ได้ กรุณาตรวจเบอร์โทร"/></label>
         <div><button type="button" className="ui-btn is-primary danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
       </div>
       : <footer>
@@ -114,12 +115,12 @@ function ResetLinkPanel() {
     if (!result) return;
     try { await navigator.clipboard.writeText(result.link); setCopied(true); } catch { setCopied(false); }
   }
-  return <section className="ui-card profile-form-panel">
+  return <section className="ui-card">
     <div className="ui-card-head"><div><h2>ลิงก์ตั้งรหัสผ่านใหม่</h2><p>ใช้เมื่อผู้ใช้ลืมรหัสผ่านและไม่ได้รับอีเมล ยืนยันตัวตนทางโทรศัพท์ก่อนส่งลิงก์ให้ ลิงก์ใช้ได้ครั้งเดียวภายใน 24 ชั่วโมง</p></div></div>
-    <form className="profile-form" onSubmit={submit}>
-      <label className="form-field"><span>อีเมลของบัญชี</span><div className="profile-input-wrap"><Mail size={17}/><input type="email" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required/></div></label>
+    <form className="ad-form" onSubmit={submit}>
+      <label className="ui-field"><span className="ui-label">อีเมลของบัญชี</span><input className="ui-input" type="email" inputMode="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required/></label>
       {error && <div className="ui-alert is-problem" role="alert">{error}</div>}
-      {result && <div className="reset-link-result" role="status"><span>ลิงก์สำหรับ {result.fullName} (หมดอายุ {when(result.expiresAt)})</span><code>{result.link}</code><button type="button" className="ui-btn" onClick={() => void copy()}><Copy size={15}/> {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}</button></div>}
+      {result && <div className="ad-reset-link" role="status"><span>ลิงก์สำหรับ {result.fullName} (หมดอายุ {when(result.expiresAt)})</span><code>{result.link}</code><button type="button" className="ui-btn" onClick={() => void copy()}><Copy size={15}/> {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}</button></div>}
       <button type="submit" className="ui-btn is-primary" disabled={busy}><KeyRound size={16}/> {busy ? 'กำลังสร้าง...' : 'สร้างลิงก์'}</button>
     </form>
   </section>;
@@ -136,12 +137,12 @@ function TestEmailPanel() {
     catch (reason) { setResult({ ok: false, message: errorText(reason, 'ส่งอีเมลทดสอบไม่สำเร็จ') }); }
     finally { setBusy(false); }
   }
-  return <section className="ui-card profile-form-panel">
+  return <section className="ui-card">
     <div className="ui-card-head"><div><h2>ทดสอบการส่งอีเมล</h2><p>ส่งอีเมลทดสอบหนึ่งฉบับเพื่อตรวจว่าระบบลืมรหัสผ่านส่งอีเมลออกได้ ถ้าไม่สำเร็จจะแสดงสาเหตุจากผู้ให้บริการอีเมล</p></div></div>
-    <form className="profile-form" onSubmit={submit}>
-      <label className="form-field"><span>ส่งไปที่อีเมล</span><div className="profile-input-wrap"><Mail size={17}/><input type="email" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required/></div></label>
+    <form className="ad-form" onSubmit={submit}>
+      <label className="ui-field"><span className="ui-label">ส่งไปที่อีเมล</span><input className="ui-input" type="email" inputMode="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required/></label>
       {result && (result.ok
-        ? <div className="profile-saved" role="status"><CheckCircle2 size={17}/>{result.message}</div>
+        ? <div className="ui-alert is-done" role="status"><CheckCircle2 size={18}/><span>{result.message}</span></div>
         : <div className="ui-alert is-problem" role="alert">{result.message}</div>)}
       <button type="submit" className="ui-btn is-primary" disabled={busy}><Send size={16}/> {busy ? 'กำลังส่ง...' : 'ส่งอีเมลทดสอบ'}</button>
     </form>

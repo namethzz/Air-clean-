@@ -27,14 +27,11 @@ import UpdateBanner from './components/UpdateBanner';
 import PushPrompt from './components/PushPrompt';
 import NotificationBell from './components/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
-// Older shared page styles (tracking, reports, maps, sign-in) that several pages still use.
-import './pages/CustomerExperience.css';
-import './pages/WorkspaceTheme.css';
 import {
-  reopenBooking, answerPriceChange, proposePriceChange, withdrawPriceChange, type ProposeChangePayload, approveServiceReport, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
-  createReview, createServiceReport, fetchAirConditioners, fetchBookings, fetchCurrentUser,
+  reopenBooking, answerPriceChange, proposePriceChange, withdrawPriceChange, type ProposeChangePayload, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
+  createReview, fetchAirConditioners, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
-  type CompleteJobPayload, type CreateServiceReportPayload,
+  type CompleteJobPayload,
 } from './lib/api';
 import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
@@ -298,14 +295,6 @@ export default function App() {
     try{await reportProblem(id,reason);showNotice('ส่งเรื่องให้ผู้ดูแลแล้ว');return true;}
     catch(error){showNotice(errorMessage(error,'ส่งเรื่องไม่สำเร็จ กรุณาลองใหม่'));return false;}
   }
-  async function createReport(payload:CreateServiceReportPayload):Promise<boolean>{
-    try{await createServiceReport(payload);await refreshData();showNotice('บันทึกรายงานบริการเรียบร้อยแล้ว');return true;}
-    catch(error){showNotice(errorMessage(error,'บันทึกรายงานไม่สำเร็จ กรุณาลองใหม่'));return false;}
-  }
-  async function approveReport(id:number):Promise<boolean>{
-    try{await approveServiceReport(id);await refreshData();showNotice('ยืนยันรายงานบริการแล้ว');return true;}
-    catch(error){showNotice(errorMessage(error,'ยืนยันรายงานไม่สำเร็จ'));return false;}
-  }
 
   // A new screen starts at its top: signing out from the bottom of a long page used to leave the next screen
   // scrolled to its end. "instant" skips the landing page's smooth scrolling.
@@ -323,10 +312,10 @@ export default function App() {
       case 'bookings':if(user.role==='technician')return <TechnicianJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onFindJobs={()=>navigate('nearbyJobs')} onOpenProfile={()=>navigate('profile')} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onComplete={finishJob} onProgress={saveProgress} onReschedule={rescheduleJob} onProposeChange={proposeChange} onWithdrawChange={withdrawChange} onRefresh={refreshBookings}/>;
         if(books(user.role))return <CustomerJobsPage bookings={state.bookings} reports={state.serviceReports} focus={jobFocus} onNewBooking={()=>openBooking()} onSelectTechnician={selectTechnician} onStatusChange={statusChange} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onReview={reviewJob} onReportProblem={sendProblem} onReschedule={rescheduleJob} onReopen={reopenJob} onAnswerChange={answerChange} onOpenPassport={()=>navigate('history')} onRefresh={refreshBookings}/>;
         return <BookingsPage bookings={state.bookings} role={user.role} searchQuery={searchQuery} onNewBooking={()=>openBooking()} onNavigate={navigate} onStatusChange={statusChange} onSelectTechnician={selectTechnician} onRefresh={refreshBookings}/>;
-      case 'tracking':return <TrackingPage bookings={state.bookings} role={user.role} onStatusChange={statusChange} onLocationUpdate={locationUpdate} onPaymentConfirm={paymentConfirm} onPaymentIssue={paymentIssue} onRefresh={refreshBookings}/>;
+      case 'tracking':return user.role==='admin'?<TrackingPage bookings={state.bookings} onRefresh={refreshBookings}/>:null;
       case 'buildings':return user.role==='manager'?<BuildingsPage bookings={state.bookings} onBook={(placeId,rooms)=>openBooking(undefined,placeId,rooms)} onOpenJob={openJob} onNotice={showNotice}/>:null;
       case 'history':return books(user.role)?<CleaningHistoryPage bookings={state.bookings} reports={state.serviceReports} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>:null;
-      case 'reports':return <ReportsPage bookings={state.bookings} reports={state.serviceReports} role={user.role} onCreateReport={createReport} onApproveReport={approveReport}/>;
+      case 'reports':return user.role==='admin'?<ReportsPage bookings={state.bookings} reports={state.serviceReports}/>:null;
       case 'issues':return user.role==='admin'?<IssuesPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'approvals':return user.role==='admin'?<ApprovalsPage onNotice={showNotice} onChanged={()=>void refreshData()}/>:null;
       case 'profile':return <ProfilePage user={user} onUpdated={profileUpdated} onLogout={logout} onOpenMembership={()=>navigate('membership')}/>;
@@ -341,7 +330,7 @@ export default function App() {
     if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
   }
   if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
-  if(checkingSession)return <div className="auth-loading"><span className="auth-brand-icon"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ...</p></div>;
+  if(checkingSession)return <div className="au-loading" role="status"><span className="au-brand-mark"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ…</p></div>;
   if(!user) {
     if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
     return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;

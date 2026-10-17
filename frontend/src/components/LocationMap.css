@@ -2,22 +2,22 @@
   position: relative;
   width: 100%;
   overflow: hidden;
-  border: 1px solid #dce8de;
-  border-radius: 12px;
-  background: #e9f0e7;
+  border: 1px solid var(--v-line);
+  border-radius: var(--v-radius);
+  background: #e7ebf0;
   isolation: isolate;
 }
 .aircare-leaflet-map {
   width: 100%;
   height: 100%;
   z-index: 1;
-  font-family: "DM Sans", "Noto Sans Thai", sans-serif;
+  font-family: var(--v-font-text);
 }
 .aircare-leaflet-map .leaflet-control-attribution {
   font-size: 8px;
 }
 .aircare-leaflet-map .leaflet-control-zoom a {
-  color: #244c44;
+  color: var(--v-ink);
 }
 .aircare-leaflet-icon {
   background: transparent;
@@ -30,9 +30,9 @@
   height: 30px;
   border-radius: 50% 50% 50% 4px;
   transform: rotate(-45deg);
-  box-shadow: 0 5px 15px #173e3b40;
+  box-shadow: 0 5px 15px rgb(15 30 51 / 0.25);
   border: 3px solid white;
-  background: #176b65;
+  background: var(--v-blue-600);
 }
 .aircare-pin i {
   position: absolute;
@@ -42,13 +42,13 @@
   height: 10px;
   border: 2px solid white;
   border-radius: 50%;
-  background: #d9f0e5;
+  background: var(--v-blue-100);
 }
 .aircare-pin-technician {
   width: 34px;
   height: 34px;
-  background: #d6a052;
-  box-shadow: 0 5px 20px #895c2640;
+  background: var(--v-ink);
+  box-shadow: 0 5px 20px rgb(15 30 51 / 0.35);
 }
 .aircare-pin-technician i {
   background: white;
@@ -66,17 +66,17 @@
   padding: 7px 10px;
   border-radius: 8px;
   background: #fff;
-  border: 1px solid #e3e9e2;
-  box-shadow: 0 3px 10px #244c4410;
-  font-size: 9px;
-  color: #517168;
+  border: 1px solid var(--v-line);
+  box-shadow: var(--v-shadow-card);
+  font-size: var(--v-text-xs);
+  color: var(--v-ink-2);
   pointer-events: none;
 }
 .map-pick-hint span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #398c74;
+  background: var(--v-blue-600);
 }
 .map-attribution-note {
   position: absolute;
@@ -87,336 +87,8 @@
   border-radius: 4px;
   padding: 3px 5px;
   font-size: 8px;
-  color: #829188;
+  color: var(--v-ink-3);
   pointer-events: none;
-}
-.tracking-page-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
-  gap: 16px;
-  align-items: start;
-}
-.tracking-map-panel,
-.tracking-detail-panel {
-  padding: 17px;
-  background: #fff;
-  border: 1px solid #e4ebe5;
-  border-radius: 14px;
-  min-width: 0;
-}
-.tracking-map-header,
-.tracking-detail-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.tracking-map-header h2,
-.tracking-detail-header h2 {
-  font-size: 14px;
-  color: #244e45;
-  margin: 0;
-}
-.tracking-map-header p,
-.tracking-detail-header p {
-  font-size: 9px;
-  line-height: 1.7;
-  color: #8d9d92;
-  margin: 5px 0 0;
-}
-.tracking-map-legend {
-  display: flex;
-  gap: 13px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-.tracking-map-legend span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #819286;
-  font-size: 9px;
-}
-.tracking-legend-pin {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #176b65;
-}
-.tracking-legend-pin.tech {
-  background: #d6a052;
-}
-.tracking-status-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 12px;
-  border-radius: 10px;
-  background: #edf6ef;
-  margin-bottom: 12px;
-}
-.tracking-status-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  background: #d9eee2;
-  color: #387d63;
-  border-radius: 10px;
-}
-.tracking-status-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.tracking-status-copy strong {
-  font-size: 10px;
-  color: #426758;
-}
-.tracking-status-copy span {
-  font-size: 9px;
-  line-height: 1.7;
-  color: #8a9a90;
-}
-.tracking-info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-.tracking-info-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px 0;
-  border-bottom: 1px solid #edf2ec;
-  color: #819287;
-}
-.tracking-info-row > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-.tracking-info-row strong {
-  font-size: 10px;
-  color: #45665a;
-}
-.tracking-info-row span {
-  font-size: 9px;
-  color: #92a096;
-  line-height: 1.6;
-}
-.tracking-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 14px;
-}
-.tracking-actions .primary-button,
-.tracking-actions .outline-button {
-  width: 100%;
-}
-.tracking-payment-box {
-  padding: 14px;
-  border: 1px solid #eadfc8;
-  background: #fbf7ed;
-  border-radius: 11px;
-  margin-top: 14px;
-}
-.tracking-payment-box h3 {
-  font-size: 12px;
-  margin: 0 0 6px;
-  color: #69573b;
-}
-.tracking-payment-box p {
-  font-size: 9px;
-  line-height: 1.7;
-  color: #978466;
-  margin: 0 0 10px;
-}
-.tracking-payment-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-.tracking-payment-options button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid #e4d8bc;
-  border-radius: 8px;
-  background: white;
-  color: #8a744f;
-  padding: 9px 7px;
-  font-size: 9px;
-}
-.tracking-payment-options button.active {
-  border-color: #b99b5d;
-  background: #f7edd8;
-  color: #755d30;
-}
-.tracking-payment-confirmations {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-.payment-check-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 9px;
-  color: #7c715c;
-}
-.payment-check-row svg {
-  color: #4a9875;
-}
-.tracking-disclaimer {
-  margin: 12px 0 0;
-  font-size: 8px;
-  color: #9ba59d;
-  line-height: 1.8;
-}
-.tracking-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 9px;
-  padding: 35px 20px;
-  color: #819287;
-}
-.tracking-empty strong {
-  font-size: 12px;
-  color: #48675a;
-}
-.tracking-empty p {
-  font-size: 10px;
-  line-height: 1.8;
-  max-width: 360px;
-  margin: 0;
-}
-.tracking-job-options {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 13px;
-}
-.tracking-job-option {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px;
-  border: 1px solid #e3eae3;
-  border-radius: 9px;
-  background: white;
-  text-align: left;
-}
-.tracking-job-option.active {
-  border-color: #9dceb1;
-  background: #eff7f0;
-}
-.tracking-job-option > span:first-child {
-  width: 31px;
-  height: 31px;
-  border-radius: 9px;
-  background: #e5f2e8;
-  color: #438568;
-  display: grid;
-  place-items: center;
-}
-.tracking-job-option > span:nth-child(2) {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-.tracking-job-option strong {
-  font-size: 10px;
-  color: #49685a;
-}
-.tracking-job-option small {
-  font-size: 8px;
-  color: #92a096;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tracking-runtime-note {
-  font-size: 8px;
-  line-height: 1.7;
-  color: #96a49a;
-  background: #f5f8f4;
-  border-radius: 8px;
-  padding: 9px 10px;
-  margin-top: 10px;
-}
-@media (max-width: 950px) {
-  .tracking-page-layout {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 560px) {
-  .tracking-map-panel,
-  .tracking-detail-panel {
-    padding: 13px;
-  }
-  .tracking-payment-options {
-    grid-template-columns: 1fr;
-  }
-}
-.booking-modal-wide {
-  width: min(100%, 680px);
-}
-.booking-modal-wide .booking-form {
-  gap: 15px;
-}
-.tracking-page-layout .primary-button,
-.tracking-page-layout .outline-button {
-  text-decoration: none;
-}
-
-.tracking-live-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  background: #f3f5f2;
-  color: #687b70;
-  font-size: 12px;
-  font-weight: 600;
-}
-.tracking-live-status > span {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #a1ada4;
-  flex-shrink: 0;
-}
-.tracking-live-status.live {
-  background: #e7f6ed;
-  color: #24704d;
-}
-.tracking-live-status.live > span {
-  background: #2aa269;
-  box-shadow: 0 0 0 4px #2aa26920;
-}
-.tracking-stale-note {
-  font-size: 11px;
-  line-height: 1.8;
-  background: #fff6df;
-  color: #87682f;
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 8px;
 }
 .aircare-leaflet-map .aircare-leaflet-icon:has(.aircare-pin-technician) {
   transition: transform 0.7s linear;

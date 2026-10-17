@@ -1,202 +1,115 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, ExternalLink, MapPin, RefreshCw } from 'lucide-react';
+import type { Booking } from '../types';
 import { timeLabel } from '../lib/time';
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Banknote, Building2, CheckCircle2, Clock3, ExternalLink, LocateFixed, MapPin, Navigation, RefreshCw, ShieldCheck, Smartphone, Wallet, Wrench } from 'lucide-react';
-import type { Booking, BookingStatus, PaymentMethod, UserRole } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import LocationMap, { type Coordinates } from '../components/LocationMap';
-import { EmptyState } from '../components/kit';
+import { EmptyState, PageHead } from '../components/kit';
+import './Jobs.css';
 import './Admin.css';
 
-interface Props {
-  bookings: Booking[];
-  role: UserRole;
-  onStatusChange: (id: number, status: BookingStatus) => void;
-  onLocationUpdate: (id: number, latitude: number, longitude: number, accuracy?: number) => Promise<boolean>;
-  onPaymentConfirm: (id: number, method: PaymentMethod) => void;
-  onPaymentIssue: (id: number, reason: string) => void;
-  onRefresh: () => void;
-}
+/**
+ * The admin's map of jobs (App sends every other role to their own jobs page). A list on one side, narrowed by a
+ * chip; the chosen job on the other with the place, the technician's last position while on the road, and the facts.
+ */
+interface Props { bookings: Booking[]; onRefresh: () => void; }
 
 const FALLBACK_DESTINATION: Coordinates = { latitude: 13.806, longitude: 100.572 };
-function statusHeadline(status: BookingStatus) {
-  const copy: Record<BookingStatus, string> = {
-    'เปิดรับช่าง': 'กำลังรอช่างใกล้เคียงสนใจรับงาน', 'รอเลือกช่าง': 'มีช่างสนใจแล้ว รอลูกค้ายืนยัน',
-    'รอยืนยัน': 'กำลังรอช่างตอบรับ', 'ยืนยันแล้ว': 'นัดหมายได้รับการยืนยันแล้ว', 'หมดเวลาเลือกช่าง': 'หมดเวลาเลือกช่าง เปิดรับข้อเสนอใหม่ได้',
-    'กำลังเดินทาง': 'ช่างกำลังเดินทางมาหาคุณ', 'ถึงหน้างาน': 'ช่างมาถึงหน้างานแล้ว',
-    'กำลังดำเนินการ': 'ช่างกำลังให้บริการ', 'รอชำระเงิน': 'บริการเสร็จแล้ว รอชำระเงินหน้างาน',
-    'มีปัญหาการชำระเงิน': 'รายการนี้รอผู้ดูแลช่วยตรวจสอบ', 'เสร็จสิ้น': 'ภารกิจเสร็จสมบูรณ์',
-    'ยกเลิก': 'การจองถูกยกเลิก',
-  };
-  return copy[status] ?? status;
+const ON_THE_ROAD = ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ'];
+const day = (value: string) => new Date(`${value}T00:00:00`);
+
+function liveLine(job: Booking, hasPosition: boolean, stale: boolean): string {
+  if (job.status === 'กำลังเดินทาง') return !hasPosition ? 'กำลังรอช่างส่งตำแหน่ง' : stale ? 'พิกัดขาดการอัปเดต · แสดงตำแหน่งล่าสุด' : 'กำลังติดตามตำแหน่งช่าง';
+  if (job.status === 'ถึงหน้างาน') return 'ช่างถึงหน้างานแล้ว · หยุดแชร์ตำแหน่ง';
+  return 'ตำแหน่งช่างแสดงเมื่อช่างกด “เริ่มเดินทาง” และอนุญาต GPS';
 }
-function formatUpdated(value?: string | null) {
-  if (!value) return 'ยังไม่ได้รับพิกัดจากช่าง';
+function updatedLine(value?: string | null) {
+  if (!value) return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'มีพิกัดล่าสุดแล้ว' : `อัปเดตล่าสุด ${date.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})} น.`;
+  return Number.isNaN(date.getTime()) ? '' : `อัปเดตล่าสุด ${date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
 }
 
-export default function TrackingPage({ bookings, role, onStatusChange, onLocationUpdate, onPaymentConfirm, onPaymentIssue, onRefresh }: Props) {
+export default function TrackingPage({ bookings, onRefresh }: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
-  const [gpsMessage, setGpsMessage] = useState('');
-  const [gpsAttempt, setGpsAttempt] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const isTechnician = role === 'technician';
-  // The admin sees every job, narrowed by a chip: on the road now (the default when any are), today, open, or all.
+  const detail = useRef<HTMLElement>(null);
+  // Narrowed by a chip: on the road now (the default when any are), today, open, or all.
   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const scopes = {
-    moving: (item: Booking) => ['กำลังเดินทาง', 'ถึงหน้างาน', 'กำลังดำเนินการ'].includes(item.status),
+    moving: (item: Booking) => ON_THE_ROAD.includes(item.status),
     today: (item: Booking) => item.date === today,
     open: (item: Booking) => !['เสร็จสิ้น', 'ยกเลิก', 'หมดเวลาเลือกช่าง'].includes(item.status),
     all: () => true,
   } as const;
   const scopeNames: Record<keyof typeof scopes, string> = { moving: 'กำลังเดินทาง / อยู่หน้างาน', today: 'นัดวันนี้', open: 'ยังไม่ปิด', all: 'ทั้งหมด' };
   const [scope, setScope] = useState<keyof typeof scopes>(() => bookings.some(scopes.moving) ? 'moving' : 'open');
-  const relevantBookings = useMemo(() => {
-    const rows = role === 'admin' ? bookings.filter(scopes[scope]) : bookings.filter((item) => !['เสร็จสิ้น','ยกเลิก'].includes(item.status));
-    return rows.length ? rows : role === 'admin' ? [] : bookings;
-  }, [bookings, role, scope]); // eslint-disable-line react-hooks/exhaustive-deps
-  const selected = relevantBookings.find((item) => item.id === selectedId) ?? relevantBookings.find((item) => isTechnician ? ['ยืนยันแล้ว','กำลังเดินทาง','ถึงหน้างาน','กำลังดำเนินการ','รอชำระเงิน'].includes(item.status) : item.status !== 'เสร็จสิ้น') ?? relevantBookings[0];
-  const hasCoordinates = selected?.latitude != null && selected?.longitude != null;
-  const destination = hasCoordinates ? { latitude: selected!.latitude!, longitude: selected!.longitude! } : FALLBACK_DESTINATION;
-  const technicianPosition = selected?.technicianLatitude != null && selected?.technicianLongitude != null
-    ? { latitude: selected.technicianLatitude, longitude: selected.technicianLongitude } : null;
-  const mapCenter = technicianPosition && hasCoordinates
-    ? { latitude: (technicianPosition.latitude + destination.latitude) / 2, longitude: (technicianPosition.longitude + destination.longitude) / 2 }
-    : technicianPosition ?? destination;
+  const rows = useMemo(() => bookings.filter(scopes[scope]), [bookings, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selected = rows.find(item => item.id === selectedId) ?? rows.find(item => ON_THE_ROAD.includes(item.status)) ?? rows[0];
 
-  useEffect(() => {
-    if (!selected) return;
-    setSelectedId(selected.id);
-    if (selected.paymentMethod) setPaymentMethod(selected.paymentMethod);
-  }, [selected?.id, selected?.paymentMethod]);
+  useEffect(() => { const timer = window.setInterval(onRefresh, 10000); return () => window.clearInterval(timer); }, [onRefresh]);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
 
-  useEffect(() => {
-    if (!isTechnician || !selected || selected.status !== 'กำลังเดินทาง') { setGpsMessage(''); return; }
-    if (!navigator.geolocation) { setGpsMessage('อุปกรณ์นี้ไม่รองรับ GPS ผ่านเบราว์เซอร์'); return; }
-    let lastSentAt = 0;
-    let pending = false;
-    let disposed = false;
-    let latest: GeolocationPosition | null = null;
-    async function sendPosition() {
-      if (!latest || pending || disposed) return;
-      if (Date.now() - latest.timestamp > 30000) {
-        setGpsMessage('พิกัดไม่อัปเดต กรุณาเปิดหน้านี้ไว้และตรวจสอบ GPS');
-        return;
-      }
-      pending = true;
-      const coords = latest.coords;
-      const sent = await onLocationUpdate(selected!.id, coords.latitude, coords.longitude, coords.accuracy);
-      pending = false;
-      if (disposed) return;
-      lastSentAt = Date.now();
-      setGpsMessage(sent ? `ส่งตำแหน่งแล้ว · ความแม่นยำประมาณ ${Math.round(coords.accuracy)} เมตร` : 'ส่งตำแหน่งไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต ระบบจะลองใหม่');
-    }
-    setGpsMessage('กำลังขออนุญาตใช้ตำแหน่งจากอุปกรณ์…');
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        latest = position;
-        if (Date.now() - lastSentAt >= 8000) void sendPosition();
-      },
-      (error) => {
-        latest = null;
-        setGpsMessage(error.code === 1 ? 'ยังไม่ได้รับอนุญาตให้ใช้ตำแหน่ง กรุณาอนุญาต GPS ในเบราว์เซอร์' : 'รับตำแหน่ง GPS ไม่สำเร็จ ตรวจสอบการตั้งค่าตำแหน่งและลองอีกครั้ง');
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
-    );
-    const heartbeat = window.setInterval(() => { void sendPosition(); }, 8000);
-    return () => { disposed = true; window.clearInterval(heartbeat); navigator.geolocation.clearWatch(watchId); };
-  }, [isTechnician, selected?.id, selected?.status, onLocationUpdate, gpsAttempt]);
-
-  useEffect(() => {
-    const timer = window.setInterval(onRefresh, 10000);
-    return () => window.clearInterval(timer);
-  }, [onRefresh]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  // The admin's filter chips, shown with the map and also when a filter has nothing, so it can be changed back.
-  const scopeChips = role === 'admin' ? <div className="ad-chips" role="group" aria-label="แสดงงาน">
+  const chips = <div className="ad-chips" role="group" aria-label="แสดงงาน">
     {(Object.keys(scopes) as (keyof typeof scopes)[]).map(key => <button type="button" key={key} className="ui-chip" aria-pressed={scope === key} onClick={() => { setScope(key); setSelectedId(null); }}>{scopeNames[key]} <b className="ui-num">{bookings.filter(scopes[key]).length}</b></button>)}
-  </div> : null;
-  if (!selected) {
-    return <div className="ui-page ad">
-      <div className="ui-page-head"><div><h1>แผนที่และการเดินทาง</h1><p>ติดตามงานและตำแหน่งช่างได้จากที่เดียว</p></div></div>
-      {scopeChips}
-      <EmptyState icon={MapPin} title={role === 'admin' && bookings.length ? `ไม่มีงานในหมวด “${scopeNames[scope]}”` : 'ยังไม่มีงานให้แสดง'}>
-        {role === 'admin' && bookings.length ? 'เลือกหมวดอื่นด้านบน' : 'เมื่อมีการจอง ระบบจะแสดงสถานที่ให้บริการและสถานะการเดินทางของช่างที่นี่'}
-      </EmptyState>
-    </div>;
-  }
+  </div>;
+  const head = <PageHead title="ติดตามงาน" actions={<button type="button" className="ui-btn" onClick={onRefresh}><RefreshCw size={18}/> โหลดใหม่</button>}>
+    ดูว่างานไหนอยู่ตรงไหน และช่างที่กำลังเดินทางอยู่ห่างแค่ไหน หน้านี้โหลดใหม่เองทุก 10 วินาที
+  </PageHead>;
 
-  const mapsUrl = hasCoordinates
-    ? `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving`
-    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selected.address)}&travelmode=driving`;
-  const isAwaitingPayment = selected.status === 'รอชำระเงิน' || selected.status === 'มีปัญหาการชำระเงิน';
-  const canConfirmPayment = selected.status === 'รอชำระเงิน';
-  const customerConfirmed = Boolean(selected.customerConfirmedPayment);
-  const technicianConfirmed = Boolean(selected.technicianConfirmedPayment);
+  if (!selected) return <div className="ui-page ad">
+    {head}{chips}
+    <EmptyState icon={MapPin} title={bookings.length ? `ไม่มีงานในหมวด “${scopeNames[scope]}”` : 'ยังไม่มีงานให้แสดง'}>
+      {bookings.length ? 'เลือกหมวดอื่นด้านบน' : 'เมื่อมีการจอง สถานที่และการเดินทางของช่างจะแสดงที่นี่'}
+    </EmptyState>
+  </div>;
+
+  const hasPlace = selected.latitude != null && selected.longitude != null;
+  const place = hasPlace ? { latitude: selected.latitude!, longitude: selected.longitude! } : FALLBACK_DESTINATION;
+  const tech = selected.technicianLatitude != null && selected.technicianLongitude != null ? { latitude: selected.technicianLatitude, longitude: selected.technicianLongitude } : null;
+  const center = tech && hasPlace ? { latitude: (tech.latitude + place.latitude) / 2, longitude: (tech.longitude + place.longitude) / 2 } : tech ?? place;
   const updatedAt = selected.locationUpdatedAt ? Date.parse(selected.locationUpdatedAt) : NaN;
   const stale = !Number.isFinite(updatedAt) || now - updatedAt > 30000;
-  const traveling = selected.status === 'กำลังเดินทาง';
+  const live = selected.status === 'กำลังเดินทาง' && Boolean(tech) && !stale;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${hasPlace ? `${place.latitude},${place.longitude}` : encodeURIComponent(selected.address)}&travelmode=driving`;
+  const payment = selected.paymentMethod === 'PromptPay' ? 'โอนให้ช่าง' : selected.paymentMethod === 'Cash' ? 'เงินสด' : 'ยังไม่เลือก';
 
-  function reportIssue() {
-    const reason = window.prompt('อธิบายปัญหาการชำระเงิน เพื่อให้ผู้ดูแลตรวจสอบ');
-    if (reason?.trim()) onPaymentIssue(selected.id, reason.trim());
+  function choose(id: number) {
+    setSelectedId(id);
+    // On a phone the job sits above the list: bring it into view.
+    if (window.matchMedia('(max-width: 1023px)').matches) window.requestAnimationFrame(() => detail.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
+
   return <div className="ui-page ad">
-    <div className="ui-page-head"><div><h1>{isTechnician ? 'งานและเส้นทางของฉัน' : 'ช่างอยู่ที่ไหนแล้ว?'}</h1><p>{isTechnician ? 'ดูข้อมูลงาน เปิด Google Maps และแชร์ตำแหน่งระหว่างเดินทาง' : 'ติดตามสถานะนัดหมายและตำแหน่งล่าสุดของช่างที่กำลังเดินทางมา'}</p></div><button className="ui-btn" onClick={onRefresh}><RefreshCw size={15}/> รีเฟรชข้อมูล</button></div>
-    <div className="tracking-page-layout">
-      <section className="tracking-map-panel">
-        <div className="tracking-map-header"><div><h2>แผนที่การให้บริการ</h2><p>{selected.address}</p></div><StatusBadge status={selected.status}/></div>
-        <div className={`tracking-live-status ${traveling && !stale ? 'live' : ''}`} role="status"><span/>{traveling ? technicianPosition ? stale ? 'พิกัดขาดการอัปเดต · แสดงตำแหน่งล่าสุด' : 'กำลังติดตามตำแหน่งช่าง' : 'กำลังรอช่างส่งตำแหน่ง' : selected.status === 'ถึงหน้างาน' ? 'ช่างถึงหน้างานแล้ว · หยุดแชร์ตำแหน่ง' : 'ยังไม่ได้แชร์ตำแหน่งระหว่างเดินทาง'}</div>
-        <LocationMap key={selected.id} center={mapCenter} destination={hasCoordinates ? {...destination,label:'สถานที่ให้บริการ',kind:'destination'} : undefined} technician={technicianPosition ? {...technicianPosition,label:selected.technician,kind:'technician'} : undefined} accuracy={selected.locationAccuracy ?? undefined} height={390} zoom={technicianPosition && hasCoordinates ? 13 : 14}/>
-        <div className="tracking-map-legend"><span><i className="tracking-legend-pin"/> สถานที่ให้บริการ</span>{technicianPosition && <span><i className="tracking-legend-pin tech"/> ตำแหน่งช่างล่าสุด</span>}</div>
-        <div className="tracking-runtime-note">{technicianPosition ? formatUpdated(selected.locationUpdatedAt) : (selected.status === 'กำลังเดินทาง' ? 'รอพิกัดล่าสุดจากโทรศัพท์ช่าง หาก GPS ยังไม่อนุญาต ตำแหน่งอาจยังไม่แสดง' : 'ตำแหน่งช่างจะแสดงเมื่อช่างกด “กำลังเดินทาง” และอนุญาตให้เข้าถึง GPS')}</div>
-        {traveling && stale && technicianPosition && <div className="tracking-stale-note">ตำแหน่งนี้อาจไม่ใช่ตำแหน่งปัจจุบัน ช่างอาจล็อกหน้าจอ สลับแอป หรือขาดการเชื่อมต่อ</div>}
+    {head}{chips}
+    <div className="tk">
+      <section className="ui-card tk-job" ref={detail} aria-labelledby="tk-title" tabIndex={-1}>
+        <div className="ui-card-head tk-job-head">
+          <div><h2 id="tk-title">{selected.code} · {selected.service}</h2><p>{selected.technician || 'ยังไม่มีช่าง'} · {selected.customer || 'ลูกค้า'}</p></div>
+          <StatusBadge status={selected.status}/>
+        </div>
+        <p className={'tk-live' + (live ? ' is-live' : '')} role="status"><i aria-hidden="true"/><span>{liveLine(selected, Boolean(tech), stale)}{tech && <small>{updatedLine(selected.locationUpdatedAt)}</small>}</span></p>
+        <LocationMap key={selected.id} center={center} destination={hasPlace ? { ...place, label: 'สถานที่ให้บริการ', kind: 'destination' } : undefined}
+          technician={tech ? { ...tech, label: selected.technician, kind: 'technician' } : undefined} accuracy={selected.locationAccuracy ?? undefined} height={340} zoom={tech && hasPlace ? 13 : 14}/>
+        <p className="tk-legend"><span><i className="tk-pin"/> สถานที่ให้บริการ</span>{tech && <span><i className="tk-pin is-tech"/> ตำแหน่งช่างล่าสุด</span>}{!hasPlace && <span>งานนี้ยังไม่มีพิกัด แผนที่แสดงพื้นที่โดยประมาณ</span>}</p>
+        {selected.status === 'กำลังเดินทาง' && tech && stale && <p className="ui-alert is-wait">ตำแหน่งนี้อาจไม่ใช่ตำแหน่งปัจจุบัน ช่างอาจล็อกหน้าจอ สลับแอป หรือขาดการเชื่อมต่อ</p>}
+        <dl className="jb-facts">
+          <div><dt>สถานที่</dt><dd>{selected.address}{selected.unitLabel && <><br/>{selected.unitLabel}</>}</dd></div>
+          <div><dt>วันและเวลา</dt><dd>{day(selected.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} · {timeLabel(selected)}</dd></div>
+          <div><dt>ราคาที่ตกลง</dt><dd><span className="ui-num">฿{selected.price.toLocaleString()}</span> · จ่ายช่างหน้างาน ({payment})</dd></div>
+        </dl>
+        <a className="ui-btn is-primary is-block" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={18}/> เปิดสถานที่ใน Google Maps</a>
       </section>
 
-      <aside className="tracking-detail-panel">
-        {scopeChips}
-        {relevantBookings.length > 1 && <div className="tracking-job-options"><div className="tracking-detail-header"><div><h2>{isTechnician ? 'เลือกงานที่รับไว้' : 'เลือกการจอง'}</h2><p>เปลี่ยนงานเพื่อดูรายละเอียดบนแผนที่</p></div></div>{relevantBookings.map((item) => <button type="button" className={`tracking-job-option ${item.id===selected.id?'active':''}`} key={item.id} onClick={() => setSelectedId(item.id)}><span><Wrench size={15}/></span><span><strong>{item.code} · {item.service}</strong><small>{item.address}</small></span><StatusBadge status={item.status}/></button>)}</div>}
-        <div className="tracking-status-line"><div className="tracking-status-icon"><Navigation size={18}/></div><div className="tracking-status-copy"><strong>{statusHeadline(selected.status)}</strong><span>{selected.code} · {selected.technician}</span></div></div>
-        <div className="tracking-info-list">
-          <div className="tracking-info-row"><MapPin size={16}/><div><strong>สถานที่ให้บริการ</strong><span>{selected.address}</span>{selected.unitLabel && <span>{selected.unitLabel}</span>}</div></div>
-          <div className="tracking-info-row"><Clock3 size={16}/><div><strong>วันและเวลา</strong><span>{new Date(`${selected.date}T00:00:00`).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})} · {timeLabel(selected)}</span></div></div>
-          <div className="tracking-info-row"><Wallet size={16}/><div><strong>ค่าบริการที่ตกลง</strong><span>฿{selected.price.toLocaleString()} · ชำระหน้างาน</span><span>วิธีชำระ: {selected.paymentMethod === 'PromptPay' ? 'PromptPay' : selected.paymentMethod === 'Cash' ? 'เงินสด' : 'เลือกตอนชำระเงิน'}</span></div></div>
-        </div>
-
-        <div className="tracking-actions">
-          <a className="ui-btn is-primary is-block" href={mapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={15}/> {isTechnician ? 'นำทางด้วย Google Maps' : 'เปิดสถานที่ใน Google Maps'}</a>
-          {isTechnician && selected.status === 'ยืนยันแล้ว' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'กำลังเดินทาง')}><Navigation size={15}/> เริ่มเดินทางและแชร์ GPS</button>}
-          {isTechnician && selected.status === 'กำลังเดินทาง' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'ถึงหน้างาน')}><MapPin size={15}/> ยืนยันว่าถึงหน้างานแล้ว</button>}
-          {isTechnician && selected.status === 'ถึงหน้างาน' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'กำลังดำเนินการ')}><Wrench size={15}/> เริ่มล้างแอร์</button>}
-          {isTechnician && selected.status === 'กำลังดำเนินการ' && <button className="ui-btn" onClick={() => onStatusChange(selected.id,'รอชำระเงิน')}><CheckCircle2 size={15}/> งานเสร็จแล้ว · รอชำระเงิน</button>}
-        </div>
-
-        {isAwaitingPayment && <div className="tracking-payment-box">
-          <h3><Banknote size={16} style={{verticalAlign:'middle',marginRight:6}}/>เก็บเงินปลายทาง</h3>
-          <p>เมื่องานเสร็จ ลูกค้าเลือกวิธีชำระเงินและยืนยันว่าได้จ่ายแล้ว ส่วนช่างยืนยันว่าได้รับเงินแล้ว ระบบจึงปิดภารกิจ</p>
-          {canConfirmPayment && <div className="tracking-payment-options"><button type="button" className={paymentMethod==='Cash'?'active':''} onClick={()=>setPaymentMethod('Cash')}><Banknote size={15}/> เงินสด</button><button type="button" className={paymentMethod==='PromptPay'?'active':''} onClick={()=>setPaymentMethod('PromptPay')}><Smartphone size={15}/> โอนให้ช่าง</button></div>}
-          <div className="tracking-payment-confirmations">
-            <div className="payment-check-row"><CheckCircle2 size={15}/>{customerConfirmed?'ลูกค้ายืนยันว่าชำระแล้ว':'รอลูกค้ายืนยันการชำระเงิน'}</div>
-            <div className="payment-check-row"><CheckCircle2 size={15}/>{technicianConfirmed?'ช่างยืนยันว่าได้รับเงินแล้ว':'รอช่างยืนยันว่าได้รับเงิน'}</div>
-          </div>
-          {canConfirmPayment && ((role==='customer' && !customerConfirmed) || (isTechnician && !technicianConfirmed)) && <button className="ui-btn is-primary is-block" style={{marginTop:10}} onClick={() => onPaymentConfirm(selected.id,paymentMethod)}>{role==='customer'?'ฉันชำระเงินแล้ว':'ฉันได้รับเงินแล้ว'} <CheckCircle2 size={15}/></button>}
-          {canConfirmPayment && (role === 'customer' || isTechnician) && <button className="ui-btn is-block" style={{marginTop:8}} onClick={reportIssue}><AlertTriangle size={15}/> แจ้งปัญหาการชำระเงิน</button>}
-          {selected.status==='มีปัญหาการชำระเงิน' && <p>รายการนี้ถูกส่งให้ผู้ดูแลตรวจสอบแล้ว โปรดติดต่อผู้ดูแลก่อนเปลี่ยนสถานะ</p>}
-          <p className="tracking-disclaimer">ลูกค้าจ่ายให้ช่างโดยตรงเมื่องานเสร็จ ด้วยเงินสดหรือโอน AirClean ไม่เก็บเงินล่วงหน้าและไม่รับเงินแทนช่าง</p>
-        </div>}
-
-        {selected.status === 'เสร็จสิ้น' && <div className="tracking-status-line" style={{marginTop:14}}><div className="tracking-status-icon"><CheckCircle2 size={18}/></div><div className="tracking-status-copy"><strong>ปิดภารกิจเรียบร้อย</strong><span>ลูกค้าและช่างยืนยันการชำระเงินแล้ว · ฿{selected.price.toLocaleString()}</span></div></div>}
-        {selected.status === 'มีปัญหาการชำระเงิน' && <div className="tracking-status-line"><div className="tracking-status-icon"><AlertTriangle size={18}/></div><div className="tracking-status-copy"><strong>ส่งให้ผู้ดูแลตรวจสอบแล้ว</strong><span>ระบบยังไม่ถือว่ารายการนี้ชำระสำเร็จ</span></div></div>}
-        {isTechnician && selected.status === 'กำลังเดินทาง' && <div className="tracking-runtime-note" role="status"><LocateFixed size={14} style={{verticalAlign:'middle',marginRight:5}}/> {gpsMessage || 'กำลังรับพิกัดจากอุปกรณ์'}<p>เปิดหน้านี้ไว้ระหว่างเดินทาง การล็อกหน้าจอหรือเปิด Google Maps อาจทำให้ตำแหน่งหยุดอัปเดต ระบบหยุดแชร์เมื่อถึงหน้างาน</p><button className="ui-btn" onClick={() => setGpsAttempt(value => value + 1)}>ลองเชื่อมต่อ GPS อีกครั้ง</button></div>}
-        {role==='customer' && !hasCoordinates && <div className="tracking-runtime-note"><Building2 size={13} style={{verticalAlign:'middle',marginRight:5}}/> รายการนี้ยังไม่มีพิกัดที่อยู่ กรุณาตรวจสอบตำแหน่งที่บันทึกไว้ในรายละเอียดการจอง</div>}
-        {role==='admin' && <div className="tracking-runtime-note"><ShieldCheck size={14} style={{verticalAlign:'middle',marginRight:5}}/> โหมดผู้ดูแล: ใช้ตรวจสอบสถานะและข้อมูลตำแหน่งของงานที่เกี่ยวข้อง</div>}
-      </aside>
+      <section className="ui-card tk-list" aria-labelledby="tk-list-title">
+        <div className="ui-card-head"><div><h2 id="tk-list-title">งานในหมวดนี้ <span className="ui-num">{rows.length}</span></h2><p>เลือกงานเพื่อดูบนแผนที่</p></div></div>
+        <ul className="jb-rows">{rows.map(item => <li key={item.id}>
+          <button type="button" className={'jb-row' + (item.id === selected.id ? ' is-active' : '')} aria-current={item.id === selected.id ? 'true' : undefined} onClick={() => choose(item.id)}>
+            <span className="jb-date"><strong>{day(item.date).getDate()}</strong><small>{day(item.date).toLocaleDateString('th-TH', { month: 'short' })}</small></span>
+            <span className="jb-row-text"><strong>{item.code} · {item.service}</strong><span>{timeLabel(item)} · {item.technician || 'ยังไม่มีช่าง'}</span><small>{item.address}</small><StatusBadge status={item.status}/></span>
+            <ChevronRight className="jb-row-go" size={18} aria-hidden="true"/>
+          </button>
+        </li>)}</ul>
+      </section>
     </div>
   </div>;
 }

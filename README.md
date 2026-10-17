@@ -27,15 +27,15 @@ Full stack: React + TypeScript, ASP.NET Core 8, MongoDB · เก็บค่า
     <td align="center">ต่ออายุสมาชิกด้วย QR</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/09-booking-form.png" alt="ฟอร์มขอช่าง" width="190"></td>
+    <td><img src="docs/screenshots/09-booking-form.png" alt="ฟอร์มขอช่าง พร้อมราคากลางของงาน" width="190"></td>
+    <td><img src="docs/screenshots/12-nearby-jobs.png" alt="งานใกล้ช่าง พร้อมราคาจากใบราคาของช่าง" width="190"></td>
     <td><img src="docs/screenshots/10-building-rooms.png" alt="ผู้ดูแลอาคารจัดการรายห้อง" width="190"></td>
-    <td><img src="docs/screenshots/01-landing.png" alt="หน้าแรก" width="190"></td>
     <td><img src="docs/screenshots/04-sign-up.png" alt="สมัครแยกตามบทบาท" width="190"></td>
   </tr>
   <tr>
     <td align="center">ฟอร์มขอช่าง</td>
+    <td align="center">งานใกล้ช่าง</td>
     <td align="center">อาคารแบบรายห้อง</td>
-    <td align="center">หน้าแรก</td>
     <td align="center">สมัครตามบทบาท</td>
   </tr>
 </table>
@@ -47,13 +47,14 @@ Full stack: React + TypeScript, ASP.NET Core 8, MongoDB · เก็บค่า
 ## ทำอะไรได้บ้าง
 
 - **ผู้ใช้ 4 บทบาท** ลูกค้า ช่างแอร์ ผู้ดูแลอาคาร (จัดการทั้งตึกแบบรายห้อง) และแอดมิน แต่ละบทบาทมีหน้าของตัวเอง
+- **ราคาที่ลูกค้าเข้าใจได้** ลูกค้าบอกแค่สิ่งที่เห็น (ชนิดแอร์ จำนวน อาการ) ราคามาจากใบราคาของช่างแต่ละคน พร้อมช่วงราคากลางจากช่างทุกคนในระบบ ราคาล็อกเมื่อเลือกช่าง ถ้าหน้างานต้องปรับ ช่างขอในแอปพร้อมเหตุผลและลูกค้ากดอนุมัติก่อน
 - **ช่างเสนอราคาแทนราคาตายตัว** ช่างเห็นงานใกล้ตัวเรียงตามระยะทางแล้วเสนอราคา ลูกค้ามีเวลาเลือก 1 ชั่วโมงนับจากข้อเสนอแรก ถ้าหมดเวลา ข้อเสนอหมดอายุและเปิดรับใหม่ได้ในปุ่มเดียว
 - **ติดตามงานจริง** หลังยืนยันแล้ว ลูกค้าเห็นตำแหน่งช่างบนแผนที่ โทรหากันได้ เลื่อนวันนัดได้ ช่างติ๊กห้องที่ล้างเสร็จ แนบรูปก่อนและหลังล้าง แล้วปิดงานในขั้นตอนเดียว
 - **ตารางงานของช่าง** แยกตามวันพร้อมแถบ 7 วัน และเตือนเมื่อเวลานัดชนกัน
 - **เก็บเงินปลายทาง** ลูกค้าจ่ายช่างโดยตรง แพลตฟอร์มไม่ถือเงิน ทั้งสองฝ่ายยืนยัน และถ้ามีข้อโต้แย้งจะเข้าคิวให้แอดมินตัดสิน มีใบเสร็จพร้อมจำนวนเงินเป็นตัวอักษร
 - **รับช่างเข้าระบบ** ช่างส่งรูปบัตรประชาชนให้แอดมินตรวจก่อนอนุมัติ หลังอนุมัติใช้ฟรีช่วงทดลอง จากนั้นจ่ายค่าสมาชิกรายเดือนด้วย QR พร้อมเพย์ ระบบตรวจสลิปกับธนาคารผ่าน Slip2Go และต่ออายุให้ทันทีโดยไม่ต้องรอแอดมิน
 - **แจ้งเตือน** กระดิ่งในแอปและ Web Push รวมถึง iPhone เมื่อเพิ่มแอปไว้ที่หน้าจอหลัก มีเตือนล่วงหน้าวันนัด ครบรอบล้าง 6 เดือน และสมาชิกใกล้หมดอายุ
-- **เข้าสู่ระบบ** อีเมลและรหัสผ่าน, Google และ Apple ลิงก์ตั้งรหัสผ่านใหม่ใช้ได้ครั้งเดียวและออกจากระบบเครื่องอื่นทั้งหมด
+- **เข้าสู่ระบบ** อีเมลและรหัสผ่าน หรือ Google (ดึงรูปโปรไฟล์จาก Google ให้ด้วย) ลิงก์ตั้งรหัสผ่านใหม่ใช้ได้ครั้งเดียวและออกจากระบบเครื่องอื่นทั้งหมด
 
 รายการฟีเจอร์ทั้งหมดและการตั้งค่าทุกตัวอยู่ใน [docs/REFERENCE.md](docs/REFERENCE.md) และคำอธิบายผลิตภัณฑ์แบบละเอียดอยู่ใน [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md)
 
@@ -72,7 +73,7 @@ flowchart LR
   SPA -- "HTTPS + JWT" --> API
   API --> DB
   BG --> DB
-  API -- "ตรวจ ID token" --> OIDC["Google / Apple sign-in"]
+  API -- "ตรวจ ID token" --> OIDC["Google sign-in"]
   API -- "Web Push" --> PUSH["บริการ push ของเบราว์เซอร์<br/>FCM, Mozilla, Apple, Windows"]
   PUSH -.-> SPA
   API -- "HTTPS API" --> MAIL["Brevo<br/>อีเมลรีเซ็ตรหัสผ่าน"]
@@ -145,7 +146,7 @@ stateDiagram-v2
 | Frontend | React 18, TypeScript, Vite, Leaflet + OpenStreetMap, PWA ที่ติดตั้งได้พร้อม service worker |
 | Backend | ASP.NET Core 8 Web API, JWT, ASP.NET Identity password hashing, rate limit แบบ sliding window ต่อผู้ใช้ |
 | Database | MongoDB (Atlas ใน production) กับ .NET driver ทางการ |
-| บริการภายนอก | Google/Apple sign-in, Brevo (อีเมล), Web Push (VAPID), Slip2Go (ตรวจสลิป) |
+| บริการภายนอก | Google sign-in, Brevo (อีเมล), Web Push (VAPID), Slip2Go (ตรวจสลิป) |
 | Deploy | Render: Docker สำหรับ API (กำหนดใน `render.yaml`) และ static site สำหรับ frontend |
 | CI | GitHub Actions: build ทั้งสองฝั่ง, unit test (xUnit + Vitest) และ smoke test กับ MongoDB ชั่วคราว |
 
@@ -167,8 +168,9 @@ frontend/src
   pages/         หนึ่งไฟล์ต่อหนึ่งหน้าจอ เลือกหน้าด้วย page key ใน App.tsx
   components/    ส่วนที่ใช้ร่วมกัน: ฟอร์มขอช่าง แผนที่ ตัวเลือกเวลา กระดิ่งแจ้งเตือน
   lib/           API client, QR พร้อมเพย์, จำนวนเงินเป็นตัวอักษร, ตรวจเวลานัดชน (+ unit test)
-tests/           smoke test แบบ end-to-end และตัวจำลอง Google/Apple, push, Brevo, Slip2Go
-docs/            REFERENCE.md (การตั้งค่า), PROJECT-SUMMARY.md, screenshots/
+tests/           smoke test แบบ end-to-end และตัวจำลอง Google, push, Brevo, Slip2Go
+DESIGN.md        ระบบดีไซน์ (โทเคน คอมโพเนนต์ ui-* และกติกาการใช้สี)
+docs/            REFERENCE.md (การตั้งค่า), PROJECT-SUMMARY.md, redesign/PLAN.md, screenshots/
 ```
 
 ## รันบนเครื่องตัวเอง
@@ -211,7 +213,7 @@ npm run dev
 |---|---|---|---|
 | Unit (backend) | `backend/AirClean.Api.Tests` | ตรวจสลิปกับ Slip2Go จำลอง (ทุกรหัสผลลัพธ์), ช่วงเวลานัด, ระยะทางแบบเบลอ, สถานะสมาชิก, ราคา, ชื่อย่อ | `dotnet test backend/AirClean.Api.Tests` |
 | Unit (frontend) | `frontend/src/lib/*.test.ts` | QR พร้อมเพย์, เวลานัดชน, รายการห้อง, เวลานับถอยหลัง, จำนวนเงินเป็นตัวอักษร | `npm test` ใน `frontend/` |
-| End-to-end | `tests/marketplace_smoke.py` | เรียก API จริงกับฐานข้อมูลชั่วคราว: สิทธิ์ข้อมูล, ความเป็นส่วนตัวของที่อยู่, การอนุมัติช่าง, การเขียนพร้อมกัน, รีเซ็ตรหัสผ่าน, Google/Apple, push, ข้อโต้แย้งการจ่ายเงิน, ใบเสร็จ, ค่าสมาชิก, เวลาแจ้งเตือน | `python3 tests/marketplace_smoke.py` |
+| End-to-end | `tests/marketplace_smoke.py` | เรียก API จริงกับฐานข้อมูลชั่วคราว: สิทธิ์ข้อมูล, ความเป็นส่วนตัวของที่อยู่, การอนุมัติช่าง, การเขียนพร้อมกัน, รีเซ็ตรหัสผ่าน, Google sign-in, push, ข้อโต้แย้งการจ่ายเงิน, ใบเสร็จ, ค่าสมาชิก, เวลาแจ้งเตือน | `python3 tests/marketplace_smoke.py` |
 
 smoke test ต้องรันกับฐานข้อมูลที่ทิ้งได้เท่านั้น (ดูค่าที่ใช้ใน `.github/workflows/build.yml`) ห้ามชี้ไปที่ฐานข้อมูลจริง
 

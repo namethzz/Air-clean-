@@ -4,6 +4,7 @@ import type { TechnicianApplication, TechnicianDetail, VerificationStatus } from
 import { fetchTechnicianApplications, fetchTechnicianDetail, setTechnicianVerification } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import { JobPhotoGallery } from '../components/JobPhotos';
+import { EmptyState } from '../components/kit';
 import Avatar from '../components/Avatar';
 
 interface Props { onNotice: (message: string) => void; onChanged: () => void; }
@@ -56,7 +57,7 @@ export default function AdminTechniciansPage({ onNotice, onChanged }: Props) {
       {filters.map(item => <button key={item.key} type="button" role="tab" aria-selected={filter === item.key} className={filter === item.key ? 'active' : ''} onClick={() => setFilter(item.key)}>{item.label} <span>{count(item.key)}</span></button>)}
     </div>
     {error && <div className="ui-alert is-problem" role="alert"><AlertCircle size={18}/><span>{error}</span><button className="ui-btn" onClick={() => void load()}><RefreshCw size={15}/> ลองใหม่</button></div>}
-    {!loading && !error && shown.length === 0 && <section className="ui-card nearby-empty"><Users size={24}/><strong>{query ? 'ไม่พบช่างที่ค้นหา' : 'ยังไม่มีช่างในกลุ่มนี้'}</strong></section>}
+    {!loading && !error && shown.length === 0 && <EmptyState icon={Users} title={query ? 'ไม่พบช่างที่ค้นหา' : 'ยังไม่มีช่างในกลุ่มนี้'}/>}
     <ul className="at-list">{shown.map(row => <li key={row.id}>
       <button type="button" className="at-row" onClick={() => setSelected(row.id)}>
         <span className="at-avatar"><Avatar name={row.name} photoId={row.photoId}/></span>
@@ -142,7 +143,7 @@ function TechnicianProfileView({ id, onBack, onNotice, onSaved }: { id: number; 
         </dl>
         {suspending
           ? <div className="approval-reject">
-            <label className="form-field"><span>เหตุผล (ช่างจะเห็นข้อความนี้)</span><textarea rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น ลูกค้าร้องเรียนหลายครั้ง รอตรวจสอบ"/></label>
+            <label className="ui-field"><span className="ui-label">เหตุผล (ช่างจะเห็นข้อความนี้)</span><textarea className="ui-textarea" rows={3} maxLength={500} value={note} onChange={event => setNote(event.target.value)} placeholder="เช่น ลูกค้าร้องเรียนหลายครั้ง รอตรวจสอบ"/></label>
             <div><button type="button" className="ui-btn is-primary danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}><XCircle size={15}/> ยืนยัน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setSuspending(false)}>ยกเลิก</button></div>
           </div>
           : <div className="at-actions">

@@ -24,20 +24,33 @@ Built for the Thai market, so the interface is in Thai. Full stack: React + Type
     <td align="center">How it works</td>
     <td align="center">Sign-up by role</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/05-customer-offers.png" alt="A customer comparing quotes before the hour runs out" width="200"></td>
+    <td><img src="docs/screenshots/09-booking-form.png" alt="The request form with the going rate" width="200"></td>
+    <td><img src="docs/screenshots/12-nearby-jobs.png" alt="A technician's nearby jobs" width="200"></td>
+    <td><img src="docs/screenshots/07-technician-schedule.png" alt="A technician's schedule by day" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">Choosing a quote</td>
+    <td align="center">Request form</td>
+    <td align="center">Nearby jobs</td>
+    <td align="center">Technician's schedule</td>
+  </tr>
 </table>
 
-These are the public pages, captured at phone width (390 px). The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data.
+Captured at phone width (390 px) with demo data. The signed-in screens need the API and a database; see [Run it locally](#run-it-locally) to open them with demo data. The design system is described in [DESIGN.md](DESIGN.md).
 
 ## What it does
 
 - **Four roles.** Customers, technicians, building managers (whole buildings, room by room) and administrators each get their own workspace.
+- **Prices people can follow.** The customer only describes what they can see (kind of unit, how many, symptoms). Each technician quotes from their own price list, the going rate across technicians is shown beside it, and the price is locked once a technician is chosen. A change on site is asked for in the app with a reason, and the customer approves it first.
 - **Quotes instead of a fixed price.** Nearby technicians see open jobs sorted by distance and send a quote. The customer has one hour from the first quote to choose; after that the offers lapse and the request can be reopened with one tap.
 - **A live job.** After confirmation the customer follows the technician on a map. The technician counts finished rooms, attaches before and after photos, and closes the job in one step.
 - **Cash on delivery.** The customer pays the technician directly. AirClean never holds money; both sides confirm, and a dispute goes to an admin queue.
 - **Aircon Passport.** Each finished job is written to the unit's service history, and the next cleaning is scheduled for six months later.
 - **Technician onboarding.** Applications need an ID card and are approved by an admin. After approval a technician gets a free trial and then pays a monthly membership by PromptPay; the transfer slip is checked automatically through Slip2Go.
 - **Notifications.** An in-app bell plus Web Push, including iPhone when the app is added to the Home Screen.
-- **Sign-in.** Email and password, Google, and Apple. Password reset links are single-use and sign out the account's other devices.
+- **Sign-in.** Email and password, or Google (the Google picture becomes the profile photo). Password reset links are single-use and sign out the account's other devices.
 
 The full feature list and every configuration setting are in [docs/REFERENCE.md](docs/REFERENCE.md). A walkthrough of the product in Thai is in [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md).
 
@@ -56,7 +69,7 @@ flowchart LR
   SPA -- "HTTPS + JWT" --> API
   API --> DB
   BG --> DB
-  API -- "ID token check" --> OIDC["Google and Apple sign-in"]
+  API -- "ID token check" --> OIDC["Google sign-in"]
   API -- "Web Push" --> PUSH["Browser push services<br/>FCM, Mozilla, Apple, Windows"]
   PUSH -.-> SPA
   API -- "HTTPS API" --> MAIL["Brevo<br/>password-reset email"]
@@ -133,7 +146,7 @@ Every expiry and reminder is claimed with a conditional database update before a
 | Frontend | React 18, TypeScript, Vite, Leaflet and OpenStreetMap, an installable PWA with a service worker |
 | Backend | ASP.NET Core 8 Web API, JWT bearer authentication, ASP.NET Identity password hashing, sliding-window rate limits on sign-in and password reset |
 | Database | MongoDB (Atlas in production) with the official .NET driver |
-| Integrations | Google and Apple sign-in, Brevo email, Web Push (VAPID), Slip2Go slip verification, optional Google Places search |
+| Integrations | Google sign-in, Brevo email, Web Push (VAPID), Slip2Go slip verification, optional Google Places search |
 | Deployment | Render: a Docker web service for the API (defined in `render.yaml`) and a static site for the frontend |
 | CI | GitHub Actions: build both apps, run the xUnit and Vitest unit tests, then the smoke test against a throwaway MongoDB |
 
@@ -155,8 +168,9 @@ frontend/src
   pages/         One page per screen and role; routing is a switch on a page key in App.tsx
   components/    Shared UI: booking form, map picker, job stepper, notification bell
   lib/           API client, PromptPay QR payload, Thai baht text, schedule-clash check
-tests/           End-to-end smoke test plus stand-ins for Google/Apple, push and Slip2Go
-docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), customer-ui.md, screenshots/
+tests/           End-to-end smoke test plus stand-ins for Google, push and Slip2Go
+DESIGN.md        Design system: tokens, ui-* components, colour rules
+docs/            REFERENCE.md (configuration), PROJECT-SUMMARY.md (Thai), redesign/PLAN.md, screenshots/
 ```
 
 ## Run it locally
@@ -199,7 +213,7 @@ Three layers run on every pull request:
 - **Frontend unit tests** (Vitest, `frontend/src/lib/*.test.ts`): PromptPay QR payloads, schedule clashes, room lists, the offer countdown, Thai amounts in words. `npm test` in `frontend/`
 - **End-to-end smoke test**, described below.
 
-`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google and Apple sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips and reminder timing. External services are replaced by local stand-ins in `tests/`.
+`tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips and reminder timing. External services are replaced by local stand-ins in `tests/`.
 
 ```bash
 # with the API running against a disposable database (see .github/workflows/build.yml for the settings)

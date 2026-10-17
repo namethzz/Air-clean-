@@ -10,16 +10,15 @@ namespace AirClean.Api.Services;
 public record ExternalIdentity(string Provider, string Subject, string? Email, bool EmailVerified, string? Name, string? Picture = null);
 
 /// <summary>
-/// Verifies Google and Apple ID tokens against each provider's published signing keys, issuer and our client ID.
-/// GOOGLE_CLIENT_ID / APPLE_CLIENT_ID switch a provider on. Outside production, *_OIDC_AUTHORITY can point at a
-/// local test identity provider; production always uses the real Google and Apple endpoints.
+/// Verifies Google ID tokens against Google's published signing keys, issuer and our client ID.
+/// GOOGLE_CLIENT_ID switches it on. Outside production, GOOGLE_OIDC_AUTHORITY can point at a local test identity
+/// provider; production always uses Google's real endpoints.
 /// </summary>
 public class ExternalIdentityValidator(IConfiguration configuration, IWebHostEnvironment environment, ILogger<ExternalIdentityValidator> logger)
 {
     private record Provider(string Name, string ClientIdKey, string AuthorityKey, string DefaultAuthority, string[] ExtraIssuers);
     private static readonly Provider[] Providers = [
         new("google", "GOOGLE_CLIENT_ID", "GOOGLE_OIDC_AUTHORITY", "https://accounts.google.com", ["accounts.google.com"]),
-        new("apple", "APPLE_CLIENT_ID", "APPLE_OIDC_AUTHORITY", "https://appleid.apple.com", []),
     ];
     private readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> _metadata = new();
     private readonly JsonWebTokenHandler _handler = new();
@@ -45,7 +44,7 @@ public class ExternalIdentityValidator(IConfiguration configuration, IWebHostEnv
             var subject = Claim("sub");
             if (string.IsNullOrWhiteSpace(subject)) return null;
             var email = Claim("email")?.Trim().ToLowerInvariant();
-            // Apple sends email_verified as the string "true"; Google sends a boolean.
+            // email_verified may come as a boolean or as the string "true".
             var verified = string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase);
             var picture = p.Name == "google" ? PictureUrl(Claim("picture"), environment.IsProduction() ? null : TestAuthority(p)) : null;
             return new ExternalIdentity(p.Name, subject, string.IsNullOrWhiteSpace(email) ? null : email, verified, Claim("name"), picture);

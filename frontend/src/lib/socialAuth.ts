@@ -1,29 +1,20 @@
 /**
- * Google and Apple sign-in in the browser. Each returns an ID token that the API verifies.
- * Set VITE_GOOGLE_CLIENT_ID and/or VITE_APPLE_CLIENT_ID at build time to show the buttons.
+ * Google sign-in in the browser. It returns an ID token that the API verifies.
+ * Set VITE_GOOGLE_CLIENT_ID at build time to show the button.
  */
-export type SocialProvider = 'google' | 'apple';
+export type SocialProvider = 'google';
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim();
-const APPLE_CLIENT_ID = (import.meta.env.VITE_APPLE_CLIENT_ID as string | undefined)?.trim();
-/** Must match a Return URL registered for the Apple Services ID. Defaults to this site's home page. */
-const APPLE_REDIRECT_URI = (import.meta.env.VITE_APPLE_REDIRECT_URI as string | undefined)?.trim();
 
 export const googleEnabled = Boolean(GOOGLE_CLIENT_ID);
-export const appleEnabled = Boolean(APPLE_CLIENT_ID);
 
 interface GoogleCredentialResponse { credential?: string }
 interface GoogleAccountsId {
   initialize(options: { client_id: string; callback: (response: GoogleCredentialResponse) => void; ux_mode?: 'popup'; auto_select?: boolean; cancel_on_tap_outside?: boolean }): void;
   renderButton(element: HTMLElement, options: Record<string, string | number>): void;
 }
-interface AppleSignInResponse { authorization?: { id_token?: string }; user?: { name?: { firstName?: string; lastName?: string } } }
-interface AppleAuth {
-  init(options: { clientId: string; scope: string; redirectURI: string; usePopup: boolean }): void;
-  signIn(): Promise<AppleSignInResponse>;
-}
 declare global {
-  interface Window { google?: { accounts?: { id?: GoogleAccountsId } }; AppleID?: { auth?: AppleAuth } }
+  interface Window { google?: { accounts?: { id?: GoogleAccountsId } } }
 }
 
 const scripts = new Map<string, Promise<void>>();
@@ -60,23 +51,4 @@ export async function renderGoogleButton(element: HTMLElement, onToken: (idToken
   element.replaceChildren();
   api.renderButton(element, { type: 'standard', theme: 'outline', size: 'large', shape: 'pill', text, logo_alignment: 'left',
     locale: 'th', width: Math.max(200, Math.min(400, Math.round(element.getBoundingClientRect().width || 320))) });
-}
-
-/** Opens Apple's popup. Apple sends the person's name only the first time they share it with this app. */
-export async function signInWithApple(): Promise<{ idToken: string; fullName?: string }> {
-  if (!APPLE_CLIENT_ID) throw new Error('ยังไม่ได้เปิดใช้การเข้าสู่ระบบด้วย Apple');
-  await loadScript('https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js');
-  const auth = window.AppleID?.auth;
-  if (!auth) throw new Error('โหลดระบบเข้าสู่ระบบด้วย Apple ไม่สำเร็จ');
-  auth.init({ clientId: APPLE_CLIENT_ID, scope: 'name email', redirectURI: APPLE_REDIRECT_URI || window.location.origin + '/', usePopup: true });
-  let response: AppleSignInResponse;
-  try { response = await auth.signIn(); }
-  catch (error) {
-    const code = (error as { error?: string })?.error;
-    throw new Error(code === 'popup_closed_by_user' || code === 'user_cancelled_authorize' ? 'ยกเลิกการเข้าสู่ระบบด้วย Apple แล้ว' : 'เข้าสู่ระบบด้วย Apple ไม่สำเร็จ กรุณาลองใหม่');
-  }
-  const idToken = response.authorization?.id_token;
-  if (!idToken) throw new Error('Apple ไม่ได้ส่งข้อมูลยืนยันตัวตนกลับมา กรุณาลองใหม่');
-  const name = [response.user?.name?.firstName, response.user?.name?.lastName].filter(Boolean).join(' ').trim();
-  return { idToken, fullName: name || undefined };
 }

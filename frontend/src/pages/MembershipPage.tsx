@@ -225,7 +225,7 @@ function SlipReview({ payment, onDone }: { payment: MembershipPayment; onDone: (
       <small>ตรวจว่ายอดเงินเข้าบัญชีพร้อมเพย์ตรงกับสลิปก่อนกดยืนยัน</small>
       {rejecting
         ? <div className="ms-reject">
-          <label className="form-field"><span>เหตุผล (ช่างจะเห็นข้อความนี้)</span><input value={note} maxLength={500} onChange={event => setNote(event.target.value)} placeholder="เช่น ยอดเงินไม่ตรง / ไม่พบยอดเข้า"/></label>
+          <label className="ui-field"><span className="ui-label">เหตุผล (ช่างจะเห็นข้อความนี้)</span><input className="ui-input" value={note} maxLength={500} onChange={event => setNote(event.target.value)} placeholder="เช่น ยอดเงินไม่ตรง / ไม่พบยอดเข้า"/></label>
           <div><button type="button" className="ui-btn is-danger" disabled={busy || !note.trim()} onClick={() => void decide(false)}>ยืนยันไม่ผ่าน</button><button type="button" className="ui-btn" disabled={busy} onClick={() => setRejecting(false)}>ยกเลิก</button></div>
         </div>
         : <div className="ms-actions">
@@ -275,10 +275,10 @@ function SettingsForm({ settings, onSaved }: { settings: MembershipSettings; onS
   }
   return <form className="ms-card ms-settings" onSubmit={submit}>
     <h2><Wallet size={18}/> ราคาและบัญชีรับเงิน</h2>
-    <label className="form-field"><span>ค่าสมาชิกต่อเดือน (บาท)</span><input inputMode="decimal" value={fee} placeholder="0" onChange={event => setFee(numberText(event.target.value, { decimals: 2, maxLength: 8 }))}/></label>
-    <label className="form-field"><span>ทดลองใช้ฟรีหลังอนุมัติ (วัน)</span><input inputMode="numeric" value={trial} placeholder="0" onChange={event => setTrial(numberText(event.target.value, { maxLength: 3 }))}/></label>
-    <label className="form-field"><span>พร้อมเพย์ (เบอร์มือถือหรือเลขประจำตัว 13 หลัก)</span><input inputMode="numeric" value={form.promptPayId} maxLength={20} onChange={event => setForm({ ...form, promptPayId: event.target.value })} placeholder="08x-xxx-xxxx"/></label>
-    <label className="form-field"><span>ชื่อบัญชีที่ช่างจะเห็น</span><input value={form.payeeName} maxLength={120} onChange={event => setForm({ ...form, payeeName: event.target.value })} placeholder="เช่น บจก. แอร์คลีน"/></label>
+    <label className="ui-field"><span className="ui-label">ค่าสมาชิกต่อเดือน (บาท)</span><input className="ui-input" inputMode="decimal" value={fee} placeholder="0" onChange={event => setFee(numberText(event.target.value, { decimals: 2, maxLength: 8 }))}/></label>
+    <label className="ui-field"><span className="ui-label">ทดลองใช้ฟรีหลังอนุมัติ (วัน)</span><input className="ui-input" inputMode="numeric" value={trial} placeholder="0" onChange={event => setTrial(numberText(event.target.value, { maxLength: 3 }))}/></label>
+    <label className="ui-field"><span className="ui-label">พร้อมเพย์ (เบอร์มือถือหรือเลขประจำตัว 13 หลัก)</span><input className="ui-input" inputMode="numeric" value={form.promptPayId} maxLength={20} onChange={event => setForm({ ...form, promptPayId: event.target.value })} placeholder="08x-xxx-xxxx"/></label>
+    <label className="ui-field"><span className="ui-label">ชื่อบัญชีที่ช่างจะเห็น</span><input className="ui-input" value={form.payeeName} maxLength={120} onChange={event => setForm({ ...form, payeeName: event.target.value })} placeholder="เช่น บจก. แอร์คลีน"/></label>
     {error && <div className="ui-alert is-problem" role="alert">{error}</div>}
     <p className="ms-fine">ราคาใหม่ใช้กับสลิปที่ส่งหลังจากนี้ ช่างที่ทดลองใช้อยู่ไม่ถูกเปลี่ยนวัน</p>
     <button type="submit" className="ui-btn is-primary" disabled={busy}><Save size={16}/> {busy ? 'กำลังบันทึก…' : 'บันทึก'}</button>
