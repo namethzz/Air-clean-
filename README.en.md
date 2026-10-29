@@ -201,8 +201,8 @@ backend/AirClean.Api
                  ProfilePhotoService, TechnicianViewFilter, DtoMapper
   Models/ DTOs/ Data/   Entities, request and response contracts, MongoStore and indexes
 frontend/src
-  pages/         One page per screen and role; routing is a switch on a page key in App.tsx
-  components/    Shared UI: booking form, map picker, job stepper, notification bell
+  pages/         One folder per page; each page is its own file, loaded when first opened (see pages/README.md)
+  components/    Shared UI: shell/ (app frame), booking/ (request form), job/ (job pieces)
   lib/           API client, PromptPay QR payload, Thai baht text, schedule-clash check,
                  each role's job stages (jobFlow), pricing
 tests/           End-to-end smoke test plus stand-ins for Google, push and Slip2Go
@@ -247,7 +247,7 @@ Seeding runs only when the database has no users, and never when `ASPNETCORE_ENV
 Three layers run on every pull request:
 
 - **Backend unit tests** (xUnit, `backend/AirClean.Api.Tests`, 35 test methods): the Slip2Go check against a fake service, time windows, the blurred distance, membership states, quotes and names. `dotnet test backend/AirClean.Api.Tests`
-- **Frontend unit tests** (Vitest, `frontend/src/lib/*.test.ts` and `frontend/src/components/*.test.ts`, 57 tests in 11 files): PromptPay QR payloads, schedule clashes, room lists, each role's job stages, prices and technician price lists, Thai digits and amounts in words, the next cleaning date, initials and time labels, photo cropping, safe links. `npm test` in `frontend/`
+- **Frontend unit tests** (Vitest, `frontend/src/lib/*.test.ts` and `frontend/src/pages/profile/technician/*.test.ts`, 57 tests in 11 files): PromptPay QR payloads, schedule clashes, room lists, each role's job stages, prices and technician price lists, Thai digits and amounts in words, the next cleaning date, initials and time labels, photo cropping, safe links. `npm test` in `frontend/`
 - **End-to-end smoke test**, described below.
 
 `tests/marketplace_smoke.py` drives the real API over HTTP against a disposable database. It covers account ownership, address privacy, approval rules, concurrent writes, password reset and session sign-out, Google sign-in, push encryption, payment disputes, receipts, rescheduling, membership slips, reminder timing and account deletion. External services are replaced by local stand-ins in `tests/`.

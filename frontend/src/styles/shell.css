@@ -612,3 +612,49 @@
     font-size: 16px;
   }
 }
+
+/* ───────── Brand screen ─────────
+   While the saved session is checked on start, and while a visitor screen's file arrives. The sign-in page uses the
+   same brand mark, so it lives here with the shell rather than with that page. */
+.au-brand-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--v-blue-600);
+  color: var(--v-on-blue);
+}
+
+.au-loading {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--v-gap-4);
+  min-height: 100dvh;
+  background: var(--v-surface);
+  color: var(--v-ink-3);
+  font-family: var(--v-font-text);
+}
+.au-loading .au-brand-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--v-blue-700);
+  animation: au-breathe 1.6s var(--v-ease) infinite alternate;
+}
+.au-loading p {
+  margin: 0;
+}
+@keyframes au-breathe {
+  to {
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-loading .au-brand-mark {
+    animation: none;
+  }
+}
