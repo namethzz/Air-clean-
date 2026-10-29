@@ -199,8 +199,8 @@ backend/AirClean.Api
   Models/ DTOs/ Data/   entity, สัญญา request/response, MongoStore และ index
 backend/AirClean.Api.Tests   unit test (xUnit)
 frontend/src
-  pages/         หนึ่งไฟล์ต่อหนึ่งหน้าจอ เลือกหน้าด้วย page key ใน App.tsx
-  components/    ส่วนที่ใช้ร่วมกัน: ฟอร์มขอช่าง แผนที่ ตัวเลือกเวลา กระดิ่งแจ้งเตือน
+  pages/         หนึ่งโฟลเดอร์ต่อหนึ่งหน้า แต่ละหน้าโหลดแยกเมื่อเปิด (ดู pages/README.md)
+  components/    ส่วนที่ใช้ร่วมกัน: shell/ กรอบแอป, booking/ ฟอร์มขอช่าง, job/ ชิ้นส่วนของงาน
   lib/           API client, QR พร้อมเพย์, จำนวนเงินเป็นตัวอักษร, ตรวจเวลานัดชน,
                  ขั้นของงานแต่ละบทบาท (jobFlow), ราคา (+ unit test)
 tests/           smoke test แบบ end-to-end และตัวจำลอง Google, push, Brevo, Slip2Go
@@ -247,7 +247,7 @@ npm run dev
 | ชั้น | อยู่ที่ | ทดสอบอะไร | คำสั่ง |
 |---|---|---|---|
 | Unit (backend) | `backend/AirClean.Api.Tests` | 35 เมธอดทดสอบ: ตรวจสลิปกับ Slip2Go จำลอง (ทุกรหัสผลลัพธ์), ช่วงเวลานัด, ระยะทางแบบเบลอ, สถานะสมาชิก, ราคา, ชื่อย่อ | `dotnet test backend/AirClean.Api.Tests` |
-| Unit (frontend) | `frontend/src/lib/*.test.ts`, `frontend/src/components/*.test.ts` | 57 test ใน 11 ไฟล์: QR พร้อมเพย์, เวลานัดชน, รายการห้อง, ขั้นของงานแต่ละบทบาท, ราคาและใบราคาของช่าง, ตัวเลขไทยและจำนวนเงินเป็นตัวอักษร, รอบล้างถัดไป, ชื่อย่อและป้ายเวลา, การครอปรูป, ลิงก์ที่ปลอดภัย | `npm test` ใน `frontend/` |
+| Unit (frontend) | `frontend/src/lib/*.test.ts`, `frontend/src/pages/profile/technician/*.test.ts` | 57 test ใน 11 ไฟล์: QR พร้อมเพย์, เวลานัดชน, รายการห้อง, ขั้นของงานแต่ละบทบาท, ราคาและใบราคาของช่าง, ตัวเลขไทยและจำนวนเงินเป็นตัวอักษร, รอบล้างถัดไป, ชื่อย่อและป้ายเวลา, การครอปรูป, ลิงก์ที่ปลอดภัย | `npm test` ใน `frontend/` |
 | End-to-end | `tests/marketplace_smoke.py` | เรียก API จริงกับฐานข้อมูลชั่วคราว: สิทธิ์ข้อมูล, ความเป็นส่วนตัวของที่อยู่, การอนุมัติช่าง, การเขียนพร้อมกัน, รีเซ็ตรหัสผ่าน, Google sign-in, push, ข้อโต้แย้งการจ่ายเงิน, ใบเสร็จ, ค่าสมาชิก, เวลาแจ้งเตือน, การลบบัญชี | `python3 tests/marketplace_smoke.py` |
 
 smoke test ต้องรันกับฐานข้อมูลที่ทิ้งได้เท่านั้น (ดูค่าที่ใช้ใน `.github/workflows/build.yml`) ห้ามชี้ไปที่ฐานข้อมูลจริง

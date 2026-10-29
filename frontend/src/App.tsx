@@ -1,39 +1,75 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Menu, RefreshCw, WifiOff, X } from 'lucide-react';
 import BrandMark from './components/BrandMark';
-import Sidebar from './components/Sidebar';
-import BottomNav from './components/BottomNav';
-import CustomerJobsPage, { type JobFocus } from './pages/CustomerJobsPage';
-import TechnicianJobsPage from './pages/TechnicianJobsPage';
+import Sidebar from './components/shell/Sidebar';
+import BottomNav from './components/shell/BottomNav';
 import { isClosed, isClosedForCustomer, needsAction, techTurn } from './lib/jobFlow';
-import Topbar from './components/Topbar';
-import BookingModal, { type BookingPayload } from './components/BookingModal';
-import AuthPage from './pages/AuthPage';
-import LandingPage from './pages/LandingPage';
-import ProfilePage from './pages/ProfilePage';
-import DashboardPage from './pages/DashboardPage';
-import BookingsPage from './pages/BookingsPage';
-import CleaningHistoryPage from './pages/CleaningHistoryPage';
-import ReportsPage from './pages/ReportsPage';
-import TrackingPage from './pages/TrackingPage';
-import NearbyJobsPage from './pages/NearbyJobsPage';
-import ApprovalsPage from './pages/ApprovalsPage';
-import BuildingsPage from './pages/BuildingsPage';
+import Topbar from './components/shell/Topbar';
 import { books } from './lib/roles';
-import IssuesPage from './pages/IssuesPage';
-import MembershipPage from './pages/MembershipPage';
-import AdminTechniciansPage from './pages/AdminTechniciansPage';
-import UpdateBanner from './components/UpdateBanner';
-import PushPrompt from './components/PushPrompt';
-import NotificationBell from './components/NotificationBell';
+import UpdateBanner from './components/shell/UpdateBanner';
+import PushPrompt from './components/shell/PushPrompt';
+import NotificationBell from './components/shell/NotificationBell';
 import { disablePush, registerServiceWorker } from './lib/push';
+import type { BookingPayload } from './components/booking/BookingModal';
+
+/*
+ * Every page is its own file, fetched the first time it opens (pages/README.md lists which folder holds which page).
+ * The shell (menus, top bar, bell) loads with the app; after sign-in the pages of that role load in the background,
+ * so moving between them stays instant.
+ */
+const load = {
+  landing: () => import('./pages/landing/LandingPage'),
+  auth: () => import('./pages/auth/AuthPage'),
+  home: () => import('./pages/home/CustomerHome'),
+  adminOverview: () => import('./pages/admin/AdminOverview'),
+  jobs: () => import('./pages/jobs/CustomerJobsPage'),
+  technicianJobs: () => import('./pages/technician-jobs/TechnicianJobsPage'),
+  nearby: () => import('./pages/nearby/NearbyJobsPage'),
+  history: () => import('./pages/history/CleaningHistoryPage'),
+  buildings: () => import('./pages/buildings/BuildingsPage'),
+  membership: () => import('./pages/membership/MembershipPage'),
+  profile: () => import('./pages/profile/ProfilePage'),
+  adminBookings: () => import('./pages/admin/BookingsPage'),
+  tracking: () => import('./pages/admin/TrackingPage'),
+  reports: () => import('./pages/admin/ReportsPage'),
+  issues: () => import('./pages/admin/IssuesPage'),
+  approvals: () => import('./pages/admin/ApprovalsPage'),
+  adminTechnicians: () => import('./pages/admin/AdminTechniciansPage'),
+  booking: () => import('./components/booking/BookingModal'),
+};
+const LandingPage = lazy(load.landing);
+const AuthPage = lazy(load.auth);
+const CustomerHome = lazy(load.home);
+const AdminOverview = lazy(load.adminOverview);
+const CustomerJobsPage = lazy(load.jobs);
+const TechnicianJobsPage = lazy(load.technicianJobs);
+const NearbyJobsPage = lazy(load.nearby);
+const CleaningHistoryPage = lazy(load.history);
+const BuildingsPage = lazy(load.buildings);
+const MembershipPage = lazy(load.membership);
+const ProfilePage = lazy(load.profile);
+const BookingsPage = lazy(load.adminBookings);
+const TrackingPage = lazy(load.tracking);
+const ReportsPage = lazy(load.reports);
+const IssuesPage = lazy(load.issues);
+const ApprovalsPage = lazy(load.approvals);
+const AdminTechniciansPage = lazy(load.adminTechnicians);
+const BookingModal = lazy(load.booking);
+const rolePages: Record<UserRole, (() => Promise<unknown>)[]> = {
+  customer: [load.home, load.jobs, load.booking, load.history, load.profile],
+  manager: [load.home, load.jobs, load.booking, load.buildings, load.history, load.profile],
+  technician: [load.nearby, load.technicianJobs, load.membership, load.profile],
+  admin: [load.adminOverview, load.approvals, load.adminBookings, load.issues, load.tracking, load.adminTechnicians, load.membership, load.reports, load.profile],
+};
+/** While a page's file is on its way: the thin bar the data loads use, so nothing jumps. */
+const pageLoading = <div className="sh-progress" role="status"><span className="sr-only">กำลังเปิดหน้า</span></div>;
 import {
   reopenBooking, answerPriceChange, proposePriceChange, withdrawPriceChange, type ProposeChangePayload, applyForBooking, completeJob, updateJobProgress, requestReschedule, reportProblem, clearAuth, confirmBookingTechnician, confirmOnsitePayment, createBooking,
   createReview, fetchAirConditioners, fetchBookings, fetchCurrentUser,
   fetchServiceReports, fetchTechnicians, reportPaymentIssue, updateBookingStatus, updateTechnicianLocation,
   type CompleteJobPayload,
 } from './lib/api';
-import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
+import type { AppNotification, AppState, Booking, BookingStatus, DashboardSummary, JobFocus, PageKey, PaymentMethod, UserProfile, UserRole } from './types';
 
 const pageTitles:Record<PageKey,string> = {
   overview:'ภาพรวม', technicians:'ค้นหาช่าง', nearbyJobs:'งานใกล้ฉัน', bookings:'รายการจอง',
@@ -142,6 +178,15 @@ export default function App() {
   },[userId,userRole]);
   useEffect(()=>{if(userId!=null)void refreshData();},[userId,refreshData]);
   useEffect(()=>{void registerServiceWorker();},[]);
+  useEffect(()=>{
+    if(!userRole)return;
+    const fetchAll=()=>{for(const page of rolePages[userRole])void page().catch(()=>undefined);};
+    const idle=(window as Window & {requestIdleCallback?:(run:()=>void)=>number}).requestIdleCallback;
+    const handle=idle?idle(fetchAll):window.setTimeout(fetchAll,1500);
+    return ()=>{if(!idle)window.clearTimeout(handle);};
+  },[userRole]);
+  // Visitors are likely to go from the landing page to sign-in next.
+  useEffect(()=>{if(!checkingSession&&!userRole)void load.auth().catch(()=>undefined);},[checkingSession,userRole]);
 
   // Notification links use the same role rules as the menus (navigate is redefined each render).
   const navigateRef = useRef<(next:PageKey)=>void>(()=>undefined);
@@ -333,7 +378,10 @@ export default function App() {
   const content = useMemo(()=>{
     if(!user)return null;
     switch(page){
-      case 'overview':return <DashboardPage state={state} role={user.role} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>user.role==='technician'?navigate('tracking'):openBooking()}/>;
+      // Customers and building managers get their own home; technicians start on "งานใกล้ฉัน", so the rest is the admin's overview.
+      case 'overview':return books(user.role)
+        ?<CustomerHome role={user.role as 'customer'|'manager'} bookings={state.bookings} reports={state.serviceReports} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob} onNewBooking={()=>openBooking()}/>
+        :<AdminOverview state={state} userName={user.fullName} onNavigate={navigate} onOpenJob={openJob}/>;
       case 'technicians':if(user.role==='admin')return <AdminTechniciansPage onNotice={showNotice} onChanged={()=>void refreshData()}/>;
         return null;
       case 'nearbyJobs':return <NearbyJobsPage onApply={applyForNearbyJob} onOpenProfile={()=>navigate('profile')} onOpenMembership={()=>navigate('membership')} onOpenMyJobs={()=>navigate('bookings')} myJobs={state.bookings}/>;
@@ -358,11 +406,13 @@ export default function App() {
     setResetToken('');setVisitorScreen('login');
     if(message){clearAuth();setUser(null);setState(emptyState());setAuthInfo(message);}
   }
-  if(resetToken&&!checkingSession)return <AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/>;
+  // The visitor screens are files of their own too; the brand screen shows while one arrives.
+  const brandLoading = <div className="au-loading" role="status"><span className="au-brand-mark"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังเปิด AirClean…</p></div>;
+  if(resetToken&&!checkingSession)return <Suspense fallback={brandLoading}><AuthPage key="reset" resetToken={resetToken} onResetFinished={finishReset} onBack={()=>{finishReset();setVisitorScreen('landing');}} onAuthenticated={onAuthenticated}/></Suspense>;
   if(checkingSession)return <div className="au-loading" role="status"><span className="au-brand-mark"><BrandMark className="w-[82%] h-auto"/></span><p>กำลังตรวจสอบบัญชีของคุณ…</p></div>;
   if(!user) {
-    if(visitorScreen === 'landing' && !sessionError) return <LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/>;
-    return <AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/>;
+    if(visitorScreen === 'landing' && !sessionError) return <Suspense fallback={brandLoading}><LandingPage onStart={(mode,role='customer')=>{setVisitorScreen(mode);setSignupRole(role);}}/></Suspense>;
+    return <Suspense fallback={brandLoading}><AuthPage key={visitorScreen + signupRole} initialMode={visitorScreen==='register'?'register':'login'} initialRole={signupRole} initialError={sessionError} initialInfo={authInfo} onBack={()=>{setVisitorScreen('landing');setSessionError('');}} onAuthenticated={onAuthenticated}/></Suspense>;
   }
 
   // One bell, in whichever bar is showing: two copies polled twice and drifted apart.
@@ -382,13 +432,13 @@ export default function App() {
       </header>
       {dataError&&<div className="ui-alert is-problem sh-data-alert" role="status"><AlertCircle size={18}/><span>{dataError}</span><button type="button" className="ui-btn is-sm" onClick={()=>void refreshData()}><RefreshCw size={15}/> ลองใหม่</button></div>}
       {isLoading&&<div className="sh-progress" role="status"><span className="sr-only">กำลังโหลดข้อมูล</span></div>}
-      <div className="sh-content">{content}</div>
+      <div className="sh-content"><Suspense fallback={pageLoading}>{content}</Suspense></div>
       <footer className="sh-foot"><span>© 2026 AirClean</span>{!apiConnected&&<span className="sh-offline" role="status"><WifiOff size={14}/> เชื่อมต่อระบบไม่ได้ ลองโหลดหน้าใหม่</span>}</footer>
     </main>
     {tabbed&&<BottomNav role={user.role} page={page} actionCount={actionCount} onNavigate={navigate} onNewBooking={()=>openBooking()}/>}
     <UpdateBanner/>
     <PushPrompt key={user.id} userId={user.id} role={user.role}/>
-    {bookingModalOpen&&<BookingModal units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} initialRooms={bookingRooms} bookings={state.bookings} phone={user.phone} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/>}
+    {bookingModalOpen&&<Suspense fallback={pageLoading}><BookingModal units={books(user.role)?[]:state.airConditioners} initialUnitId={bookingUnitId} role={user.role} initialPlaceId={bookingPlaceId} initialRooms={bookingRooms} bookings={state.bookings} phone={user.phone} onClose={()=>setBookingModalOpen(false)} onSubmit={bookingSubmit}/></Suspense>}
     {notice&&<div className="sh-toast" role="status"><CheckCircle2 size={19} aria-hidden="true"/><span>{notice}</span><button type="button" className="sh-toast-close" onClick={()=>setNotice('')} aria-label="ปิดข้อความ"><X size={16}/></button></div>}
   </div>;
 }

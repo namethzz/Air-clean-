@@ -58,3 +58,6 @@ export interface PriceSheet{wall:number;wallDeep:number;hanging:number;hangingDe
 export interface PriceGuide{typical:PriceSheet;low:PriceSheet;high:PriceSheet;technicians:number;reference:boolean;}
 /** A change the technician asked for on site; nothing changes until the customer approves. */
 export interface PriceChange{id:string;kind:'correction'|'extra';status:'Pending'|'Approved'|'Declined'|'Withdrawn';lines:PriceLine[];reason:string;oldPrice:number;newPrice:number;createdAt:string;answeredAt?:string|null;items?:JobItem[]|null;deep?:boolean|null;hardAccessUnits?:number|null;}
+
+/** A job to open and scroll to; the token makes the same job open again when asked twice. */
+export interface JobFocus { id: number; token: number; }
